@@ -50,6 +50,7 @@
 import Splash from './pages/Splash';
 import RoleSelection from './pages/RoleSelection';
 import ClinicianDashboard from './pages/ClinicianDashboard';
+import BehaviorPlanBuilder from './pages/BehaviorPlanBuilder';
 import __Layout from './Layout.jsx';
 
 
@@ -57,6 +58,7 @@ export const PAGES = {
     "Splash": Splash,
     "RoleSelection": RoleSelection,
     "ClinicianDashboard": ClinicianDashboard,
+    "BehaviorPlanBuilder": BehaviorPlanBuilder,
 }
 
 export const pagesConfig = {
