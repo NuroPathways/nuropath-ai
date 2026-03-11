@@ -52,6 +52,7 @@ import RoleSelection from './pages/RoleSelection';
 import ClinicianDashboard from './pages/ClinicianDashboard';
 import BehaviorPlanBuilder from './pages/BehaviorPlanBuilder';
 import ParentDashboard from './pages/ParentDashboard';
+import AIChat from './pages/AIChat';
 import __Layout from './Layout.jsx';
 
 
@@ -61,6 +62,7 @@ export const PAGES = {
     "ClinicianDashboard": ClinicianDashboard,
     "BehaviorPlanBuilder": BehaviorPlanBuilder,
     "ParentDashboard": ParentDashboard,
+    "AIChat": AIChat,
 }
 
 export const pagesConfig = {
