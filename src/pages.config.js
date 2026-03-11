@@ -49,12 +49,14 @@
  */
 import Splash from './pages/Splash';
 import RoleSelection from './pages/RoleSelection';
+import ClinicianDashboard from './pages/ClinicianDashboard';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "Splash": Splash,
     "RoleSelection": RoleSelection,
+    "ClinicianDashboard": ClinicianDashboard,
 }
 
 export const pagesConfig = {
