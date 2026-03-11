@@ -47,13 +47,16 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
+import Splash from './pages/Splash';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
+    "Splash": Splash,
 }
 
 export const pagesConfig = {
+    mainPage: "Splash",
     Pages: PAGES,
     Layout: __Layout,
 };
