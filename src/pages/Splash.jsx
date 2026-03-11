@@ -13,7 +13,7 @@ export default function Splash() {
       await new Promise((r) => setTimeout(r, 1800));
       const isAuth = await base44.auth.isAuthenticated();
       if (!isAuth) {
-        navigate(createPageUrl("Login"));
+        base44.auth.redirectToLogin(createPageUrl("Splash"));
         return;
       }
       const user = await base44.auth.me();
