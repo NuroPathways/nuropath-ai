@@ -114,17 +114,32 @@ export default function ClinicianDashboard() {
         )}
       </div>
 
-      {/* Quick action */}
-      <div
-        className="bg-primary rounded-2xl p-6 flex items-center justify-between cursor-pointer group"
-        onClick={() => navigate(createPageUrl("BehaviorPlanBuilder"))}
-      >
-        <div>
-          <p className="font-semibold text-white text-sm">Create Behavior Plan</p>
-          <p className="text-white/70 text-xs mt-0.5">Build a new plan for a client</p>
+      {/* Quick actions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div
+          className="bg-primary rounded-2xl p-6 flex items-center justify-between cursor-pointer group"
+          onClick={() => navigate(createPageUrl("BehaviorPlanBuilder"))}
+        >
+          <div>
+            <p className="font-semibold text-white text-sm">Create Behavior Plan</p>
+            <p className="text-white/70 text-xs mt-0.5">Build a new plan for a client</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-white/20 group-hover:bg-white/30 flex items-center justify-center transition-colors">
+            <FileText className="w-5 h-5 text-white" />
+          </div>
         </div>
-        <div className="w-10 h-10 rounded-xl bg-white/20 group-hover:bg-white/30 flex items-center justify-center transition-colors">
-          <FileText className="w-5 h-5 text-white" />
+
+        <div
+          className="bg-secondary rounded-2xl p-6 flex items-center justify-between cursor-pointer group"
+          onClick={() => navigate("/UploadBehaviorPlan")}
+        >
+          <div>
+            <p className="font-semibold text-white text-sm">Upload Behavior Plan</p>
+            <p className="text-white/70 text-xs mt-0.5">Import existing plan documents</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-white/20 group-hover:bg-white/30 flex items-center justify-center transition-colors">
+            <TrendingUp className="w-5 h-5 text-white" />
+          </div>
         </div>
       </div>
 
