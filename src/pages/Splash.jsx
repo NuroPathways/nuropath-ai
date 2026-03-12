@@ -1,63 +1,72 @@
-import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/utils";
-import { base44 } from "@/api/base44Client";
-import { Brain } from "lucide-react";
+import { Brain, Users, Stethoscope, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Splash() {
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const check = async () => {
-      await new Promise((r) => setTimeout(r, 1800));
-      const isAuth = await base44.auth.isAuthenticated();
-      if (!isAuth) {
-        base44.auth.redirectToLogin(createPageUrl("Splash"));
-        return;
-      }
-      const user = await base44.auth.me();
-      if (!user.role) {
-        navigate(createPageUrl("RoleSelection"));
-      } else if (user.role === "clinician") {
-        navigate(createPageUrl("ClinicianDashboard"));
-      } else {
-        navigate(createPageUrl("ParentDashboard"));
-      }
-    };
-    check();
-  }, [navigate]);
-
   return (
-    <div className="min-h-screen bg-primary flex flex-col items-center justify-center font-inter">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 font-inter">
       <motion.div
-        initial={{ opacity: 0, scale: 0.85 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="flex flex-col items-center gap-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center max-w-4xl"
       >
-        <div className="w-24 h-24 rounded-3xl bg-white/20 flex items-center justify-center shadow-2xl">
-          <Brain className="w-12 h-12 text-white" />
+        <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-6">
+          <Brain className="w-10 h-10 text-primary-foreground" />
         </div>
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-white tracking-tight">Aspire AI</h1>
-          <p className="text-white/70 mt-2 text-base font-medium">Behavior support, powered by intelligence</p>
+        <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-3">
+          Welcome to Aspire AI
+        </h1>
+        <p className="text-muted-foreground text-lg md:text-xl mb-12 max-w-2xl mx-auto">
+          Clinical behavioral support assistant helping families implement evidence-based strategies
+        </p>
+
+        <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <button
+              onClick={() => navigate("/ParentLogin")}
+              className="w-full bg-card border-2 border-border hover:border-primary rounded-2xl p-8 transition-all group"
+            >
+              <div className="w-16 h-16 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-accent/20 transition-colors">
+                <Users className="w-8 h-8 text-accent" />
+              </div>
+              <h2 className="text-2xl font-semibold text-foreground mb-2">I'm a Parent</h2>
+              <p className="text-muted-foreground mb-4">
+                Access support strategies for your child
+              </p>
+              <div className="flex items-center justify-center gap-2 text-primary font-medium">
+                Continue <ArrowRight className="w-4 h-4" />
+              </div>
+            </button>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <button
+              onClick={() => navigate("/ClinicianLogin")}
+              className="w-full bg-card border-2 border-border hover:border-primary rounded-2xl p-8 transition-all group"
+            >
+              <div className="w-16 h-16 rounded-xl bg-secondary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-secondary/20 transition-colors">
+                <Stethoscope className="w-8 h-8 text-secondary" />
+              </div>
+              <h2 className="text-2xl font-semibold text-foreground mb-2">I'm a Clinician</h2>
+              <p className="text-muted-foreground mb-4">
+                Manage behavior plans and client cases
+              </p>
+              <div className="flex items-center justify-center gap-2 text-primary font-medium">
+                Continue <ArrowRight className="w-4 h-4" />
+              </div>
+            </button>
+          </motion.div>
         </div>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="mt-4 flex gap-1.5"
-        >
-          {[0, 1, 2].map((i) => (
-            <motion.div
-              key={i}
-              className="w-2 h-2 rounded-full bg-white/60"
-              animate={{ opacity: [0.4, 1, 0.4] }}
-              transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
-            />
-          ))}
-        </motion.div>
       </motion.div>
     </div>
   );
