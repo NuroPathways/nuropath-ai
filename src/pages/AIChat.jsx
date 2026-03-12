@@ -20,7 +20,19 @@ const SUGGESTED = [
 
 async function module1_BehaviorInterpreter(parentInput) {
   const result = await base44.integrations.Core.InvokeLLM({
-    prompt: `You are a clinical behavior analyst. A parent has described their child's behavior. Analyze the description and return a structured clinical interpretation.
+    prompt: `You are Aspire AI, a behavioral support assistant designed to help parents support children using strategies defined by their clinician's behavior plan.
+
+Analyze the parent's description to understand what the child may be experiencing internally.
+
+Children often escalate behavior when they feel:
+• overwhelmed
+• unsafe
+• confused about expectations
+• frustrated by a task
+• unable to transition between activities
+• unable to communicate a need
+• overstimulated
+• emotionally dysregulated
 
 Parent's description: "${parentInput}"
 
@@ -59,7 +71,9 @@ Severity: ${p.severity_level || "N/A"}
 `.trim()).join("\n\n---\n\n");
 
   const result = await base44.integrations.Core.InvokeLLM({
-    prompt: `You are a clinical context engine. Review the clinician-approved behavior plans and match the most relevant strategies to the current behavior.
+    prompt: `You are Aspire AI. Your role is to translate clinician behavior plans into clear, practical, real-time guidance.
+
+CORE PRINCIPLE: Clinician plans come first. Always prioritize the strategies and methods defined in the clinician's behavior plan.
 
 Child: ${child?.child_name || "Unknown"}, Age: ${child?.age || "N/A"}, Diagnosis: ${child?.diagnosis || "N/A"}
 
@@ -72,7 +86,7 @@ Interpreted Behavior:
 Clinician-Approved Behavior Plans:
 ${planText}
 
-Return ONLY valid JSON. Only use strategies from the provided plans. Do not invent advice.`,
+Match the most relevant clinician-defined strategies to this behavior. Return ONLY valid JSON. Only use strategies from the provided plans. Do not invent advice.`,
     response_json_schema: {
       type: "object",
       properties: {
@@ -92,7 +106,15 @@ Return ONLY valid JSON. Only use strategies from the provided plans. Do not inve
 
 async function module3_StrategySelector(interpretation, clinicalContext) {
   const result = await base44.integrations.Core.InvokeLLM({
-    prompt: `You are a behavior intervention strategist. Based on the interpreted behavior and matched clinical strategies, create a structured, prioritized intervention sequence.
+    prompt: `You are Aspire AI. Your goal is to help parents feel calm, confident, and supported while staying aligned with the clinician's plan for the child.
+
+Based on the interpreted behavior and matched clinical strategies, create a structured, prioritized intervention sequence using evidence-based behavioral supports:
+• task breakdown
+• visual supports
+• transition supports
+• reinforcement systems
+• movement breaks
+• emotional regulation supports
 
 Behavior Type: ${interpretation.behavior_type}
 Intensity: ${interpretation.intensity}
@@ -103,7 +125,7 @@ De-escalation: ${clinicalContext.deescalation_strategy || "N/A"}
 Reinforcement: ${clinicalContext.reinforcement || "N/A"}
 Avoid: ${clinicalContext.things_to_avoid || "N/A"}
 
-Return ONLY valid JSON with a clear, ordered intervention plan.`,
+Return ONLY valid JSON with a clear, ordered intervention plan that stays aligned with the clinician's approach.`,
     response_json_schema: {
       type: "object",
       properties: {
@@ -132,12 +154,23 @@ async function module4_ParentGuidanceGenerator(child, interpretation, strategyPl
     : "";
 
   const response = await base44.integrations.Core.InvokeLLM({
-    prompt: `You are Aspire AI, a warm and compassionate behavior support assistant helping a parent right now.
+    prompt: `You are Aspire AI, a behavioral support assistant designed to help parents support children using strategies defined by their clinician's behavior plan.
 
-Convert this clinical intervention plan into calm, clear, parent-friendly guidance. 
-Never use clinical jargon. Be warm, validating, and specific. 
-Acknowledge the parent's feelings first if the situation sounds stressful.
-Use simple language a parent can follow in the moment.
+RESPONSE STRUCTURE - Follow this order:
+
+1. Emotional validation - Acknowledge the parent's experience.
+
+2. Behavioral insight - Explain what the child may be feeling internally. Help the parent understand why their child may be feeling overwhelmed, unsafe, frustrated, or unable to complete a task.
+
+3. Clinician strategy steps - Provide step-by-step guidance using strategies from the clinician's behavior plan.
+
+4. Escalation guidance - If the behavior escalates, guide the parent using calming strategies.
+
+COMMUNICATION STYLE:
+• calm, supportive, respectful, clear, practical
+• Avoid clinical jargon whenever possible
+• Use short steps that can be followed immediately
+• Parents should feel like they are receiving guidance from a supportive professional
 
 Child: ${child?.child_name || "your child"}, Age: ${child?.age || "N/A"}, Diagnosis: ${child?.diagnosis || "N/A"}
 Behavior: ${interpretation.behavior_type} (${interpretation.intensity} intensity)
