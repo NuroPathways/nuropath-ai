@@ -6,6 +6,10 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import ClinicianLogin from './pages/ClinicianLogin';
+import ClinicianSignup from './pages/ClinicianSignup';
+import ParentLogin from './pages/ParentLogin';
+import ParentSignup from './pages/ParentSignup';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -57,6 +61,10 @@ const AuthenticatedApp = () => {
           }
         />
       ))}
+      <Route path="/ClinicianLogin" element={<ClinicianLogin />} />
+      <Route path="/ClinicianSignup" element={<ClinicianSignup />} />
+      <Route path="/ParentLogin" element={<ParentLogin />} />
+      <Route path="/ParentSignup" element={<ParentSignup />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
