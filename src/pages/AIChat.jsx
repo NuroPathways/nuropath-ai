@@ -55,19 +55,21 @@ async function module2_ClinicalContextEngine(interpretation, plans, child) {
   const planText = plans.length === 0
     ? "No behavior plans are available."
     : plans.map((p) => `
-Behavior Name: ${p.behavior_name}
-Description: ${p.behavior_description || "N/A"}
-Function: ${p.behavior_function || "N/A"}
-Triggers: ${p.common_triggers || "N/A"}
-Strategy Title: ${p.strategy_title || "N/A"}
-Strategy Steps: ${p.strategy_steps || "N/A"}
-When To Use: ${p.when_to_use || "N/A"}
-Reinforcement: ${p.reinforcement_method || "N/A"}
-Escalation Signs: ${p.escalation_signs || "N/A"}
-De-escalation: ${p.deescalation_steps || "N/A"}
-Avoid: ${p.avoid_actions || "N/A"}
-Safe Space: ${p.safe_space_method || "N/A"}
+=== BEHAVIOR PLAN: ${p.behavior_name} ===
 Severity: ${p.severity_level || "N/A"}
+Description: ${p.behavior_description || "N/A"}
+Behavior Function: ${p.behavior_function || "N/A"}
+Common Triggers: ${p.common_triggers || "N/A"}
+--- INTERVENTION STRATEGIES ---
+Strategy Title: ${p.strategy_title || "N/A"}
+Step-by-Step Strategy: ${p.strategy_steps || "N/A"}
+When to Use: ${p.when_to_use || "N/A"}
+Reinforcement Method: ${p.reinforcement_method || "N/A"}
+--- ESCALATION & SAFETY ---
+Escalation Signs: ${p.escalation_signs || "N/A"}
+De-escalation Steps: ${p.deescalation_steps || "N/A"}
+Actions to Avoid: ${p.avoid_actions || "N/A"}
+Safe Space Method: ${p.safe_space_method || "N/A"}
 `.trim()).join("\n\n---\n\n");
 
   const result = await base44.integrations.Core.InvokeLLM({
