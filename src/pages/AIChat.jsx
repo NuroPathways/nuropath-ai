@@ -73,9 +73,9 @@ Safe Space Method: ${p.safe_space_method || "N/A"}
 `.trim()).join("\n\n---\n\n");
 
   const result = await base44.integrations.Core.InvokeLLM({
-    prompt: `You are Aspire AI. Your role is to translate clinician behavior plans into clear, practical, real-time guidance.
+    prompt: `You are Aspire AI. Your role is to translate clinician behavior plans into clear, practical, real-time guidance for parents.
 
-CORE PRINCIPLE: Clinician plans come first. Always prioritize the strategies and methods defined in the clinician's behavior plan.
+CRITICAL: The behavior plans below may have been uploaded directly from clinical documents. Read them in full and use ALL relevant information from them.
 
 Child: ${child?.child_name || "Unknown"}, Age: ${child?.age || "N/A"}, Diagnosis: ${child?.diagnosis || "N/A"}
 
@@ -85,10 +85,10 @@ Interpreted Behavior:
 - Context: ${interpretation.context}
 - Function: ${interpretation.possible_function}
 
-Clinician-Approved Behavior Plans:
+CLINICIAN-APPROVED BEHAVIOR PLANS (read the full content carefully):
 ${planText}
 
-Match the most relevant clinician-defined strategies to this behavior. Return ONLY valid JSON. Only use strategies from the provided plans. Do not invent advice.`,
+Match the most relevant strategies to this behavior. Use the exact clinician-defined language and steps where possible. Return ONLY valid JSON.`,
     response_json_schema: {
       type: "object",
       properties: {
