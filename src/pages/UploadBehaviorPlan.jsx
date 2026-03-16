@@ -22,6 +22,9 @@ export default function UploadBehaviorPlan() {
       setUser(me);
       const kids = await base44.entities.Child.filter({ clinician_id: me.id });
       setChildren(kids);
+      // Pre-select child from URL param if provided
+      const urlChildId = new URLSearchParams(window.location.search).get("child_id");
+      if (urlChildId) setSelectedChildId(urlChildId);
     };
     load();
   }, []);

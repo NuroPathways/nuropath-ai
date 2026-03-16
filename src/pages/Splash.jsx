@@ -1,9 +1,20 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { base44 } from "@/api/base44Client";
 import { Brain, Users, Stethoscope, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Splash() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // If already logged in, redirect based on role
+    base44.auth.me().then((user) => {
+      if (user?.role === "clinician") navigate("/ClinicianDashboard");
+      else if (user?.role === "parent") navigate("/ParentDashboard");
+      else if (user) navigate("/RoleSetup"); // logged in but no role set
+    }).catch(() => {}); // not logged in, show the welcome screen
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 font-inter">
@@ -23,11 +34,7 @@ export default function Splash() {
         </p>
 
         <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-          >
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
             <button
               onClick={() => navigate("/ParentLogin")}
               className="w-full bg-card border-2 border-border hover:border-primary rounded-2xl p-8 transition-all group"
@@ -36,20 +43,14 @@ export default function Splash() {
                 <Users className="w-8 h-8 text-accent" />
               </div>
               <h2 className="text-2xl font-semibold text-foreground mb-2">I'm a Parent</h2>
-              <p className="text-muted-foreground mb-4">
-                Access support strategies for your child
-              </p>
+              <p className="text-muted-foreground mb-4">Access support strategies for your child</p>
               <div className="flex items-center justify-center gap-2 text-primary font-medium">
                 Continue <ArrowRight className="w-4 h-4" />
               </div>
             </button>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-          >
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
             <button
               onClick={() => navigate("/ClinicianLogin")}
               className="w-full bg-card border-2 border-border hover:border-primary rounded-2xl p-8 transition-all group"
@@ -58,9 +59,7 @@ export default function Splash() {
                 <Stethoscope className="w-8 h-8 text-secondary" />
               </div>
               <h2 className="text-2xl font-semibold text-foreground mb-2">I'm a Clinician</h2>
-              <p className="text-muted-foreground mb-4">
-                Manage behavior plans and client cases
-              </p>
+              <p className="text-muted-foreground mb-4">Manage behavior plans and client cases</p>
               <div className="flex items-center justify-center gap-2 text-primary font-medium">
                 Continue <ArrowRight className="w-4 h-4" />
               </div>
