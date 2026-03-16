@@ -121,6 +121,8 @@ Return the most complete and accurate extraction possible.`,
       await base44.entities.BehaviorPlan.create({
         child_id: selectedChildId,
         created_by: user.id,
+        file_url: file_url,
+        file_name: file.name,
         behavior_name: aiEnhanced.behavior_name || data.behavior_name || file.name.replace(/\.[^/.]+$/, ""),
         behavior_description: aiEnhanced.behavior_description || data.behavior_description || data.full_document_text || "",
         behavior_function: aiEnhanced.behavior_function || data.behavior_function || "",
