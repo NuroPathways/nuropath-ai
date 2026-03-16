@@ -5,7 +5,7 @@ import { createPageUrl } from "@/utils";
 export default function ChildCard({ child }) {
   return (
     <Link
-      to={`${createPageUrl("BehaviorPlanBuilder")}?child_id=${child.id}`}
+      to={`/ClientDetail?child_id=${child.id}`}
       className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border hover:border-primary/40 hover:shadow-sm transition-all group"
     >
       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
