@@ -1,34 +1,21 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Brain, ArrowRight, Loader2 } from "lucide-react";
+import { Brain, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
 
 export default function ParentLogin() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await base44.auth.login(email, password);
-      const user = await base44.auth.me();
-      if (user.role === "parent") {
-        navigate("/ParentDashboard");
-      } else {
-        navigate("/RoleSelection");
-      }
-    } catch (error) {
-      alert("Login failed. Please check your credentials.");
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    base44.auth.me().then((user) => {
+      if (user?.role === "parent") navigate("/ParentDashboard");
+    }).catch(() => {});
+  }, [navigate]);
+
+  const handleLogin = () => {
+    base44.auth.redirectToLogin(window.location.origin + "/ParentDashboard");
   };
 
   return (
@@ -36,66 +23,32 @@ export default function ParentLogin() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md text-center"
       >
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
-            <Brain className="w-7 h-7 text-primary-foreground" />
+        <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
+          <Brain className="w-8 h-8 text-primary-foreground" />
+        </div>
+        <h1 className="text-2xl font-semibold text-foreground mb-2">Parent Sign In</h1>
+        <p className="text-sm text-muted-foreground mb-8">Access your family dashboard and behavioral guidance</p>
+
+        <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
+          <div className="w-14 h-14 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
+            <Users className="w-7 h-7 text-accent" />
           </div>
-          <h1 className="text-2xl font-semibold text-foreground mb-2">Parent Sign In</h1>
-          <p className="text-sm text-muted-foreground">Access your family dashboard</p>
+          <p className="text-sm text-muted-foreground mb-6">
+            Sign in with your Aspire AI account. If you don't have one, you'll be able to create one on the next screen.
+          </p>
+          <Button onClick={handleLogin} className="w-full" size="lg">
+            Continue to Sign In
+          </Button>
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="parent@example.com"
-                required
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                className="mt-1.5"
-              />
-            </div>
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  Sign In
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </>
-              )}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <button
-                onClick={() => navigate("/ParentSignup")}
-                className="text-primary hover:underline font-medium"
-              >
-                Sign up
-              </button>
-            </p>
-          </div>
-        </div>
+        <button
+          onClick={() => navigate("/")}
+          className="mt-6 text-sm text-muted-foreground hover:text-foreground"
+        >
+          ← Back to welcome page
+        </button>
       </motion.div>
     </div>
   );
