@@ -73,7 +73,7 @@ export default function Layout({ children, currentPageName }) {
               {children_list.length > 0 && (
                 <div className="ml-3 mt-1 space-y-0.5">
                   {children_list.map((child) => {
-                    const isActive = currentPageName === "ClientDetail" && new URLSearchParams(window.location.search).get("id") === child.id;
+                    const isActive = currentPageName === "ClientDetail" && new URLSearchParams(window.location.search).get("child_id") === child.id;
                     return (
                       <Link
                         key={child.id}
