@@ -34,7 +34,6 @@ export default function Layout({ children, currentPageName }) {
   if (!user) return <>{children}</>;
 
   const role = user.role;
-  const navItems = role === "clinician" ? clinicianNav : parentNav;
 
   const handleLogout = () => {
     base44.auth.logout(window.location.origin + "/Splash");
