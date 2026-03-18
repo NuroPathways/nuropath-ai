@@ -35,8 +35,7 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      window.location.replace('/Splash');
-      return null;
+      // App is public - just render routes, individual pages handle auth
     }
   }
 

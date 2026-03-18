@@ -77,7 +77,7 @@ export default function Layout({ children, currentPageName }) {
                     return (
                       <Link
                         key={child.id}
-                        to={`/ClientDetail?id=${child.id}`}
+                        to={`/ClientDetail?child_id=${child.id}`}
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
                           isActive
                             ? "bg-primary/10 text-primary"
@@ -176,7 +176,7 @@ export default function Layout({ children, currentPageName }) {
                   {children_list.map((child) => (
                     <Link
                       key={child.id}
-                      to={`/ClientDetail?id=${child.id}`}
+                      to={`/ClientDetail?child_id=${child.id}`}
                       onClick={() => setMobileOpen(false)}
                       className="flex items-center gap-2 ml-3 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
                     >
