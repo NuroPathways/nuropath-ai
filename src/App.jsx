@@ -35,7 +35,7 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      navigateToLogin();
+      window.location.replace('/Splash');
       return null;
     }
   }
