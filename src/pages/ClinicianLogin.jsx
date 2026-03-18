@@ -9,15 +9,16 @@ export default function ClinicianLogin() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If already logged in as clinician, go straight to dashboard
     base44.auth.me().then((user) => {
       if (user?.role === "clinician") navigate("/ClinicianDashboard");
+      else if (user?.role === "parent") navigate("/ParentDashboard");
+      else if (user) navigate("/RoleSetup");
     }).catch(() => {});
   }, [navigate]);
 
   const handleLogin = () => {
-    // Use Base44's native auth — after login, come back here and redirect
-    base44.auth.redirectToLogin(window.location.origin + "/ClinicianDashboard");
+    // After login, go to RoleSetup which will redirect based on role
+    base44.auth.redirectToLogin(window.location.origin + "/RoleSetup");
   };
 
   return (
@@ -38,14 +39,11 @@ export default function ClinicianLogin() {
             <Stethoscope className="w-7 h-7 text-secondary" />
           </div>
           <p className="text-sm text-muted-foreground mb-6">
-            Sign in with your Aspire AI account. If you don't have one, you'll be able to create one on the next screen.
+            Sign in or create an account. First-time users will be asked to select their role after signing in.
           </p>
           <Button onClick={handleLogin} className="w-full" size="lg">
-            Continue to Sign In
+            Sign In / Create Account
           </Button>
-          <p className="text-xs text-muted-foreground mt-4">
-            After signing in, make sure your account role is set to <strong>clinician</strong>.
-          </p>
         </div>
 
         <button

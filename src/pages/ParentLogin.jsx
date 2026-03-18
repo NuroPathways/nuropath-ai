@@ -11,11 +11,14 @@ export default function ParentLogin() {
   useEffect(() => {
     base44.auth.me().then((user) => {
       if (user?.role === "parent") navigate("/ParentDashboard");
+      else if (user?.role === "clinician") navigate("/ClinicianDashboard");
+      else if (user) navigate("/RoleSetup");
     }).catch(() => {});
   }, [navigate]);
 
   const handleLogin = () => {
-    base44.auth.redirectToLogin(window.location.origin + "/ParentDashboard");
+    // After login, go to RoleSetup which will redirect based on role
+    base44.auth.redirectToLogin(window.location.origin + "/RoleSetup");
   };
 
   return (
@@ -36,10 +39,10 @@ export default function ParentLogin() {
             <Users className="w-7 h-7 text-accent" />
           </div>
           <p className="text-sm text-muted-foreground mb-6">
-            Sign in with your Aspire AI account. If you don't have one, you'll be able to create one on the next screen.
+            Sign in or create an account. First-time users will be asked to select their role after signing in.
           </p>
           <Button onClick={handleLogin} className="w-full" size="lg">
-            Continue to Sign In
+            Sign In / Create Account
           </Button>
         </div>
 
