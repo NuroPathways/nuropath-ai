@@ -20,12 +20,16 @@ export default function ClinicianDashboard() {
     const load = async () => {
       const me = await base44.auth.me();
       setUser(me);
-      const [kids, ps] = await Promise.all([
-        base44.entities.Child.filter({ clinician_id: me.id }),
-        base44.entities.BehaviorPlan.filter({ child_id: kids.map ? undefined : undefined }),
-      ]);
+      const kids = await base44.entities.Child.filter({ clinician_id: me.id });
       setChildren(kids);
-      setPlans(ps);
+      // Count all plans for all this clinician's children
+      let allPlans = [];
+      if (kids.length > 0) {
+        const planPromises = kids.map(k => base44.entities.BehaviorPlan.filter({ child_id: k.id }));
+        const results = await Promise.all(planPromises);
+        allPlans = results.flat();
+      }
+      setPlans(allPlans);
       setLoading(false);
     };
     load();
