@@ -63,9 +63,7 @@ const AuthenticatedApp = () => {
         />
       ))}
       <Route path="/ClinicianLogin" element={<ClinicianLogin />} />
-      <Route path="/ClinicianSignup" element={<ClinicianSignup />} />
       <Route path="/ParentLogin" element={<ParentLogin />} />
-      <Route path="/ParentSignup" element={<ParentSignup />} />
       <Route path="/UploadBehaviorPlan" element={<LayoutWrapper currentPageName="UploadBehaviorPlan"><UploadBehaviorPlan /></LayoutWrapper>} />
       <Route path="/RoleSetup" element={<RoleSetup />} />
       <Route path="/ClientDetail" element={<LayoutWrapper currentPageName="ClientDetail"><ClientDetail /></LayoutWrapper>} />
