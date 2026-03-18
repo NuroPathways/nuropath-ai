@@ -2,28 +2,29 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { Brain, Users, FileText, MessageSquare, LogOut, Menu, X, ChevronRight } from "lucide-react";
+import { Brain, Users, MessageSquare, LogOut, Menu, X, ChevronRight, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const clinicianNav = [
-  { label: "Dashboard", icon: Users, page: "ClinicianDashboard" },
-  { label: "Behavior Plans", icon: FileText, page: "BehaviorPlanBuilder" },
-];
 
 const parentNav = [
   { label: "Dashboard", icon: Users, page: "ParentDashboard" },
   { label: "Ask Aspire AI", icon: MessageSquare, page: "AIChat" },
 ];
 
-const noLayoutPages = ["Splash", "Login", "RoleSelection"];
+const noLayoutPages = ["Splash", "Login", "RoleSelection", "ClinicianLogin", "ParentLogin", "RoleSetup"];
 
 export default function Layout({ children, currentPageName }) {
   const [user, setUser] = useState(null);
+  const [children_list, setChildrenList] = useState([]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => {});
+    base44.auth.me().then((me) => {
+      setUser(me);
+      if (me?.role === "clinician") {
+        base44.entities.Child.filter({ clinician_id: me.id }).then(setChildrenList).catch(() => {});
+      }
+    }).catch(() => {});
   }, [currentPageName]);
 
   if (noLayoutPages.includes(currentPageName)) {

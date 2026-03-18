@@ -22,7 +22,7 @@ export default function ClinicianDashboard() {
       setUser(me);
       const [kids, ps] = await Promise.all([
         base44.entities.Child.filter({ clinician_id: me.id }),
-        base44.entities.BehaviorPlan.filter({ created_by: me.id }),
+        base44.entities.BehaviorPlan.filter({ child_id: kids.map ? undefined : undefined }),
       ]);
       setChildren(kids);
       setPlans(ps);
