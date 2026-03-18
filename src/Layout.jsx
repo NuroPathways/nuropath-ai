@@ -56,25 +56,63 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
-          {navItems.map((item) => {
-            const isActive = currentPageName === item.page;
-            return (
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {role === "clinician" ? (
+            <>
               <Link
-                key={item.page}
-                to={createPageUrl(item.page)}
+                to="/ClinicianDashboard"
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-                  isActive
+                  currentPageName === "ClinicianDashboard"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
               >
-                <item.icon className="w-4 h-4" />
-                {item.label}
-                {isActive && <ChevronRight className="w-3 h-3 ml-auto" />}
+                <Users className="w-4 h-4" />
+                Dashboard
+                {currentPageName === "ClinicianDashboard" && <ChevronRight className="w-3 h-3 ml-auto" />}
               </Link>
-            );
-          })}
+              {children_list.length > 0 && (
+                <div className="ml-3 mt-1 space-y-0.5">
+                  {children_list.map((child) => {
+                    const isActive = currentPageName === "ClientDetail" && new URLSearchParams(window.location.search).get("id") === child.id;
+                    return (
+                      <Link
+                        key={child.id}
+                        to={`/ClientDetail?id=${child.id}`}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        <User className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{child.child_name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ) : (
+            parentNav.map((item) => {
+              const isActive = currentPageName === item.page;
+              return (
+                <Link
+                  key={item.page}
+                  to={createPageUrl(item.page)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <item.icon className="w-4 h-4" />
+                  {item.label}
+                  {isActive && <ChevronRight className="w-3 h-3 ml-auto" />}
+                </Link>
+              );
+            })
+          )}
         </nav>
 
         <div className="p-4 border-t border-border">
