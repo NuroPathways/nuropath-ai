@@ -1,0 +1,41 @@
+{
+  "name": "Child",
+  "type": "object",
+  "properties": {
+    "child_name": {
+      "type": "string",
+      "description": "Child's full name"
+    },
+    "age": {
+      "type": "number",
+      "description": "Child's age"
+    },
+    "diagnosis": {
+      "type": "string",
+      "description": "Primary diagnosis or condition"
+    },
+    "clinician_id": {
+      "type": "string",
+      "description": "ID of the assigned clinician"
+    },
+    "parent_id": {
+      "type": "string",
+      "description": "Primary parent user ID"
+    },
+    "parent_email": {
+      "type": "string",
+      "description": "Email of the assigned parent (used to link account)"
+    },
+    "triggers": {
+      "type": "string",
+      "description": "Known behavioral triggers"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about the child"
+    }
+  },
+  "required": [
+    "child_name"
+  ]
+}

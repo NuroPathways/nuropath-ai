@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function AddChildModal({ open, onClose, onSuccess, clinicianId }) {
-  const [form, setForm] = useState({ child_name: "", age: "", diagnosis: "", triggers: "", notes: "" });
+  const [form, setForm] = useState({ child_name: "", age: "", diagnosis: "", triggers: "", notes: "", parent_email: "" });
   const [saving, setSaving] = useState(false);
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
@@ -16,13 +16,25 @@ export default function AddChildModal({ open, onClose, onSuccess, clinicianId })
   const handleSave = async () => {
     if (!form.child_name.trim()) return;
     setSaving(true);
+    // Try to find parent by email to link parent_id
+    let parent_id = undefined;
+    if (form.parent_email) {
+      const users = await base44.entities.User.list();
+      const match = users.find(u => u.email?.toLowerCase() === form.parent_email.toLowerCase());
+      if (match) parent_id = match.id;
+    }
     await base44.entities.Child.create({
-      ...form,
+      child_name: form.child_name,
       age: form.age ? Number(form.age) : undefined,
+      diagnosis: form.diagnosis || undefined,
+      triggers: form.triggers || undefined,
+      notes: form.notes || undefined,
+      parent_email: form.parent_email || undefined,
+      parent_id,
       clinician_id: clinicianId,
     });
     setSaving(false);
-    setForm({ child_name: "", age: "", diagnosis: "", triggers: "", notes: "" });
+    setForm({ child_name: "", age: "", diagnosis: "", triggers: "", notes: "", parent_email: "" });
     onSuccess();
     onClose();
   };
@@ -93,6 +105,16 @@ export default function AddChildModal({ open, onClose, onSuccess, clinicianId })
                   placeholder="Any other relevant information..."
                   rows={2}
                   className="mt-1.5 rounded-xl border-border resize-none"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Parent Email (to link account)</Label>
+                <Input
+                  type="email"
+                  value={form.parent_email}
+                  onChange={(e) => set("parent_email", e.target.value)}
+                  placeholder="parent@email.com"
+                  className="mt-1.5 rounded-xl border-border"
                 />
               </div>
             </div>

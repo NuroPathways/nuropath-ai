@@ -11,6 +11,9 @@ import ParentLogin from './pages/ParentLogin';
 import UploadBehaviorPlan from './pages/UploadBehaviorPlan';
 import RoleSetup from './pages/RoleSetup';
 import ClientDetail from './pages/ClientDetail';
+import ChildProfile from './pages/ChildProfile';
+import ClinicianUsers from './pages/ClinicianUsers';
+import Settings from './pages/Settings';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -62,6 +65,9 @@ const AuthenticatedApp = () => {
       <Route path="/UploadBehaviorPlan" element={<LayoutWrapper currentPageName="UploadBehaviorPlan"><UploadBehaviorPlan /></LayoutWrapper>} />
       <Route path="/RoleSetup" element={<RoleSetup />} />
       <Route path="/ClientDetail" element={<LayoutWrapper currentPageName="ClientDetail"><ClientDetail /></LayoutWrapper>} />
+      <Route path="/ChildProfile" element={<LayoutWrapper currentPageName="ChildProfile"><ChildProfile /></LayoutWrapper>} />
+      <Route path="/ClinicianUsers" element={<LayoutWrapper currentPageName="ClinicianUsers"><ClinicianUsers /></LayoutWrapper>} />
+      <Route path="/Settings" element={<LayoutWrapper currentPageName="Settings"><Settings /></LayoutWrapper>} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
