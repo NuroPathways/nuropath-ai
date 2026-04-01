@@ -264,24 +264,23 @@ export default function Layout({ children, currentPageName }) {
                   ))}
                 </>
               ) : (
-                parentNav.map((item) => {
-                  const isActive = currentPageName === item.page;
-                  return (
-                    <Link
-                      key={item.page}
-                      to={createPageUrl(item.page)}
-                      onClick={() => setMobileOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                        isActive
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
-                    >
-                      <item.icon className="w-4 h-4" />
-                      {item.label}
+                <>
+                  <Link to="/ParentDashboard" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${currentPageName === "ParentDashboard" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}>
+                    <Users className="w-4 h-4" /> Dashboard
+                  </Link>
+                  {children_list.map((child) => (
+                    <Link key={child.id} to={`/ChildProfile?child_id=${child.id}`} onClick={() => setMobileOpen(false)} className="flex items-center gap-2 ml-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
+                      <Baby className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="truncate">{child.child_name}</span>
                     </Link>
-                  );
-                })
+                  ))}
+                  <Link to="/AIChat" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${currentPageName === "AIChat" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}>
+                    <MessageSquare className="w-4 h-4" /> Ask Aspire AI
+                  </Link>
+                  <Link to="/Settings" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${currentPageName === "Settings" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}>
+                    <Settings className="w-4 h-4" /> Settings
+                  </Link>
+                </>
               )}
             </nav>
             <div className="mt-4 pt-4 border-t border-border">
