@@ -24,7 +24,15 @@
     },
     "parent_email": {
       "type": "string",
-      "description": "Email of the assigned parent (used to link account)"
+      "description": "Email of the assigned parent"
+    },
+    "family_id": {
+      "type": "string",
+      "description": "Reference to the Family record"
+    },
+    "is_patient": {
+      "type": "boolean",
+      "description": "Whether this child is the identified patient/client"
     },
     "triggers": {
       "type": "string",

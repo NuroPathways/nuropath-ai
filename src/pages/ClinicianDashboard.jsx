@@ -6,14 +6,14 @@ import { Users, FileText, Plus, TrendingUp, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import ChildCard from "../components/clinician/ChildCard";
-import AddChildModal from "../components/clinician/AddChildModal";
+import AddFamilyModal from "../components/clinician/AddFamilyModal";
 
 export default function ClinicianDashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [children, setChildren] = useState([]);
   const [plans, setPlans] = useState([]);
-  const [showAddChild, setShowAddChild] = useState(false);
+  const [showAddFamily, setShowAddFamily] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -82,10 +82,10 @@ export default function ClinicianDashboard() {
           <Button
             size="sm"
             className="rounded-xl bg-primary hover:bg-primary/90 gap-1.5 text-xs h-8"
-            onClick={() => setShowAddChild(true)}
+            onClick={() => setShowAddFamily(true)}
           >
             <Plus className="w-3.5 h-3.5" />
-            Add Client
+            Add Family
           </Button>
         </div>
 
@@ -103,7 +103,7 @@ export default function ClinicianDashboard() {
             <Button
               size="sm"
               className="rounded-xl bg-primary hover:bg-primary/90 gap-1.5"
-              onClick={() => setShowAddChild(true)}
+              onClick={() => setShowAddFamily(true)}
             >
               <Plus className="w-3.5 h-3.5" />
               Add Client
@@ -147,9 +147,9 @@ export default function ClinicianDashboard() {
         </div>
       </div>
 
-      <AddChildModal
-        open={showAddChild}
-        onClose={() => setShowAddChild(false)}
+      <AddFamilyModal
+        open={showAddFamily}
+        onClose={() => setShowAddFamily(false)}
         onSuccess={refresh}
         clinicianId={user?.id}
       />

@@ -1,0 +1,21 @@
+{
+  "name": "Family",
+  "type": "object",
+  "properties": {
+    "family_name": {
+      "type": "string",
+      "description": "Family last name or identifier"
+    },
+    "clinician_id": {
+      "type": "string",
+      "description": "ID of the clinician who created this family"
+    },
+    "notes": {
+      "type": "string",
+      "description": "General notes about the family"
+    }
+  },
+  "required": [
+    "family_name"
+  ]
+}

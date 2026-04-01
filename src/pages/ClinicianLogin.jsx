@@ -31,6 +31,7 @@ export default function ClinicianLogin() {
         <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
           <Brain className="w-8 h-8 text-primary-foreground" />
         </div>
+        <div className="inline-block px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-semibold uppercase tracking-wider mb-3">Clinician Login</div>
         <h1 className="text-2xl font-semibold text-foreground mb-2">Clinician Sign In</h1>
         <p className="text-sm text-muted-foreground mb-8">Access your clinical dashboard and client behavior plans</p>
 

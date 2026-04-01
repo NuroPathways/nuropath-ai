@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
   ArrowLeft, FileText, Plus, Upload, Download, User,
-  Calendar, Brain, AlertTriangle, ChevronRight, Stethoscope
+  Calendar, Brain, AlertTriangle, ChevronRight, Stethoscope, Pencil, Check, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -18,6 +18,9 @@ const SEVERITY_STYLES = {
 export default function ClientDetail() {
   const [child, setChild] = useState(null);
   const [plans, setPlans] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
 
   const childId = new URLSearchParams(window.location.search).get("child_id");
@@ -34,6 +37,22 @@ export default function ClientDetail() {
     };
     load();
   }, [childId, navigate]);
+
+  const startEdit = () => {
+    setEditForm({ child_name: child.child_name, age: child.age || "", diagnosis: child.diagnosis || "", triggers: child.triggers || "", notes: child.notes || "" });
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    setSaving(true);
+    const updated = await base44.entities.Child.update(childId, {
+      ...editForm,
+      age: editForm.age ? Number(editForm.age) : undefined,
+    });
+    setChild(prev => ({ ...prev, ...editForm, age: editForm.age ? Number(editForm.age) : undefined }));
+    setSaving(false);
+    setEditing(false);
+  };
 
   const handleDownload = (plan) => {
     if (!plan.file_url) return;
@@ -79,35 +98,72 @@ export default function ClientDetail() {
               </span>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">{child.child_name}</h1>
-              {child.age && (
+              {editing ? (
+                <input
+                  className="text-xl font-bold text-foreground bg-background border border-primary rounded-lg px-2 py-1 w-full"
+                  value={editForm.child_name}
+                  onChange={e => setEditForm(p => ({ ...p, child_name: e.target.value }))}
+                />
+              ) : (
+                <h1 className="text-2xl font-bold text-foreground">{child.child_name}</h1>
+              )}
+              {child.age && !editing && (
                 <p className="text-muted-foreground text-sm flex items-center gap-1.5 mt-1">
                   <Calendar className="w-3.5 h-3.5" /> Age {child.age}
                 </p>
               )}
             </div>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => navigate(`/UploadBehaviorPlan?child_id=${childId}`)}
-          >
-            <Upload className="w-3.5 h-3.5 mr-1.5" /> Upload Plan
-          </Button>
+          <div className="flex gap-2">
+            {editing ? (
+              <>
+                <Button size="sm" variant="outline" onClick={() => setEditing(false)} className="rounded-xl">
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+                <Button size="sm" onClick={saveEdit} disabled={saving} className="rounded-xl bg-primary hover:bg-primary/90">
+                  <Check className="w-3.5 h-3.5 mr-1" /> {saving ? "Saving..." : "Save"}
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" variant="outline" onClick={startEdit} className="rounded-xl">
+                <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
+              </Button>
+            )}
+            {!editing && (
+              <Button size="sm" variant="outline" onClick={() => navigate(`/UploadBehaviorPlan?child_id=${childId}`)} className="rounded-xl">
+                <Upload className="w-3.5 h-3.5 mr-1.5" /> Upload Plan
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Details Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
-          {child.diagnosis && (
-            <InfoField icon={Stethoscope} label="Diagnosis" value={child.diagnosis} />
-          )}
-          {child.triggers && (
-            <InfoField icon={AlertTriangle} label="Known Triggers" value={child.triggers} />
-          )}
-          {child.notes && (
-            <InfoField icon={FileText} label="Notes" value={child.notes} fullWidth />
-          )}
-        </div>
+        {editing ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Age</label>
+              <input type="number" className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" value={editForm.age} onChange={e => setEditForm(p => ({ ...p, age: e.target.value }))} placeholder="Age" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Diagnosis</label>
+              <input className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" value={editForm.diagnosis} onChange={e => setEditForm(p => ({ ...p, diagnosis: e.target.value }))} placeholder="Diagnosis" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Known Triggers</label>
+              <textarea rows={2} className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm resize-none" value={editForm.triggers} onChange={e => setEditForm(p => ({ ...p, triggers: e.target.value }))} placeholder="Known triggers" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Notes</label>
+              <textarea rows={2} className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm resize-none" value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} placeholder="Notes" />
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+            {child.diagnosis && <InfoField icon={Stethoscope} label="Diagnosis" value={child.diagnosis} />}
+            {child.triggers && <InfoField icon={AlertTriangle} label="Known Triggers" value={child.triggers} />}
+            {child.notes && <InfoField icon={FileText} label="Notes" value={child.notes} fullWidth />}
+          </div>
+        )}
       </motion.div>
 
       {/* Uploaded Files */}
