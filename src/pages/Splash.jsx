@@ -10,8 +10,8 @@ export default function Splash() {
   useEffect(() => {
     // If already logged in, redirect based on role
     base44.auth.me().then((user) => {
-      if (user?.role === "clinician") navigate("/ClinicianDashboard");
-      else if (user?.role === "parent") navigate("/ParentDashboard");
+      if (user?.app_role === "clinician") navigate("/ClinicianDashboard");
+      else if (user?.app_role === "parent") navigate("/ParentDashboard");
       else if (user) navigate("/RoleSetup"); // logged in but no role set
     }).catch(() => {}); // not logged in, show the welcome screen
   }, [navigate]);

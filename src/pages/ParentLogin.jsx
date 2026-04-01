@@ -10,8 +10,8 @@ export default function ParentLogin() {
 
   useEffect(() => {
     base44.auth.me().then((user) => {
-      if (user?.role === "parent") navigate("/ParentDashboard");
-      else if (user?.role === "clinician") navigate("/ClinicianDashboard");
+      if (user?.app_role === "parent") navigate("/ParentDashboard");
+      else if (user?.app_role === "clinician") navigate("/ClinicianDashboard");
       else if (user) navigate("/RoleSetup");
     }).catch(() => {});
   }, [navigate]);

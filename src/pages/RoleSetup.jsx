@@ -15,14 +15,14 @@ export default function RoleSetup() {
     base44.auth.me().then((u) => {
       setUser(u);
       // If role already set, redirect
-      if (u?.role === "clinician") navigate("/ClinicianDashboard");
-      else if (u?.role === "parent") navigate("/ParentDashboard");
+      if (u?.app_role === "clinician") navigate("/ClinicianDashboard");
+      else if (u?.app_role === "parent") navigate("/ParentDashboard");
     }).catch(() => navigate("/"));
   }, [navigate]);
 
   const selectRole = async (role) => {
     setSaving(true);
-    await base44.auth.updateMe({ role });
+    await base44.auth.updateMe({ app_role: role });
     if (role === "clinician") navigate("/ClinicianDashboard");
     else navigate("/ParentDashboard");
   };

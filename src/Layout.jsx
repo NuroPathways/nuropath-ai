@@ -16,9 +16,9 @@ export default function Layout({ children, currentPageName }) {
   useEffect(() => {
     base44.auth.me().then((me) => {
       setUser(me);
-      if (me?.role === "clinician") {
+      if (me?.app_role === "clinician") {
         base44.entities.Child.filter({ clinician_id: me.id }).then(setChildrenList).catch(() => {});
-      } else if (me?.role === "parent") {
+      } else if (me?.app_role === "parent") {
         base44.entities.Child.filter({ parent_id: me.id }).then(setChildrenList).catch(() => {});
       }
     }).catch(() => {});
@@ -30,7 +30,7 @@ export default function Layout({ children, currentPageName }) {
 
   if (!user) return <>{children}</>;
 
-  const role = user.role;
+  const role = user.app_role || user.role;
 
   const handleLogout = () => {
     base44.auth.logout(window.location.origin + "/Splash");

@@ -1,0 +1,14 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "app_role": {
+      "type": "string",
+      "enum": [
+        "parent",
+        "clinician"
+      ],
+      "description": "Application role for this user"
+    }
+  }
+}
