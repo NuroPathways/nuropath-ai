@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import ChildCard from "../components/clinician/ChildCard";
 import AddFamilyModal from "../components/clinician/AddFamilyModal";
+import AddChildToFamilyModal from "../components/clinician/AddChildToFamilyModal";
 
 export default function ClinicianDashboard() {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export default function ClinicianDashboard() {
   const [children, setChildren] = useState([]);
   const [plans, setPlans] = useState([]);
   const [showAddFamily, setShowAddFamily] = useState(false);
+  const [showAddChild, setShowAddChild] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -79,14 +81,25 @@ export default function ClinicianDashboard() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-foreground">My Clients</h2>
-          <Button
-            size="sm"
-            className="rounded-xl bg-primary hover:bg-primary/90 gap-1.5 text-xs h-8"
-            onClick={() => setShowAddFamily(true)}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add Family
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-xl gap-1.5 text-xs h-8"
+              onClick={() => setShowAddChild(true)}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Child to Family
+            </Button>
+            <Button
+              size="sm"
+              className="rounded-xl bg-primary hover:bg-primary/90 gap-1.5 text-xs h-8"
+              onClick={() => setShowAddFamily(true)}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Family
+            </Button>
+          </div>
         </div>
 
         {loading ? (
@@ -150,6 +163,12 @@ export default function ClinicianDashboard() {
       <AddFamilyModal
         open={showAddFamily}
         onClose={() => setShowAddFamily(false)}
+        onSuccess={refresh}
+        clinicianId={user?.id}
+      />
+      <AddChildToFamilyModal
+        open={showAddChild}
+        onClose={() => setShowAddChild(false)}
         onSuccess={refresh}
         clinicianId={user?.id}
       />
