@@ -103,27 +103,6 @@ export default function Layout({ children, currentPageName }) {
                 Settings
                 {currentPageName === "Settings" && <ChevronRight className="w-3 h-3 ml-auto" />}
               </Link>
-              {children_list.length > 0 && (
-                <div className="ml-3 mt-1 space-y-0.5">
-                  {children_list.map((child) => {
-                    const isActive = currentPageName === "ClientDetail" && new URLSearchParams(window.location.search).get("child_id") === child.id;
-                    return (
-                      <Link
-                        key={child.id}
-                        to={`/ClientDetail?child_id=${child.id}`}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                        }`}
-                      >
-                        <User className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">{child.child_name}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
             </>
           ) : (
             <>
@@ -251,17 +230,7 @@ export default function Layout({ children, currentPageName }) {
                     <Users className="w-4 h-4" />
                     Dashboard
                   </Link>
-                  {children_list.map((child) => (
-                    <Link
-                      key={child.id}
-                      to={`/ClientDetail?child_id=${child.id}`}
-                      onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-2 ml-3 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-                    >
-                      <User className="w-3 h-3 flex-shrink-0" />
-                      <span className="truncate">{child.child_name}</span>
-                    </Link>
-                  ))}
+
                 </>
               ) : (
                 <>

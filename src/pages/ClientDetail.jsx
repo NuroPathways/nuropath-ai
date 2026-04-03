@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
   ArrowLeft, FileText, Plus, Upload, Download, User,
-  Calendar, Brain, AlertTriangle, ChevronRight, Stethoscope, Pencil, Check, X
+  Calendar, Brain, AlertTriangle, ChevronRight, Stethoscope, Pencil, Check, X, Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -21,6 +21,8 @@ export default function ClientDetail() {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const navigate = useNavigate();
 
   const childId = new URLSearchParams(window.location.search).get("child_id");
@@ -52,6 +54,12 @@ export default function ClientDetail() {
     setChild(prev => ({ ...prev, ...editForm, age: editForm.age ? Number(editForm.age) : undefined }));
     setSaving(false);
     setEditing(false);
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    await base44.entities.Child.delete(childId);
+    navigate("/ClinicianDashboard");
   };
 
   const handleDownload = (plan) => {
@@ -130,9 +138,26 @@ export default function ClientDetail() {
               </Button>
             )}
             {!editing && (
-              <Button size="sm" variant="outline" onClick={() => navigate(`/UploadBehaviorPlan?child_id=${childId}`)} className="rounded-xl">
-                <Upload className="w-3.5 h-3.5 mr-1.5" /> Upload Plan
-              </Button>
+              <>
+                <Button size="sm" variant="outline" onClick={() => navigate(`/UploadBehaviorPlan?child_id=${childId}`)} className="rounded-xl">
+                  <Upload className="w-3.5 h-3.5 mr-1.5" /> Upload Plan
+                </Button>
+                {!confirmDelete ? (
+                  <Button size="sm" variant="outline" onClick={() => setConfirmDelete(true)} className="rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10">
+                    <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Delete Client
+                  </Button>
+                ) : (
+                  <div className="flex gap-2 items-center">
+                    <span className="text-xs text-muted-foreground">Are you sure?</span>
+                    <Button size="sm" variant="destructive" onClick={handleDelete} disabled={deleting} className="rounded-xl">
+                      {deleting ? "Deleting..." : "Yes, Delete"}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setConfirmDelete(false)} className="rounded-xl">
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
