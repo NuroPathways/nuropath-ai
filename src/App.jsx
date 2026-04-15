@@ -34,12 +34,8 @@ const AuthenticatedApp = () => {
     );
   }
 
-  if (authError) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      // App is public - just render routes, individual pages handle auth
-    }
+  if (authError?.type === 'user_not_registered') {
+    return <UserNotRegisteredError />;
   }
 
   return (

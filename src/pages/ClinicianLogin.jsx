@@ -17,8 +17,7 @@ export default function ClinicianLogin() {
   }, [navigate]);
 
   const handleLogin = () => {
-    // After login, go to RoleSetup which will redirect based on role
-    base44.auth.redirectToLogin(window.location.origin + "/RoleSetup");
+    base44.auth.redirectToLogin(window.location.href.split('?')[0].replace('/ClinicianLogin', '/RoleSetup'));
   };
 
   return (

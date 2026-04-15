@@ -39,7 +39,7 @@ export default function RoleSetup() {
         <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
           <Brain className="w-8 h-8 text-primary-foreground" />
         </div>
-        <h1 className="text-2xl font-semibold text-foreground mb-2">Welcome, {user.full_name}!</h1>
+        <h1 className="text-2xl font-semibold text-foreground mb-2">Welcome!</h1>
         <p className="text-muted-foreground mb-8">Please select your role to continue.</p>
 
         <div className="grid md:grid-cols-2 gap-4">
