@@ -12,12 +12,12 @@ export default function ParentLogin() {
     base44.auth.me().then((user) => {
       if (user?.app_role === "parent") navigate("/ParentDashboard");
       else if (user?.app_role === "clinician") navigate("/ClinicianDashboard");
-      else if (user) navigate("/RoleSetup");
+      else if (user) navigate("/ParentDashboard");
     }).catch(() => {});
   }, [navigate]);
 
   const handleLogin = () => {
-    base44.auth.redirectToLogin(window.location.href.split('?')[0].replace('/ParentLogin', '/RoleSetup'));
+    base44.auth.redirectToLogin(window.location.origin + "/ParentDashboard");
   };
 
   return (
@@ -39,7 +39,7 @@ export default function ParentLogin() {
             <Users className="w-7 h-7 text-accent" />
           </div>
           <p className="text-sm text-muted-foreground mb-6">
-            Sign in or create an account. First-time users will be asked to select their role after signing in.
+            Sign in or create an account to access your family dashboard.
           </p>
           <Button onClick={handleLogin} className="w-full" size="lg">
             Sign In / Create Account
