@@ -20,9 +20,18 @@ export default function RoleSetup() {
     }).catch(() => navigate("/"));
   }, [navigate]);
 
+  const generateClinicianCode = () => {
+    // 6-character alphanumeric code
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+  };
+
   const selectRole = async (role) => {
     setSaving(true);
-    await base44.auth.updateMe({ app_role: role });
+    const updates = { app_role: role };
+    if (role === "clinician") {
+      updates.clinician_code = generateClinicianCode();
+    }
+    await base44.auth.updateMe(updates);
     if (role === "clinician") navigate("/ClinicianDashboard");
     else navigate("/ParentDashboard");
   };

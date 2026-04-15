@@ -9,6 +9,21 @@
         "clinician"
       ],
       "description": "Application role for this user"
+    },
+    "clinician_code": {
+      "type": "string",
+      "description": "Unique code assigned to clinicians for parents to link with"
+    },
+    "linked_clinician_code": {
+      "type": "string",
+      "description": "The clinician code a parent has entered to link with their clinician"
+    },
+    "linked_clinician_id": {
+      "type": "string",
+      "description": "The ID of the clinician this parent is linked to"
     }
-  }
+  },
+  "required": [
+    "app_role"
+  ]
 }
