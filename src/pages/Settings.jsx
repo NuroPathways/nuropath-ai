@@ -46,8 +46,8 @@ export default function Settings() {
     setLinking(true);
     setLinkStatus(null);
     // Find the clinician with this code
-    const users = await base44.entities.User.list();
-    const clinician = users.find(u => u.clinician_code === code && u.app_role === "clinician");
+    const users = await base44.entities.User.filter({ clinician_code: code, app_role: "clinician" });
+    const clinician = users[0];
     if (!clinician) {
       setLinkStatus("error");
       setLinkMessage("No clinician found with that code. Please check and try again.");
