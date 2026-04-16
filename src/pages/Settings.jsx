@@ -107,8 +107,8 @@ export default function Settings() {
         </motion.div>
       )}
 
-      {/* Link Clinician (for parents) */}
-      {user?.app_role === "parent" && (
+      {/* Link Clinician (for clients/parents) */}
+      {user?.app_role !== "clinician" && (
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card border border-border rounded-2xl p-6 mb-4">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
             <Link className="w-3.5 h-3.5" /> Link to Your Clinician
