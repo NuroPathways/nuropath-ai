@@ -21,6 +21,12 @@ export default function ClinicianDashboard() {
   useEffect(() => {
     const load = async () => {
       const me = await base44.auth.me();
+      // Auto-generate a clinician code if they don't have one yet
+      if (!me.clinician_code) {
+        const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        await base44.auth.updateMe({ clinician_code: newCode });
+        me.clinician_code = newCode;
+      }
       setUser(me);
       const kids = await base44.entities.Child.filter({ clinician_id: me.id });
       setChildren(kids);
