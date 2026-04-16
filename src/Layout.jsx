@@ -47,7 +47,7 @@ export default function Layout({ children, currentPageName }) {
             </div>
             <div>
               <p className="font-semibold text-foreground text-sm">Aspire AI</p>
-              <p className="text-xs text-muted-foreground">{role === "clinician" ? "Clinician Portal" : "Parent Portal"}</p>
+              <p className="text-xs text-muted-foreground">{role === "clinician" ? "Clinician Portal" : "Client Portal"}</p>
             </div>
           </div>
         </div>
@@ -107,9 +107,9 @@ export default function Layout({ children, currentPageName }) {
           ) : (
             <>
               <Link
-                to="/ParentDashboard"
+                to="/ClientDashboard"
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-                  currentPageName === "ParentDashboard"
+                  currentPageName === "ClientDashboard"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
@@ -234,7 +234,7 @@ export default function Layout({ children, currentPageName }) {
                 </>
               ) : (
                 <>
-                  <Link to="/ParentDashboard" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${currentPageName === "ParentDashboard" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}>
+                  <Link to="/ClientDashboard" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${currentPageName === "ClientDashboard" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}>
                     <Users className="w-4 h-4" /> Dashboard
                   </Link>
                   {children_list.map((child) => (

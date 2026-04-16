@@ -16,7 +16,7 @@ export default function RoleSetup() {
       setUser(u);
       // If role already set, redirect
       if (u?.app_role === "clinician") navigate("/ClinicianDashboard");
-      else if (u?.app_role === "parent") navigate("/ParentDashboard");
+      else if (u?.app_role === "parent") navigate("/ClientDashboard");
     }).catch(() => navigate("/"));
   }, [navigate]);
 
@@ -33,7 +33,7 @@ export default function RoleSetup() {
     }
     await base44.auth.updateMe(updates);
     if (role === "clinician") navigate("/ClinicianDashboard");
-    else navigate("/ParentDashboard");
+    else navigate("/ClientDashboard");
   };
 
   if (!user) return (

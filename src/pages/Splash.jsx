@@ -11,7 +11,7 @@ export default function Splash() {
     // If already logged in, redirect based on role
     base44.auth.me().then((user) => {
       if (user?.app_role === "clinician") navigate("/ClinicianDashboard");
-      else if (user?.app_role === "parent") navigate("/ParentDashboard");
+      else if (user?.app_role === "parent") navigate("/ClientDashboard");
       else if (user) navigate("/RoleSetup"); // logged in but no role set
     }).catch(() => {}); // not logged in, show the welcome screen
   }, [navigate]);
@@ -36,7 +36,7 @@ export default function Splash() {
         <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
             <button
-              onClick={() => navigate("/ParentLogin")}
+              onClick={() => navigate("/ClientLogin")}
               className="w-full bg-card border-2 border-border hover:border-primary rounded-2xl p-8 transition-all group"
             >
               <div className="w-16 h-16 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-accent/20 transition-colors">

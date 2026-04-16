@@ -7,7 +7,8 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ClinicianLogin from './pages/ClinicianLogin';
-import ParentLogin from './pages/ParentLogin';
+import ClientLogin from './pages/ClientLogin';
+import ClientDashboard from './pages/ClientDashboard';
 import UploadBehaviorPlan from './pages/UploadBehaviorPlan';
 import RoleSetup from './pages/RoleSetup';
 import ClientDetail from './pages/ClientDetail';
@@ -57,7 +58,9 @@ const AuthenticatedApp = () => {
         />
       ))}
       <Route path="/ClinicianLogin" element={<ClinicianLogin />} />
-      <Route path="/ParentLogin" element={<ParentLogin />} />
+      <Route path="/ParentLogin" element={<ClientLogin />} />
+      <Route path="/ClientLogin" element={<ClientLogin />} />
+      <Route path="/ClientDashboard" element={<LayoutWrapper currentPageName="ClientDashboard"><ClientDashboard /></LayoutWrapper>} />
       <Route path="/UploadBehaviorPlan" element={<LayoutWrapper currentPageName="UploadBehaviorPlan"><UploadBehaviorPlan /></LayoutWrapper>} />
       <Route path="/RoleSetup" element={<RoleSetup />} />
       <Route path="/ClientDetail" element={<LayoutWrapper currentPageName="ClientDetail"><ClientDetail /></LayoutWrapper>} />
