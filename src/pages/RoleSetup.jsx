@@ -33,7 +33,7 @@ export default function RoleSetup() {
     }
     await base44.auth.updateMe(updates);
     if (role === "clinician") navigate("/ClinicianDashboard");
-    else navigate("/ClientDashboard");
+    else navigate("/Settings"); // redirect clients to Settings to enter clinician code
   };
 
   if (!user) return (

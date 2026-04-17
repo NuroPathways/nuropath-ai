@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { Brain, Users, MessageSquare, LogOut, Menu, X, ChevronRight, User, FileText, Settings, Baby } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const noLayoutPages = ["Splash", "Login", "RoleSelection", "ClinicianLogin", "ParentLogin", "RoleSetup"];
+const noLayoutPages = ["Splash", "Login", "RoleSelection", "ClinicianLogin", "ParentLogin", "ClientLogin", "RoleSetup"];
 
 export default function Layout({ children, currentPageName }) {
   const [user, setUser] = useState(null);
