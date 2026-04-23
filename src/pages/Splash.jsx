@@ -26,7 +26,7 @@ export default function Splash() {
         <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-6">
           <Brain className="w-10 h-10 text-primary-foreground" />
         </div>
-        <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-3">Welcome to NuroP AI
+        <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-3">Welcome to NuroPath AI
 
         </h1>
         <p className="text-muted-foreground text-lg md:text-xl mb-12 max-w-2xl mx-auto">
