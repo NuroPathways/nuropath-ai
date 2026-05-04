@@ -1,0 +1,70 @@
+{
+  "name": "InterventionPlan",
+  "type": "object",
+  "properties": {
+    "child_id": {
+      "type": "string",
+      "description": "ID of the child this plan is for"
+    },
+    "clinician_id": {
+      "type": "string",
+      "description": "ID of the clinician who created it"
+    },
+    "behavior_category": {
+      "type": "string",
+      "enum": [
+        "tantrum_meltdown",
+        "aggression",
+        "anxiety_episode",
+        "task_refusal",
+        "bedtime_refusal",
+        "school_refusal",
+        "transition_difficulty",
+        "emotional_dysregulation",
+        "other"
+      ],
+      "description": "The behavior category this plan addresses"
+    },
+    "title": {
+      "type": "string",
+      "description": "Plan title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Overview of the behavior and context"
+    },
+    "immediate_steps": {
+      "type": "string",
+      "description": "What to do right now - step by step"
+    },
+    "deescalation_steps": {
+      "type": "string",
+      "description": "Steps if behavior escalates"
+    },
+    "reinforcement_steps": {
+      "type": "string",
+      "description": "Reinforcement and reward guidance"
+    },
+    "prevention_tips": {
+      "type": "string",
+      "description": "How to prevent this behavior"
+    },
+    "things_to_avoid": {
+      "type": "string",
+      "description": "What NOT to do"
+    },
+    "emergency_instructions": {
+      "type": "string",
+      "description": "Emergency escalation instructions"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "child_id",
+    "behavior_category",
+    "title"
+  ]
+}

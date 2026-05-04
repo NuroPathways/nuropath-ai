@@ -15,6 +15,14 @@ import ClientDetail from './pages/ClientDetail';
 import ChildProfile from './pages/ChildProfile';
 import ClinicianUsers from './pages/ClinicianUsers';
 import Settings from './pages/Settings';
+import HelpNow from './pages/HelpNow';
+import LogBehavior from './pages/LogBehavior';
+import DocumentCenter from './pages/DocumentCenter';
+import RewardTracker from './pages/RewardTracker';
+import Messages from './pages/Messages';
+import InterventionBuilder from './pages/InterventionBuilder';
+import ProgressReports from './pages/ProgressReports';
+import ClinicianDocuments from './pages/ClinicianDocuments';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -67,6 +75,14 @@ const AuthenticatedApp = () => {
       <Route path="/ChildProfile" element={<LayoutWrapper currentPageName="ChildProfile"><ChildProfile /></LayoutWrapper>} />
       <Route path="/ClinicianUsers" element={<LayoutWrapper currentPageName="ClinicianUsers"><ClinicianUsers /></LayoutWrapper>} />
       <Route path="/Settings" element={<LayoutWrapper currentPageName="Settings"><Settings /></LayoutWrapper>} />
+      <Route path="/HelpNow" element={<HelpNow />} />
+      <Route path="/LogBehavior" element={<LayoutWrapper currentPageName="LogBehavior"><LogBehavior /></LayoutWrapper>} />
+      <Route path="/DocumentCenter" element={<LayoutWrapper currentPageName="DocumentCenter"><DocumentCenter /></LayoutWrapper>} />
+      <Route path="/RewardTracker" element={<LayoutWrapper currentPageName="RewardTracker"><RewardTracker /></LayoutWrapper>} />
+      <Route path="/Messages" element={<LayoutWrapper currentPageName="Messages"><Messages /></LayoutWrapper>} />
+      <Route path="/InterventionBuilder" element={<LayoutWrapper currentPageName="InterventionBuilder"><InterventionBuilder /></LayoutWrapper>} />
+      <Route path="/ProgressReports" element={<LayoutWrapper currentPageName="ProgressReports"><ProgressReports /></LayoutWrapper>} />
+      <Route path="/ClinicianDocuments" element={<LayoutWrapper currentPageName="ClinicianDocuments"><ClinicianDocuments /></LayoutWrapper>} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

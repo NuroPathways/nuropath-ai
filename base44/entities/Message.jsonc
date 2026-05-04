@@ -1,0 +1,34 @@
+{
+  "name": "Message",
+  "type": "object",
+  "properties": {
+    "from_user_id": {
+      "type": "string"
+    },
+    "to_user_id": {
+      "type": "string"
+    },
+    "child_id": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "is_read": {
+      "type": "boolean",
+      "default": false
+    },
+    "sender_role": {
+      "type": "string",
+      "enum": [
+        "clinician",
+        "parent"
+      ]
+    }
+  },
+  "required": [
+    "from_user_id",
+    "to_user_id",
+    "body"
+  ]
+}

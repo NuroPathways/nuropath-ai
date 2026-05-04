@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { Users, FileText, Plus, TrendingUp, Stethoscope } from "lucide-react";
+import { Users, FileText, Plus, TrendingUp, MessageCircle, BarChart2, Upload, Stethoscope, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import ChildCard from "../components/clinician/ChildCard";
@@ -52,6 +51,8 @@ export default function ClinicianDashboard() {
   const stats = [
     { label: "Active Clients", value: children.length, icon: Users, color: "bg-primary/10 text-primary" },
     { label: "Behavior Plans", value: plans.length, icon: FileText, color: "bg-accent/10 text-accent" },
+    { label: "Progress Reports", value: null, icon: BarChart2, color: "bg-secondary/10 text-secondary", link: "/ProgressReports" },
+    { label: "Messages", value: null, icon: MessageCircle, color: "bg-green-100 text-green-700", link: "/Messages" },
   ];
 
   return (
@@ -65,19 +66,20 @@ export default function ClinicianDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {stats.map((s, i) => (
           <motion.div
             key={s.label}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="bg-card rounded-2xl border border-border p-5"
+            onClick={() => s.link && navigate(s.link)}
+            className={`bg-card rounded-2xl border border-border p-5 ${s.link ? "cursor-pointer hover:border-primary/40 transition-all" : ""}`}
           >
             <div className={`w-9 h-9 rounded-xl ${s.color} flex items-center justify-center mb-3`}>
-              <s.icon className="w-4.5 h-4.5" />
+              <s.icon className="w-4 h-4" />
             </div>
-            <p className="text-2xl font-bold text-foreground">{loading ? "—" : s.value}</p>
+            <p className="text-2xl font-bold text-foreground">{loading ? "—" : (s.value ?? "→")}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{s.label}</p>
           </motion.div>
         ))}
@@ -138,35 +140,14 @@ export default function ClinicianDashboard() {
       </div>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div
-          className="bg-primary rounded-2xl p-6 flex items-center justify-between cursor-pointer group"
-          onClick={() => navigate(createPageUrl("BehaviorPlanBuilder"))}
-        >
-          <div>
-            <p className="font-semibold text-white text-sm">Create Behavior Plan</p>
-            <p className="text-white/70 text-xs mt-0.5">Build a new plan for a client</p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-white/20 group-hover:bg-white/30 flex items-center justify-center transition-colors">
-            <FileText className="w-5 h-5 text-white" />
-          </div>
-        </div>
-
-        <div
-          className="bg-secondary rounded-2xl p-6 flex items-center justify-between cursor-pointer group"
-          onClick={() => navigate("/UploadBehaviorPlan")}
-        >
-          <div>
-            <p className="font-semibold text-white text-sm">Upload Behavior Plan</p>
-            <p className="text-white/70 text-xs mt-0.5">Import existing plan documents</p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-white/20 group-hover:bg-white/30 flex items-center justify-center transition-colors">
-            <TrendingUp className="w-5 h-5 text-white" />
-          </div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <ActionCard label="Create Intervention Plan" sub="Build step-by-step behavior plans" color="bg-primary" icon={ShieldAlert} onClick={() => navigate("/InterventionBuilder")} />
+        <ActionCard label="Upload Documents" sub="PDFs, protocols, worksheets" color="bg-secondary" icon={Upload} onClick={() => navigate("/ClinicianDocuments")} />
+        <ActionCard label="Progress Reports" sub="View behavior logs & trends" color="bg-accent" icon={BarChart2} onClick={() => navigate("/ProgressReports")} />
       </div>
 
       <AddFamilyModal
+
         open={showAddFamily}
         onClose={() => setShowAddFamily(false)}
         onSuccess={refresh}
@@ -178,6 +159,20 @@ export default function ClinicianDashboard() {
         onSuccess={refresh}
         clinicianId={user?.id}
       />
+    </div>
+  );
+}
+
+function ActionCard({ label, sub, color, icon: Icon, onClick }) {
+  return (
+    <div onClick={onClick} className={`${color} rounded-2xl p-6 flex items-center justify-between cursor-pointer group`}>
+      <div>
+        <p className="font-semibold text-white text-sm">{label}</p>
+        <p className="text-white/70 text-xs mt-0.5">{sub}</p>
+      </div>
+      <div className="w-10 h-10 rounded-xl bg-white/20 group-hover:bg-white/30 flex items-center justify-center transition-colors flex-shrink-0">
+        <Icon className="w-5 h-5 text-white" />
+      </div>
     </div>
   );
 }

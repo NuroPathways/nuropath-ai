@@ -1,0 +1,42 @@
+{
+  "name": "Document",
+  "type": "object",
+  "properties": {
+    "child_id": {
+      "type": "string"
+    },
+    "clinician_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "treatment_plan",
+        "behavior_protocol",
+        "worksheet",
+        "session_notes",
+        "visual_schedule",
+        "reinforcement_plan",
+        "coping_strategy",
+        "other"
+      ]
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "file_name": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "child_id",
+    "title",
+    "file_url"
+  ]
+}

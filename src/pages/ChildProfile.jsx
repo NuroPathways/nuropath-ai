@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, FileText, MessageSquare, User, Calendar, Stethoscope, AlertTriangle, Download } from "lucide-react";
+import { ArrowLeft, AlertCircle, FileText, Star, ClipboardList, MessageCircle, AlertTriangle, Stethoscope, Calendar, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
@@ -16,19 +16,22 @@ export default function ChildProfile() {
   const navigate = useNavigate();
   const [child, setChild] = useState(null);
   const [plans, setPlans] = useState([]);
+  const [interventionPlans, setInterventionPlans] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const childId = new URLSearchParams(window.location.search).get("child_id");
 
   useEffect(() => {
-    if (!childId) { navigate("/ParentDashboard"); return; }
+    if (!childId) { navigate("/ClientDashboard"); return; }
     const load = async () => {
-      const [kids, ps] = await Promise.all([
+      const [kids, ps, ips] = await Promise.all([
         base44.entities.Child.filter({ id: childId }),
         base44.entities.BehaviorPlan.filter({ child_id: childId }),
+        base44.entities.InterventionPlan.filter({ child_id: childId }),
       ]);
       setChild(kids[0] || null);
       setPlans(ps);
+      setInterventionPlans(ips);
       setLoading(false);
     };
     load();
@@ -47,90 +50,93 @@ export default function ChildProfile() {
   );
 
   return (
-    <div className="p-6 md:p-8 max-w-3xl mx-auto font-inter">
-      <button
-        onClick={() => navigate("/ParentDashboard")}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6"
-      >
-        <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+    <div className="p-5 md:p-8 max-w-2xl mx-auto font-inter">
+      <button onClick={() => navigate("/ClientDashboard")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-5">
+        <ArrowLeft className="w-4 h-4" /> Dashboard
       </button>
 
-      {/* Profile Card */}
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl p-6 mb-6">
-        <div className="flex items-center gap-5">
-          <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <span className="text-primary text-3xl font-bold">{child.child_name?.[0]?.toUpperCase() || "?"}</span>
+      {/* Profile */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl p-5 mb-5">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <span className="text-primary text-2xl font-bold">{child.child_name?.[0]?.toUpperCase() || "?"}</span>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">{child.child_name}</h1>
-            {child.age && (
-              <p className="text-muted-foreground text-sm flex items-center gap-1.5 mt-1">
-                <Calendar className="w-3.5 h-3.5" /> Age {child.age}
-              </p>
-            )}
-            {child.diagnosis && (
-              <p className="text-muted-foreground text-sm flex items-center gap-1.5 mt-0.5">
-                <Stethoscope className="w-3.5 h-3.5" /> {child.diagnosis}
-              </p>
-            )}
+            <h1 className="text-xl font-bold text-foreground">{child.child_name}</h1>
+            <div className="flex flex-wrap gap-3 mt-1">
+              {child.age && <p className="text-muted-foreground text-xs flex items-center gap-1"><Calendar className="w-3 h-3" /> Age {child.age}</p>}
+              {child.diagnosis && <p className="text-muted-foreground text-xs flex items-center gap-1"><Stethoscope className="w-3 h-3" /> {child.diagnosis}</p>}
+            </div>
           </div>
         </div>
-
         {child.triggers && (
-          <div className="mt-4 bg-background border border-border rounded-xl p-4">
+          <div className="mt-4 bg-background border border-border rounded-xl p-3">
             <div className="flex items-center gap-1.5 mb-1">
               <AlertTriangle className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Known Triggers</span>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Known Triggers</span>
             </div>
             <p className="text-sm text-foreground">{child.triggers}</p>
           </div>
         )}
       </motion.div>
 
-      {/* Ask AI CTA */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
+      {/* Help Now */}
+      <motion.button
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="bg-gradient-to-br from-primary to-primary/80 rounded-2xl p-5 mb-6"
+        transition={{ delay: 0.05 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => navigate(`/HelpNow?child_id=${childId}`)}
+        className="w-full bg-red-600 hover:bg-red-700 rounded-2xl p-5 mb-5 flex items-center justify-between text-left transition-colors"
       >
-        <p className="font-semibold text-white mb-1">Need guidance right now?</p>
-        <p className="text-white/70 text-sm mb-4">Aspire AI will use {child.child_name}'s behavior plans to give you step-by-step support.</p>
-        <Button
-          className="w-full bg-white text-primary hover:bg-white/90 font-medium rounded-xl h-10 text-sm gap-2"
-          onClick={() => navigate(`/AIChat?child_id=${childId}`)}
-        >
-          <MessageSquare className="w-4 h-4" />
-          Ask AI For Guidance
-        </Button>
+        <div className="flex items-center gap-3">
+          <AlertCircle className="w-7 h-7 text-white" />
+          <div>
+            <p className="text-white font-bold">I Need Help Now</p>
+            <p className="text-white/70 text-xs">Get step-by-step intervention guidance</p>
+          </div>
+        </div>
+        <ChevronRight className="w-5 h-5 text-white/70" />
+      </motion.button>
+
+      {/* Quick Actions */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-3 gap-3 mb-5">
+        <ActionBtn icon={ClipboardList} label="Log" color="text-purple-600 bg-purple-50" onClick={() => navigate(`/LogBehavior?child_id=${childId}`)} />
+        <ActionBtn icon={Star} label="Rewards" color="text-yellow-600 bg-yellow-50" onClick={() => navigate(`/RewardTracker?child_id=${childId}`)} />
+        <ActionBtn icon={MessageCircle} label="Message" color="text-green-600 bg-green-50" onClick={() => navigate("/Messages")} />
       </motion.div>
 
-      {/* Behavior Plans */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-card border border-border rounded-2xl p-6"
-      >
-        <h2 className="font-semibold text-foreground flex items-center gap-2 mb-4">
-          <FileText className="w-4 h-4 text-primary" />
-          Behavior Plans
-          <span className="text-xs text-muted-foreground font-normal">({plans.length})</span>
-        </h2>
-
-        {plans.length === 0 ? (
-          <div className="text-center py-8 border-2 border-dashed border-border rounded-xl">
-            <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">No behavior plans yet. Your clinician will add them here.</p>
-          </div>
-        ) : (
+      {/* Intervention Plans */}
+      {interventionPlans.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card border border-border rounded-2xl p-5 mb-5">
+          <h2 className="font-semibold text-foreground flex items-center gap-2 mb-3 text-sm">
+            <AlertCircle className="w-4 h-4 text-primary" /> Intervention Plans ({interventionPlans.length})
+          </h2>
           <div className="space-y-2">
-            {plans.map((plan) => (
+            {interventionPlans.map(ip => (
+              <button key={ip.id} onClick={() => navigate(`/HelpNow?child_id=${childId}`)} className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/40 transition-all text-left">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-foreground">{ip.title}</p>
+                  <p className="text-xs text-muted-foreground">{ip.behavior_category?.replace(/_/g, " ")}</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Behavior Plans (legacy docs) */}
+      {plans.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-card border border-border rounded-2xl p-5">
+          <h2 className="font-semibold text-foreground flex items-center gap-2 mb-3 text-sm">
+            <FileText className="w-4 h-4 text-primary" /> Clinical Documents ({plans.length})
+          </h2>
+          <div className="space-y-2">
+            {plans.map(plan => (
               <div key={plan.id} className="flex items-center justify-between p-3 bg-background border border-border rounded-xl">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-4 h-4 text-primary" />
-                  </div>
+                  <FileText className="w-4 h-4 text-primary flex-shrink-0" />
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{plan.behavior_name}</p>
                     {plan.severity_level && (
@@ -141,15 +147,24 @@ export default function ChildProfile() {
                   </div>
                 </div>
                 {plan.file_url && (
-                  <a href={plan.file_url} target="_blank" rel="noreferrer">
-                    <Button size="sm" variant="ghost"><Download className="w-4 h-4" /></Button>
-                  </a>
+                  <a href={plan.file_url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline ml-2 flex-shrink-0">View</a>
                 )}
               </div>
             ))}
           </div>
-        )}
-      </motion.div>
+        </motion.div>
+      )}
     </div>
+  );
+}
+
+function ActionBtn({ icon: Icon, label, color, onClick }) {
+  return (
+    <button onClick={onClick} className={`border border-border rounded-2xl p-4 flex flex-col items-center gap-1.5 bg-card hover:border-primary/40 transition-all`}>
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color}`}>
+        <Icon className="w-4.5 h-4.5" />
+      </div>
+      <span className="text-xs font-medium text-foreground">{label}</span>
+    </button>
   );
 }

@@ -1,0 +1,38 @@
+{
+  "name": "RewardToken",
+  "type": "object",
+  "properties": {
+    "child_id": {
+      "type": "string"
+    },
+    "parent_id": {
+      "type": "string"
+    },
+    "token_name": {
+      "type": "string",
+      "description": "e.g. Star, Point, Sticker"
+    },
+    "tokens_earned": {
+      "type": "number",
+      "default": 0
+    },
+    "tokens_goal": {
+      "type": "number",
+      "description": "Tokens needed for a reward"
+    },
+    "reward_description": {
+      "type": "string"
+    },
+    "milestone_notes": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "child_id",
+    "token_name"
+  ]
+}

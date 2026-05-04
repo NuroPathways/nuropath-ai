@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { Brain, Users, MessageSquare, LogOut, Menu, X, ChevronRight, User, FileText, Settings, Baby } from "lucide-react";
+import { Brain, Users, MessageSquare, LogOut, Menu, X, ChevronRight, FileText, Settings, Baby, AlertCircle, BarChart2, Upload, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const noLayoutPages = ["Splash", "Login", "RoleSelection", "ClinicianLogin", "ParentLogin", "ClientLogin", "RoleSetup"];
+const noLayoutPages = ["Splash", "Login", "RoleSelection", "ClinicianLogin", "ParentLogin", "ClientLogin", "RoleSetup", "HelpNow"];
 
 export default function Layout({ children, currentPageName }) {
   const [user, setUser] = useState(null);
@@ -80,16 +80,48 @@ export default function Layout({ children, currentPageName }) {
                 {currentPageName === "ClinicianUsers" && <ChevronRight className="w-3 h-3 ml-auto" />}
               </Link>
               <Link
-              to="/UploadBehaviorPlan"
+              to="/InterventionBuilder"
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-              currentPageName === "UploadBehaviorPlan" ?
+              currentPageName === "InterventionBuilder" ?
               "bg-primary text-primary-foreground" :
               "text-muted-foreground hover:text-foreground hover:bg-muted"}`
               }>
-              
-                <FileText className="w-4 h-4" />
-                Behavior Plans
-                {currentPageName === "UploadBehaviorPlan" && <ChevronRight className="w-3 h-3 ml-auto" />}
+                <ShieldAlert className="w-4 h-4" />
+                Intervention Plans
+                {currentPageName === "InterventionBuilder" && <ChevronRight className="w-3 h-3 ml-auto" />}
+              </Link>
+              <Link
+              to="/ClinicianDocuments"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+              currentPageName === "ClinicianDocuments" ?
+              "bg-primary text-primary-foreground" :
+              "text-muted-foreground hover:text-foreground hover:bg-muted"}`
+              }>
+                <Upload className="w-4 h-4" />
+                Documents
+                {currentPageName === "ClinicianDocuments" && <ChevronRight className="w-3 h-3 ml-auto" />}
+              </Link>
+              <Link
+              to="/ProgressReports"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+              currentPageName === "ProgressReports" ?
+              "bg-primary text-primary-foreground" :
+              "text-muted-foreground hover:text-foreground hover:bg-muted"}`
+              }>
+                <BarChart2 className="w-4 h-4" />
+                Progress Reports
+                {currentPageName === "ProgressReports" && <ChevronRight className="w-3 h-3 ml-auto" />}
+              </Link>
+              <Link
+              to="/Messages"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+              currentPageName === "Messages" ?
+              "bg-primary text-primary-foreground" :
+              "text-muted-foreground hover:text-foreground hover:bg-muted"}`
+              }>
+                <MessageSquare className="w-4 h-4" />
+                Messages
+                {currentPageName === "Messages" && <ChevronRight className="w-3 h-3 ml-auto" />}
               </Link>
               <Link
               to="/Settings"
@@ -143,16 +175,37 @@ export default function Layout({ children, currentPageName }) {
             }
 
               <Link
-              to="/AIChat"
+              to="/HelpNow"
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-              currentPageName === "AIChat" ?
+              currentPageName === "HelpNow" ?
+              "bg-red-600 text-white" :
+              "text-red-600 hover:text-red-700 hover:bg-red-50"}`
+              }>
+                <AlertCircle className="w-4 h-4" />
+                Help Now
+                {currentPageName === "HelpNow" && <ChevronRight className="w-3 h-3 ml-auto" />}
+              </Link>
+              <Link
+              to="/DocumentCenter"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+              currentPageName === "DocumentCenter" ?
               "bg-primary text-primary-foreground" :
               "text-muted-foreground hover:text-foreground hover:bg-muted"}`
               }>
-              
+                <FileText className="w-4 h-4" />
+                Documents
+                {currentPageName === "DocumentCenter" && <ChevronRight className="w-3 h-3 ml-auto" />}
+              </Link>
+              <Link
+              to="/Messages"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+              currentPageName === "Messages" ?
+              "bg-primary text-primary-foreground" :
+              "text-muted-foreground hover:text-foreground hover:bg-muted"}`
+              }>
                 <MessageSquare className="w-4 h-4" />
-                Ask Aspire AI
-                {currentPageName === "AIChat" && <ChevronRight className="w-3 h-3 ml-auto" />}
+                Messages
+                {currentPageName === "Messages" && <ChevronRight className="w-3 h-3 ml-auto" />}
               </Link>
 
               <Link
