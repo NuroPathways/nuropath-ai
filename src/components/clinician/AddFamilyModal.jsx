@@ -36,20 +36,9 @@ export default function AddFamilyModal({ open, onClose, onSuccess, clinicianId }
       clinician_id: clinicianId,
     });
 
-    // Link guardians: try to match to existing users by email
-    const allUsers = guardians.some(g => g.email) ? await base44.entities.User.list() : [];
-
-    // Create children
+    // Create children — store guardian email directly, no User.list() needed
     for (const child of children) {
       if (!child.child_name.trim()) continue;
-      let parent_id;
-      // use first guardian email that matches a user
-      for (const g of guardians) {
-        if (g.email) {
-          const match = allUsers.find(u => u.email?.toLowerCase() === g.email.toLowerCase());
-          if (match) { parent_id = match.id; break; }
-        }
-      }
       const primaryGuardianEmail = guardians[0]?.email || undefined;
       await base44.entities.Child.create({
         child_name: child.child_name.trim(),
@@ -60,7 +49,6 @@ export default function AddFamilyModal({ open, onClose, onSuccess, clinicianId }
         is_patient: child.is_patient || false,
         family_id: fam.id,
         clinician_id: clinicianId,
-        parent_id,
         parent_email: primaryGuardianEmail,
       });
     }
