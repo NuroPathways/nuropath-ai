@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, Upload, FileText, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, Upload, FileText, Trash2, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,6 +30,8 @@ export default function ClinicianDocuments() {
   const [clinicianId, setClinicianId] = useState("");
   const [form, setForm] = useState({ child_id: "", title: "", category: "treatment_plan", notes: "" });
   const [file, setFile] = useState(null);
+  const [generatingPlan, setGeneratingPlan] = useState(null); // doc id being processed
+  const [generatedMsg, setGeneratedMsg] = useState(null); // success doc id
 
   useEffect(() => {
     const load = async () => {
@@ -77,6 +79,57 @@ export default function ClinicianDocuments() {
   const handleDelete = async (docId) => {
     await base44.entities.Document.delete(docId);
     setDocuments(prev => prev.filter(d => d.id !== docId));
+  };
+
+  const generateInterventionPlan = async (doc) => {
+    setGeneratingPlan(doc.id);
+    setGeneratedMsg(null);
+    // Fetch file content and extract intervention plan via LLM
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `You are a behavioral intervention specialist. Read the clinical document at this URL and extract a structured intervention plan from it.
+
+Document title: "${doc.title}"
+Document URL: ${doc.file_url}
+
+Based on the document content, create a complete intervention plan. If the document covers multiple behaviors, focus on the most prominent one. Generate the plan fields as best you can from the document.
+
+Return ONLY valid JSON.`,
+      file_urls: [doc.file_url],
+      response_json_schema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          behavior_category: { type: "string", enum: ["tantrum_meltdown", "aggression", "anxiety_episode", "task_refusal", "bedtime_refusal", "school_refusal", "transition_difficulty", "emotional_dysregulation", "other"] },
+          description: { type: "string" },
+          immediate_steps: { type: "string" },
+          deescalation_steps: { type: "string" },
+          reinforcement_steps: { type: "string" },
+          prevention_tips: { type: "string" },
+          things_to_avoid: { type: "string" },
+          emergency_instructions: { type: "string" }
+        },
+        required: ["title", "behavior_category", "immediate_steps"]
+      }
+    });
+
+    await base44.entities.InterventionPlan.create({
+      child_id: doc.child_id,
+      clinician_id: clinicianId,
+      title: result.title || doc.title,
+      behavior_category: result.behavior_category || "other",
+      description: result.description || "",
+      immediate_steps: result.immediate_steps || "",
+      deescalation_steps: result.deescalation_steps || "",
+      reinforcement_steps: result.reinforcement_steps || "",
+      prevention_tips: result.prevention_tips || "",
+      things_to_avoid: result.things_to_avoid || "",
+      emergency_instructions: result.emergency_instructions || "",
+      is_active: true,
+    });
+
+    setGeneratingPlan(null);
+    setGeneratedMsg(doc.id);
+    setTimeout(() => setGeneratedMsg(null), 4000);
   };
 
   const childMap = Object.fromEntries(children.map(c => [c.id, c.child_name]));
@@ -157,9 +210,23 @@ export default function ClinicianDocuments() {
                   <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-foreground hover:text-primary truncate block">{doc.title}</a>
                   <p className="text-xs text-muted-foreground">{childMap[doc.child_id] || "Unknown"} • {doc.category?.replace(/_/g, " ")}</p>
                 </div>
-                <button onClick={() => handleDelete(doc.id)} className="text-muted-foreground hover:text-destructive flex-shrink-0">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {generatedMsg === doc.id ? (
+                    <span className="flex items-center gap-1 text-xs text-green-600 font-medium"><CheckCircle2 className="w-3.5 h-3.5" /> Plan created!</span>
+                  ) : (
+                    <button
+                      onClick={() => generateInterventionPlan(doc)}
+                      disabled={generatingPlan === doc.id}
+                      title="Generate Intervention Plan from this document"
+                      className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                    >
+                      {generatingPlan === doc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    </button>
+                  )}
+                  <button onClick={() => handleDelete(doc.id)} className="text-muted-foreground hover:text-destructive">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </motion.div>
             ))}
           </div>

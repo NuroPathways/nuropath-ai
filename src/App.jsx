@@ -23,6 +23,8 @@ import Messages from './pages/Messages';
 import InterventionBuilder from './pages/InterventionBuilder';
 import ProgressReports from './pages/ProgressReports';
 import ClinicianDocuments from './pages/ClinicianDocuments';
+import FamilyDetail from './pages/FamilyDetail';
+import AIChat from './pages/AIChat';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -83,6 +85,8 @@ const AuthenticatedApp = () => {
       <Route path="/InterventionBuilder" element={<LayoutWrapper currentPageName="InterventionBuilder"><InterventionBuilder /></LayoutWrapper>} />
       <Route path="/ProgressReports" element={<LayoutWrapper currentPageName="ProgressReports"><ProgressReports /></LayoutWrapper>} />
       <Route path="/ClinicianDocuments" element={<LayoutWrapper currentPageName="ClinicianDocuments"><ClinicianDocuments /></LayoutWrapper>} />
+      <Route path="/FamilyDetail" element={<LayoutWrapper currentPageName="FamilyDetail"><FamilyDetail /></LayoutWrapper>} />
+      <Route path="/AIChat" element={<LayoutWrapper currentPageName="AIChat"><AIChat /></LayoutWrapper>} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

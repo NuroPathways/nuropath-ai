@@ -175,6 +175,17 @@ export default function Layout({ children, currentPageName }) {
             }
 
               <Link
+              to="/AIChat"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+              currentPageName === "AIChat" ?
+              "bg-primary text-primary-foreground" :
+              "text-muted-foreground hover:text-foreground hover:bg-muted"}`
+              }>
+                <MessageSquare className="w-4 h-4" />
+                Aspire AI
+                {currentPageName === "AIChat" && <ChevronRight className="w-3 h-3 ml-auto" />}
+              </Link>
+              <Link
               to="/HelpNow"
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
               currentPageName === "HelpNow" ?
