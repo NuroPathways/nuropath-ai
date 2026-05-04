@@ -20,13 +20,14 @@ export default function ClinicianUsers() {
         base44.entities.Child.filter({ clinician_id: me.id }),
       ]);
 
-      // Fetch parent users for matched parent_ids
-      const parentIds = [...new Set(kids.map((c) => c.parent_id).filter(Boolean))];
-      let parents = [];
-      if (parentIds.length > 0) {
-        parents = await base44.entities.User.list();
-        parents = parents.filter((u) => parentIds.includes(u.id));
-      }
+      // Build parent info from child records (no User.list() — that requires admin)
+      const parentEmailMap = {};
+      kids.forEach((c) => {
+        if (c.parent_id && c.parent_email) {
+          parentEmailMap[c.parent_id] = { id: c.parent_id, email: c.parent_email, full_name: c.parent_email };
+        }
+      });
+      const parents = Object.values(parentEmailMap);
 
       setFamilies(fams.sort((a, b) => (a.family_name || "").localeCompare(b.family_name || "")));
       setChildren(kids);
