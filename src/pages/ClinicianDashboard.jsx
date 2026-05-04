@@ -19,7 +19,13 @@ export default function ClinicianDashboard() {
 
   useEffect(() => {
     const load = async () => {
-      const me = await base44.auth.me();
+      let me;
+      try {
+        me = await base44.auth.me();
+      } catch {
+        setLoading(false);
+        return;
+      }
       // Auto-generate a clinician code if they don't have one yet
       if (!me.clinician_code) {
         const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
