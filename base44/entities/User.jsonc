@@ -2,28 +2,37 @@
   "name": "User",
   "type": "object",
   "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "user"
+      ],
+      "default": "user"
+    },
     "app_role": {
       "type": "string",
       "enum": [
-        "parent",
-        "clinician"
+        "clinician",
+        "parent"
       ],
-      "description": "Application role for this user"
+      "description": "Role within the Aspire app"
     },
-    "clinician_code": {
+    "account_type": {
       "type": "string",
-      "description": "Unique code assigned to clinicians for parents to link with"
+      "description": "self or with_child"
     },
-    "linked_clinician_code": {
+    "invite_token": {
       "type": "string",
-      "description": "The clinician code a parent has entered to link with their clinician"
+      "description": "Invite token used during signup to link to a family"
+    },
+    "linked_family_id": {
+      "type": "string",
+      "description": "Family ID this parent is linked to"
     },
     "linked_clinician_id": {
       "type": "string",
-      "description": "The ID of the clinician this parent is linked to"
+      "description": "Clinician ID this parent is linked to"
     }
-  },
-  "required": [
-    "app_role"
-  ]
+  }
 }

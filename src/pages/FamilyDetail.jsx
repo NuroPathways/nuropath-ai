@@ -40,20 +40,27 @@ export default function FamilyDetail() {
       setEditNotes(f?.notes || "");
       setChildren(kids);
 
-      const parentIds = [...new Set(kids.map(c => c.parent_id).filter(Boolean))];
       const childIds = kids.map(c => c.id);
 
-      const [allUsers, logResults, msgResults, docResults, intResults] = await Promise.all([
-        parentIds.length > 0 ? base44.entities.User.list() : Promise.resolve([]),
+      // Derive guardian info from child records (no User.list() needed)
+      const guardianMap = {};
+      for (const kid of kids) {
+        if (kid.parent_email && !guardianMap[kid.parent_email]) {
+          guardianMap[kid.parent_email] = { email: kid.parent_email, full_name: f?.parent_name || "" };
+        }
+      }
+
+      const [logResults, msgResults, docResults, intResults] = await Promise.all([
         Promise.all(childIds.map(id => base44.entities.BehaviorLog.filter({ child_id: id }))),
         Promise.all(childIds.map(id => base44.entities.Message.filter({ child_id: id }))),
         Promise.all(childIds.map(id => base44.entities.Document.filter({ child_id: id }))),
         Promise.all(childIds.map(id => base44.entities.InterventionPlan.filter({ child_id: id }))),
       ]);
 
-      setParentUsers(allUsers.filter(u => parentIds.includes(u.id)));
+      setParentUsers(Object.values(guardianMap));
       setLogs(logResults.flat().sort((a, b) => new Date(b.created_date) - new Date(a.created_date)));
       setMessages(msgResults.flat().sort((a, b) => new Date(b.created_date) - new Date(a.created_date)));
+
       setDocuments(docResults.flat());
       setInterventions(intResults.flat());
       setLoading(false);
@@ -99,7 +106,7 @@ export default function FamilyDetail() {
         </button>
         <div className="flex-1 min-w-0">
           <h1 className="font-bold text-foreground truncate">{family.family_name} Family</h1>
-          <p className="text-xs text-muted-foreground">{children.length} child{children.length !== 1 ? "ren" : ""} · {parentUsers.length} guardian{parentUsers.length !== 1 ? "s" : ""}</p>
+          <p className="text-xs text-muted-foreground">{children.length} child{children.length !== 1 ? "ren" : ""} · Invite {family?.invite_status || "pending"}</p>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" className="rounded-xl gap-1.5 h-8 text-xs" onClick={() => setEditingFamily(true)}>
@@ -162,10 +169,23 @@ export default function FamilyDetail() {
               <Users className="w-4 h-4 text-accent" />
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Guardians</p>
             </div>
-            {parentUsers.length === 0 ? <p className="text-sm text-muted-foreground">None linked</p> : parentUsers.map(p => (
-              <div key={p.id} className="py-1">
+            {parentUsers.length === 0 ? (
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">No guardian linked yet</p>
+                {family?.invite_email && (
+                  <p className="text-xs text-muted-foreground">Invite sent to: {family.invite_email}</p>
+                )}
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium mt-1 inline-block ${family?.invite_status === "accepted" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                  {family?.invite_status === "accepted" ? "Joined" : "Invite pending"}
+                </span>
+              </div>
+            ) : parentUsers.map((p, i) => (
+              <div key={i} className="py-1">
                 <p className="text-sm font-medium text-foreground">{p.full_name || "Guardian"}</p>
                 <p className="text-xs text-muted-foreground">{p.email}</p>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium mt-0.5 inline-block ${family?.invite_status === "accepted" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                  {family?.invite_status === "accepted" ? "Joined" : "Invite pending"}
+                </span>
               </div>
             ))}
           </div>

@@ -55,7 +55,7 @@ export default function ClinicianDocuments() {
     if (!file || !form.child_id || !form.title) return;
     setUploading(true);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    await base44.entities.Document.create({
+    const doc = await base44.entities.Document.create({
       child_id: form.child_id,
       clinician_id: clinicianId,
       title: form.title,
@@ -64,6 +64,13 @@ export default function ClinicianDocuments() {
       file_name: file.name,
       notes: form.notes,
     });
+
+    // Auto-generate intervention plan from behavioral documents
+    const autoSyncCategories = ["treatment_plan", "behavior_protocol", "reinforcement_plan", "coping_strategy"];
+    if (autoSyncCategories.includes(form.category)) {
+      generateInterventionPlan(doc).catch(() => {});
+    }
+
     const allDocs = [];
     for (const kid of children) {
       const docs = await base44.entities.Document.filter({ child_id: kid.id });

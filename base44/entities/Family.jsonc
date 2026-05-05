@@ -13,6 +13,27 @@
     "notes": {
       "type": "string",
       "description": "General notes about the family"
+    },
+    "invite_token": {
+      "type": "string",
+      "description": "Unique one-time token for parent invitation"
+    },
+    "invite_email": {
+      "type": "string",
+      "description": "Email address the invite was sent to"
+    },
+    "invite_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "accepted"
+      ],
+      "default": "pending",
+      "description": "Status of the parent invitation"
+    },
+    "parent_name": {
+      "type": "string",
+      "description": "Primary guardian name"
     }
   },
   "required": [
