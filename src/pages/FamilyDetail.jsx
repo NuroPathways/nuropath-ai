@@ -30,6 +30,8 @@ export default function FamilyDetail() {
   useEffect(() => {
     if (!familyId) return;
     const load = async () => {
+      let me;
+      try { me = await base44.auth.me(); } catch { /* unauthenticated preview */ }
       const [fam, kids] = await Promise.all([
         base44.entities.Family.filter({ id: familyId }),
         base44.entities.Child.filter({ family_id: familyId }),

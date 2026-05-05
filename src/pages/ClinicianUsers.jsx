@@ -14,17 +14,20 @@ export default function ClinicianUsers() {
 
   useEffect(() => {
     const load = async () => {
-      const me = await base44.auth.me();
+      let me;
+      try { me = await base44.auth.me(); } catch { return; }
+      if (!me) return;
       const [fams, kids] = await Promise.all([
         base44.entities.Family.filter({ clinician_id: me.id }),
         base44.entities.Child.filter({ clinician_id: me.id }),
       ]);
 
-      // Build parent info from child records (no User.list() — that requires admin)
+      // Build parent info from child records only (User.list() is admin-only and not used)
       const parentEmailMap = {};
       kids.forEach((c) => {
-        if (c.parent_id && c.parent_email) {
-          parentEmailMap[c.parent_id] = { id: c.parent_id, email: c.parent_email, full_name: c.parent_email };
+        const key = c.parent_id || c.parent_email;
+        if (key && !parentEmailMap[key]) {
+          parentEmailMap[key] = { id: c.parent_id || key, email: c.parent_email || "", full_name: c.parent_email || "Guardian" };
         }
       });
       const parents = Object.values(parentEmailMap);
