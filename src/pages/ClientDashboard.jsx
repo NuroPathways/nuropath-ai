@@ -5,12 +5,15 @@ import { AlertCircle, FileText, Star, MessageCircle, Baby, ChevronRight, Bell, C
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
+import BehaviorProgressChart from "@/components/parent/BehaviorProgressChart";
+import DailyCheckInBanner from "@/components/parent/DailyCheckInBanner";
 
 export default function ClientDashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [children, setChildren] = useState([]);
   const [recentLogs, setRecentLogs] = useState([]);
+  const [allLogs, setAllLogs] = useState([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -30,6 +33,7 @@ export default function ClientDashboard() {
         const logPromises = merged.map(c => base44.entities.BehaviorLog.filter({ child_id: c.id }));
         const logResults = await Promise.all(logPromises);
         const allLogs = logResults.flat().sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+        setAllLogs(allLogs);
         setRecentLogs(allLogs.slice(0, 5));
 
         const msgResults = await Promise.all(merged.map(c => base44.entities.Message.filter({ child_id: c.id, to_user_id: me.id, is_read: false })));
@@ -70,6 +74,16 @@ export default function ClientDashboard() {
             <ChevronRight className="w-6 h-6 text-white/70" />
           </div>
         </motion.button>
+
+        {/* Daily check-in banner */}
+        <DailyCheckInBanner
+          logs={allLogs}
+          childId={primaryChild?.id}
+          onLogClick={() => navigate(primaryChild ? `/LogBehavior?child_id=${primaryChild.id}` : "/LogBehavior")}
+        />
+
+        {/* Behavior Progress Chart */}
+        {allLogs.length > 0 && <BehaviorProgressChart logs={allLogs} />}
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-3 mb-5">
