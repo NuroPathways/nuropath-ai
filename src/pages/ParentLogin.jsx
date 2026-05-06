@@ -12,7 +12,7 @@ export default function ParentLogin() {
     base44.auth.me().then((user) => {
       if (user?.app_role === "parent") navigate("/ParentDashboard");
       else if (user?.app_role === "clinician") navigate("/ClinicianDashboard");
-      else if (user) navigate("/ParentDashboard");
+      else if (user) navigate("/RoleSetup");
     }).catch(() => {});
   }, [navigate]);
 
