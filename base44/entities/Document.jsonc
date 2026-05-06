@@ -10,6 +10,10 @@
       "type": "string",
       "description": "ID of the clinician who uploaded this document"
     },
+    "parent_id": {
+      "type": "string",
+      "description": "ID of the parent linked to this child — enables targeted parent read access"
+    },
     "title": {
       "type": "string"
     },
@@ -62,9 +66,7 @@
           "data.clinician_id": "{{user.id}}"
         },
         {
-          "user_condition": {
-            "app_role": "parent"
-          }
+          "data.parent_id": "{{user.id}}"
         },
         {
           "user_condition": {
