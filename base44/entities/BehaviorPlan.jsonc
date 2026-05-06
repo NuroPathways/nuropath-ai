@@ -6,6 +6,10 @@
       "type": "string",
       "description": "Reference to the child"
     },
+    "clinician_id": {
+      "type": "string",
+      "description": "Clinician who created this plan — for RLS read access"
+    },
     "behavior_name": {
       "type": "string",
       "description": "Name of the behavior being addressed"
@@ -56,34 +60,28 @@
       "type": "string"
     },
     "file_url": {
-      "type": "string",
-      "description": "URL of the uploaded source document"
+      "type": "string"
     },
     "file_name": {
-      "type": "string",
-      "description": "Original file name of the uploaded document"
+      "type": "string"
     },
     "source_document_id": {
       "type": "string",
-      "description": "ID of the Document record this was extracted from"
+      "description": "Links to the Document record this was extracted from — prevents duplicate extraction"
     }
   },
   "required": ["child_id", "behavior_name"],
   "rls": {
     "create": {
-      "user_condition": {
-        "app_role": "clinician"
-      }
+      "data.clinician_id": "{{user.id}}"
     },
     "read": {
       "$or": [
         {
-          "data.created_by": "{{user.id}}"
+          "data.clinician_id": "{{user.id}}"
         },
         {
-          "user_condition": {
-            "app_role": "parent"
-          }
+          "data.created_by": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -93,10 +91,24 @@
       ]
     },
     "update": {
-      "data.created_by": "{{user.id}}"
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "data.created_by": "{{user.id}}"
+        }
+      ]
     },
     "delete": {
-      "data.created_by": "{{user.id}}"
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "data.created_by": "{{user.id}}"
+        }
+      ]
     }
   }
 }
