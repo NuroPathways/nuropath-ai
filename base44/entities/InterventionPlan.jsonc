@@ -66,5 +66,46 @@
     "child_id",
     "behavior_category",
     "title"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.clinician_id": "{{user.id}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    }
+  }
 }
