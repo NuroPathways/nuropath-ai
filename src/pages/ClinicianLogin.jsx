@@ -12,7 +12,7 @@ export default function ClinicianLogin() {
     base44.auth.me().then((user) => {
       if (user?.app_role === "clinician") navigate("/ClinicianDashboard");
       else if (user?.app_role === "parent") navigate("/ClientDashboard");
-      else if (user) navigate("/ClinicianDashboard");
+      else if (user) navigate("/RoleSetup");
     }).catch(() => {});
   }, [navigate]);
 
