@@ -70,33 +70,33 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
   const buildInviteEmail = (name, link) => {
     if (isFamily) {
       return {
-        subject: "You've been invited to Aspire",
+        subject: "You're invited to NeuroPath — Your Client's Support Platform",
         body: `Hi ${name || "there"},
 
-Your clinician has set up a profile on Aspire for you and your client. Click the link below to create your account and get started:
+Your clinician has set up a profile on NeuroPath for you and your client. Click the secure link below to create your account and get started:
 
 ${link}
 
-Once you sign up, your client's care plans, documents, and support tools will be ready for you.
+Once you sign up, you'll have access to your client's care plans, behavioral support strategies, documents, and AI-powered guidance — available 24/7.
 
-If you have any questions, contact your clinician directly.
+If you have any questions, reach out to your clinician directly.
 
-— The Aspire Team`,
+— The NeuroPath Team`,
       };
     }
     return {
-      subject: "You've been invited to Aspire",
+      subject: "You're invited to NeuroPath — Your Personal Support Platform",
       body: `Hi ${name || "there"},
 
-Your clinician has set up your personal profile on Aspire. Click the link below to create your account:
+Your clinician has set up your personal profile on NeuroPath. Click the secure link below to create your account:
 
 ${link}
 
-Once you sign in, you'll have access to your personalized goals, progress tracking, session tools, and support resources.
+Once you sign in, you'll have access to your personalized goals, progress tracking, session tools, and AI-powered support resources — available anytime.
 
-If you have any questions, contact your clinician directly.
+If you have any questions, reach out to your clinician directly.
 
-— The Aspire Team`,
+— The NeuroPath Team`,
     };
   };
 
@@ -463,8 +463,16 @@ If you have any questions, contact your clinician directly.
                   emailError ? "bg-red-50 text-red-700" :
                   "bg-muted text-muted-foreground"
                 }`}>
-                  {emailSent && <><CheckCircle2 className="w-3.5 h-3.5" /> Email Sent</>}
-                  {emailError && <><AlertCircle className="w-3.5 h-3.5" /> Email Failed</>}
+                  {emailSent && <><CheckCircle2 className="w-3.5 h-3.5" /> Email Sent Successfully</>}
+                  {emailError && <><AlertCircle className="w-3.5 h-3.5" /> Email Failed — Copy link below</>}
+                </div>
+              )}
+
+              {/* Email failed explanation */}
+              {emailError && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-left text-xs text-amber-800 space-y-1">
+                  <p className="font-semibold">⚠️ Why did the email fail?</p>
+                  <p>Email delivery requires integration credits. Your workspace may be out of credits or the email service is temporarily unavailable. <strong>The client profile was created successfully.</strong> You can still onboard them by copying the invite link below and sending it manually.</p>
                 </div>
               )}
 
@@ -477,7 +485,7 @@ If you have any questions, contact your clinician directly.
                   onClick={handleResend}
                   disabled={resending}
                 >
-                  {resending ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Resending...</> : <><RefreshCw className="w-3.5 h-3.5" /> Resend Invite Email</>}
+                  {resending ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Resending...</> : <><RefreshCw className="w-3.5 h-3.5" /> Try Resend Email</>}
                 </Button>
               )}
 

@@ -52,13 +52,20 @@ export default function ClinicianDocuments() {
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
   const handleUpload = async () => {
-    if (!file || !form.child_id || !form.title) return;
+    if (!file || !form.child_id) return;
     setUploading(true);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
+
+    // Use provided title or fall back to cleaned filename
+    const rawName = file.name.replace(/\.[^/.]+$/, ""); // strip extension
+    const isMessyName = /^[a-z0-9_\-]{6,}$/i.test(rawName) && rawName.includes("_") || rawName.match(/\d{5,}/);
+    const cleanFallback = rawName.replace(/[_\-]+/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+    const autoTitle = form.title.trim() || cleanFallback;
+
     const doc = await base44.entities.Document.create({
       child_id: form.child_id,
       clinician_id: clinicianId,
-      title: form.title,
+      title: autoTitle,
       category: form.category,
       file_url,
       file_name: file.name,
@@ -215,7 +222,7 @@ Return ONLY valid JSON matching the schema.`,
                 </Select>
               </div>
               <div>
-                <p className={LABEL}>Document Title *</p>
+                <p className={LABEL}>Document Title <span className="normal-case font-normal text-muted-foreground">(optional — auto-generated if blank)</span></p>
                 <Input value={form.title} onChange={e => set("title", e.target.value)} placeholder="e.g. Behavior Protocol — Aggression" className="rounded-xl" />
               </div>
               <div>
@@ -237,7 +244,7 @@ Return ONLY valid JSON matching the schema.`,
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowForm(false); setFile(null); }}>Cancel</Button>
-                <Button className="flex-1 rounded-xl gap-1.5" onClick={handleUpload} disabled={uploading || !file || !form.child_id || !form.title}>
+                <Button className="flex-1 rounded-xl gap-1.5" onClick={handleUpload} disabled={uploading || !file || !form.child_id}>
                   {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</> : <><Upload className="w-4 h-4" /> Upload</>}
                 </Button>
               </div>
