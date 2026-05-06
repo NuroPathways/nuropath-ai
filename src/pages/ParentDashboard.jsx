@@ -13,10 +13,26 @@ export default function ParentDashboard() {
 
   useEffect(() => {
     const load = async () => {
-      const me = await base44.auth.me();
+      let me;
+      try {
+        me = await base44.auth.me();
+      } catch {
+        navigate("/");
+        return;
+      }
       setUser(me);
-      const kids = await base44.entities.Child.filter({ parent_id: me.id });
-      setChildren(kids);
+      // Check both parent_id and parent_email to catch all linked children
+      const [byId, byEmail] = await Promise.all([
+        base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
+        base44.entities.Child.filter({ parent_email: me.email }).catch(() => []),
+      ]);
+      const seen = new Set();
+      const merged = [...byId, ...byEmail].filter(c => {
+        if (seen.has(c.id)) return false;
+        seen.add(c.id);
+        return true;
+      });
+      setChildren(merged);
       setLoading(false);
     };
     load();
