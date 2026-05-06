@@ -67,42 +67,14 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
 
   const totalSteps = getSteps().length;
 
-  const buildInviteEmail = (name, link) => {
-    if (isFamily) {
-      return {
-        subject: "You're invited to NeuroPath — Your Client's Support Platform",
-        body: `Hi ${name || "there"},
-
-Your clinician has set up a profile on NeuroPath for you and your client. Click the secure link below to create your account and get started:
-
-${link}
-
-Once you sign up, you'll have access to your client's care plans, behavioral support strategies, documents, and AI-powered guidance — available 24/7.
-
-If you have any questions, reach out to your clinician directly.
-
-— The NeuroPath Team`,
-      };
-    }
-    return {
-      subject: "You're invited to NeuroPath — Your Personal Support Platform",
-      body: `Hi ${name || "there"},
-
-Your clinician has set up your personal profile on NeuroPath. Click the secure link below to create your account:
-
-${link}
-
-Once you sign in, you'll have access to your personalized goals, progress tracking, session tools, and AI-powered support resources — available anytime.
-
-If you have any questions, reach out to your clinician directly.
-
-— The NeuroPath Team`,
-    };
-  };
-
   const sendInviteEmail = async (email, name, link) => {
-    const { subject, body } = buildInviteEmail(name, link);
-    await base44.integrations.Core.SendEmail({ to: email, subject, body });
+    const response = await base44.functions.invoke('sendInviteEmail', {
+      to: email,
+      name,
+      link,
+      type: accountType,
+    });
+    if (response.data?.error) throw new Error(response.data.error);
   };
 
   const handleSave = async () => {

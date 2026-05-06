@@ -65,10 +65,11 @@ export default function AddFamilyModal({ open, onClose, onSuccess, clinicianId }
 
     // Send invite email if we have an address
     if (guardian.email) {
-      await base44.integrations.Core.SendEmail({
+      await base44.functions.invoke('sendInviteEmail', {
         to: guardian.email,
-        subject: "You've been invited to Aspire",
-        body: `Hi ${guardian.name || "there"},\n\nYour clinician has set up your family profile on Aspire. Click the link below to create your account and get started:\n\n${link}\n\nThis link is unique to your family. Once you sign up, your child's plans and documents will be ready for you.\n\nIf you have questions, contact your clinician directly.\n\n— The Aspire Team`,
+        name: guardian.name,
+        link,
+        type: 'family',
       }).catch(() => {});
     }
 
