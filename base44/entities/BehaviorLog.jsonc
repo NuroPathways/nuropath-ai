@@ -1,0 +1,96 @@
+{
+  "name": "BehaviorLog",
+  "type": "object",
+  "properties": {
+    "child_id": {
+      "type": "string",
+      "description": "Reference to the child"
+    },
+    "parent_id": {
+      "type": "string",
+      "description": "Reference to the parent"
+    },
+    "conversation_id": {
+      "type": "string",
+      "description": "Reference to the AIConversation record"
+    },
+    "behavior_type": {
+      "type": "string",
+      "description": "Interpreted behavior type from Module 1"
+    },
+    "intensity": {
+      "type": "string",
+      "enum": [
+        "low",
+        "moderate",
+        "high"
+      ],
+      "description": "Behavior intensity"
+    },
+    "context": {
+      "type": "string",
+      "description": "Context/setting of the behavior"
+    },
+    "possible_function": {
+      "type": "string",
+      "description": "Interpreted function of the behavior"
+    },
+    "strategy_used": {
+      "type": "string",
+      "description": "Primary strategy that was recommended"
+    },
+    "parent_feedback": {
+      "type": "string",
+      "enum": [
+        "yes",
+        "partially",
+        "no"
+      ],
+      "description": "Parent feedback on strategy effectiveness"
+    }
+  },
+  "required": [
+    "child_id"
+  ],
+  "rls": {
+    "create": {
+      "data.parent_id": "{{user.id}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.parent_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.parent_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.parent_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
