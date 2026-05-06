@@ -33,7 +33,14 @@
   ],
   "rls": {
     "create": {
-      "data.from_user_id": "{{user.id}}"
+      "$or": [
+        {
+          "data.from_user_id": "{{user.id}}"
+        },
+        {
+          "data.to_user_id": "{{user.id}}"
+        }
+      ]
     },
     "read": {
       "$or": [
