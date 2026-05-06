@@ -13,6 +13,10 @@
     "child_name": {
       "type": "string"
     },
+    "clinician_id": {
+      "type": "string",
+      "description": "ID of the clinician linked to this child — for clinician read access"
+    },
     "question": {
       "type": "string",
       "description": "Parent's question"
@@ -22,10 +26,7 @@
       "description": "AI-generated response"
     }
   },
-  "required": [
-    "question",
-    "ai_response"
-  ],
+  "required": ["question", "ai_response"],
   "rls": {
     "create": {
       "data.parent_id": "{{user.id}}"
@@ -40,7 +41,7 @@
         },
         {
           "user_condition": {
-            "app_role": "admin"
+            "role": "admin"
           }
         }
       ]
