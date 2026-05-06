@@ -30,5 +30,49 @@
     "from_user_id",
     "to_user_id",
     "body"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.from_user_id": "{{user.id}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.from_user_id": "{{user.id}}"
+        },
+        {
+          "data.to_user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.from_user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.from_user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    }
+  }
 }
