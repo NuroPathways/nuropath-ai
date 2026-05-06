@@ -16,13 +16,6 @@ export default function AddChildModal({ open, onClose, onSuccess, clinicianId })
   const handleSave = async () => {
     if (!form.child_name.trim()) return;
     setSaving(true);
-    // Try to find parent by email to link parent_id
-    let parent_id = undefined;
-    if (form.parent_email) {
-      const users = await base44.entities.User.list();
-      const match = users.find(u => u.email?.toLowerCase() === form.parent_email.toLowerCase());
-      if (match) parent_id = match.id;
-    }
     await base44.entities.Child.create({
       child_name: form.child_name,
       age: form.age ? Number(form.age) : undefined,
@@ -30,7 +23,7 @@ export default function AddChildModal({ open, onClose, onSuccess, clinicianId })
       triggers: form.triggers || undefined,
       notes: form.notes || undefined,
       parent_email: form.parent_email || undefined,
-      parent_id,
+      // parent_id will be linked when the parent signs up via RoleSetup invite flow
       clinician_id: clinicianId,
     });
     setSaving(false);
