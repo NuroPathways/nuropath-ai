@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, Save, Plus, Trash2, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, CheckCircle2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,6 +70,7 @@ export default function InterventionBuilder() {
   const [children, setChildren] = useState([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
   const planIdParam = new URLSearchParams(window.location.search).get("plan_id");
   const childIdParam = new URLSearchParams(window.location.search).get("child_id");
 
@@ -89,15 +90,29 @@ export default function InterventionBuilder() {
 
   useEffect(() => {
     const load = async () => {
-      const me = await base44.auth.me();
-      const kids = await base44.entities.Child.filter({ clinician_id: me.id });
-      setChildren(kids);
-      if (!childIdParam && kids[0]) setForm(f => ({ ...f, child_id: kids[0].id }));
+      let me;
+      try {
+        me = await base44.auth.me();
+      } catch {
+        navigate("/");
+        return;
+      }
 
+      const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
+      setChildren(kids);
+
+      // Set default child only if not editing and no param provided
+      if (!childIdParam && !planIdParam && kids[0]) {
+        setForm(f => ({ ...f, child_id: kids[0].id }));
+      }
+
+      // Load existing plan for editing
       if (planIdParam) {
-        const plans = await base44.entities.InterventionPlan.filter({ id: planIdParam });
+        const plans = await base44.entities.InterventionPlan.filter({ id: planIdParam }).catch(() => []);
         if (plans[0]) setForm({ ...plans[0] });
       }
+
+      setLoading(false);
     };
     load();
   }, [planIdParam, childIdParam]);
@@ -107,14 +122,18 @@ export default function InterventionBuilder() {
   const handleSave = async () => {
     if (!form.child_id || !form.behavior_category || !form.title) return;
     setSaving(true);
-    if (planIdParam) {
-      await base44.entities.InterventionPlan.update(planIdParam, form);
-    } else {
-      await base44.entities.InterventionPlan.create(form);
+    try {
+      if (planIdParam) {
+        await base44.entities.InterventionPlan.update(planIdParam, form);
+      } else {
+        await base44.entities.InterventionPlan.create(form);
+      }
+      setSaved(true);
+      setTimeout(() => navigate(-1), 1500);
+    } catch (e) {
+      console.error("Failed to save plan:", e);
     }
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => navigate(-1), 1500);
   };
 
   if (saved) return (
@@ -127,6 +146,24 @@ export default function InterventionBuilder() {
     </div>
   );
 
+  // No clients yet — show a helpful empty state instead of a broken form
+  if (!loading && children.length === 0) return (
+    <div className="min-h-screen bg-background font-inter">
+      <div className="sticky top-0 z-10 bg-card border-b border-border px-4 py-4 flex items-center gap-3">
+        <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <h1 className="font-bold text-foreground flex-1">Create Intervention Plan</h1>
+      </div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
+        <Users className="w-12 h-12 text-muted-foreground mb-4" />
+        <p className="font-semibold text-foreground mb-1">No clients yet</p>
+        <p className="text-sm text-muted-foreground mb-4">Add a client first before creating an intervention plan.</p>
+        <Button onClick={() => navigate("/ClinicianDashboard")} className="rounded-xl">Go to Dashboard</Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background font-inter">
       <div className="sticky top-0 z-10 bg-card border-b border-border px-4 py-4 flex items-center gap-3">
@@ -134,7 +171,12 @@ export default function InterventionBuilder() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="font-bold text-foreground flex-1">{planIdParam ? "Edit" : "Create"} Intervention Plan</h1>
-        <Button onClick={handleSave} disabled={saving || !form.child_id || !form.behavior_category || !form.title} size="sm" className="rounded-xl gap-1.5 h-9">
+        <Button
+          onClick={handleSave}
+          disabled={saving || !form.child_id || !form.behavior_category || !form.title}
+          size="sm"
+          className="rounded-xl gap-1.5 h-9"
+        >
           <Save className="w-3.5 h-3.5" />
           {saving ? "Saving..." : "Save"}
         </Button>
@@ -143,7 +185,20 @@ export default function InterventionBuilder() {
       <div className="p-5 max-w-2xl mx-auto space-y-5">
         {/* Basic Info */}
         <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-          <h2 className="font-semibold text-foreground text-sm">Plan Details</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-foreground text-sm">Plan Details</h2>
+            {/* is_active toggle — was never exposed in the UI */}
+            <button
+              onClick={() => set("is_active", !form.is_active)}
+              className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
+                form.is_active
+                  ? "bg-green-100 text-green-700 hover:bg-green-200"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              {form.is_active ? "Active" : "Inactive"}
+            </button>
+          </div>
           <div>
             <p className={LABEL}>Client *</p>
             <Select value={form.child_id} onValueChange={v => set("child_id", v)}>
@@ -198,29 +253,42 @@ export default function InterventionBuilder() {
           />
           <PhaseEditor
             label="Prevention Tips"
-            placeholder="e.g. Give 5-minute warning before transitions"
+            placeholder="e.g. Give 5-minute warnings before transitions"
             value={form.prevention_tips}
             onChange={v => set("prevention_tips", v)}
             color="bg-purple-50 border-purple-200"
           />
+          <PhaseEditor
+            label="Things to Avoid"
+            placeholder="e.g. Don't raise your voice or issue ultimatums"
+            value={form.things_to_avoid}
+            onChange={v => set("things_to_avoid", v)}
+            color="bg-red-50 border-red-200"
+          />
         </div>
 
-        {/* Avoidance & Emergency */}
-        <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-          <div>
-            <p className={LABEL}>Things to Avoid</p>
-            <Textarea value={form.things_to_avoid} onChange={e => set("things_to_avoid", e.target.value)} placeholder="List actions that worsen the behavior..." className="rounded-xl" rows={3} />
-          </div>
-          <div>
-            <p className={LABEL}>Emergency Escalation Instructions</p>
-            <Textarea value={form.emergency_instructions} onChange={e => set("emergency_instructions", e.target.value)} placeholder="If immediate safety is a concern..." className="rounded-xl" rows={3} />
-          </div>
+        {/* Emergency */}
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <h2 className="font-semibold text-foreground text-sm mb-3">Emergency Instructions</h2>
+          <Textarea
+            value={form.emergency_instructions}
+            onChange={e => set("emergency_instructions", e.target.value)}
+            placeholder="When to call for help, safety protocols, emergency contacts..."
+            className="rounded-xl"
+            rows={3}
+          />
         </div>
 
-        <Button onClick={handleSave} disabled={saving || !form.child_id || !form.behavior_category || !form.title} className="w-full rounded-xl h-11 gap-2">
-          <Save className="w-4 h-4" />
-          {saving ? "Saving..." : "Save Intervention Plan"}
-        </Button>
+        <div className="pb-8">
+          <Button
+            onClick={handleSave}
+            disabled={saving || !form.child_id || !form.behavior_category || !form.title}
+            className="w-full rounded-xl h-12 gap-2"
+          >
+            <Save className="w-4 h-4" />
+            {saving ? "Saving..." : planIdParam ? "Update Plan" : "Create Plan"}
+          </Button>
+        </div>
       </div>
     </div>
   );
