@@ -36,6 +36,9 @@
           "data.parent_id": "{{user.id}}"
         },
         {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
           "user_condition": {
             "app_role": "admin"
           }
