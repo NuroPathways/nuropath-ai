@@ -4,11 +4,11 @@
   "properties": {
     "child_id": {
       "type": "string",
-      "description": "ID of the child this plan is for"
+      "description": "Reference to the child"
     },
     "clinician_id": {
       "type": "string",
-      "description": "ID of the clinician who created it"
+      "description": "ID of the clinician — used for RLS and attribution"
     },
     "behavior_category": {
       "type": "string",
@@ -22,48 +22,39 @@
         "transition_difficulty",
         "emotional_dysregulation",
         "other"
-      ],
-      "description": "The behavior category this plan addresses"
+      ]
     },
     "title": {
-      "type": "string",
-      "description": "Plan title"
+      "type": "string"
     },
     "description": {
-      "type": "string",
-      "description": "Overview of the behavior and context"
+      "type": "string"
     },
     "immediate_steps": {
-      "type": "string",
-      "description": "What to do right now - step by step"
+      "type": "string"
     },
     "deescalation_steps": {
-      "type": "string",
-      "description": "Steps if behavior escalates"
+      "type": "string"
     },
     "reinforcement_steps": {
-      "type": "string",
-      "description": "Reinforcement and reward guidance"
+      "type": "string"
     },
     "prevention_tips": {
-      "type": "string",
-      "description": "How to prevent this behavior"
+      "type": "string"
     },
     "things_to_avoid": {
-      "type": "string",
-      "description": "What NOT to do"
+      "type": "string"
     },
     "emergency_instructions": {
-      "type": "string",
-      "description": "Emergency escalation instructions"
-    },
-    "source_document_id": {
-      "type": "string",
-      "description": "ID of the Document record this was extracted from (for traceability)"
+      "type": "string"
     },
     "is_active": {
       "type": "boolean",
       "default": true
+    },
+    "source_document_id": {
+      "type": "string",
+      "description": "Links to Document record this was AI-extracted from — prevents re-extraction duplicates"
     }
   },
   "required": ["child_id", "behavior_category", "title"],
