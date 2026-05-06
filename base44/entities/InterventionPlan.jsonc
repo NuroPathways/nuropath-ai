@@ -57,16 +57,16 @@
       "type": "string",
       "description": "Emergency escalation instructions"
     },
+    "source_document_id": {
+      "type": "string",
+      "description": "ID of the Document record this was extracted from (for traceability)"
+    },
     "is_active": {
       "type": "boolean",
       "default": true
     }
   },
-  "required": [
-    "child_id",
-    "behavior_category",
-    "title"
-  ],
+  "required": ["child_id", "behavior_category", "title"],
   "rls": {
     "create": {
       "data.clinician_id": "{{user.id}}"
@@ -77,7 +77,14 @@
           "data.clinician_id": "{{user.id}}"
         },
         {
-          "data.child_id": "{{user.id}}"
+          "user_condition": {
+            "app_role": "parent"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
         }
       ]
     },
