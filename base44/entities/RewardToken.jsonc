@@ -8,6 +8,10 @@
     "parent_id": {
       "type": "string"
     },
+    "clinician_id": {
+      "type": "string",
+      "description": "Clinician linked to this child — for read access"
+    },
     "token_name": {
       "type": "string",
       "description": "e.g. Star, Point, Sticker"
@@ -31,10 +35,7 @@
       "format": "date"
     }
   },
-  "required": [
-    "child_id",
-    "token_name"
-  ],
+  "required": ["child_id", "token_name"],
   "rls": {
     "create": {
       "data.parent_id": "{{user.id}}",
@@ -52,7 +53,7 @@
         },
         {
           "user_condition": {
-            "app_role": "admin"
+            "role": "admin"
           }
         }
       ]
@@ -64,7 +65,7 @@
         },
         {
           "user_condition": {
-            "app_role": "admin"
+            "role": "admin"
           }
         }
       ]
@@ -76,7 +77,7 @@
         },
         {
           "user_condition": {
-            "app_role": "admin"
+            "role": "admin"
           }
         }
       ]
