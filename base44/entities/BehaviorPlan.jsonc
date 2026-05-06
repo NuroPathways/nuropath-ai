@@ -1,0 +1,117 @@
+{
+  "name": "BehaviorPlan",
+  "type": "object",
+  "properties": {
+    "child_id": {
+      "type": "string",
+      "description": "Reference to the child"
+    },
+    "behavior_name": {
+      "type": "string",
+      "description": "Name of the behavior being addressed"
+    },
+    "behavior_description": {
+      "type": "string",
+      "description": "Detailed description of the behavior"
+    },
+    "behavior_function": {
+      "type": "string",
+      "description": "Function/purpose of the behavior"
+    },
+    "common_triggers": {
+      "type": "string",
+      "description": "Common triggers for this behavior"
+    },
+    "severity_level": {
+      "type": "string",
+      "enum": [
+        "low",
+        "moderate",
+        "high",
+        "crisis"
+      ],
+      "description": "Severity level of the behavior"
+    },
+    "created_by": {
+      "type": "string",
+      "description": "ID of the clinician who created the plan"
+    },
+    "strategy_title": {
+      "type": "string"
+    },
+    "strategy_steps": {
+      "type": "string"
+    },
+    "when_to_use": {
+      "type": "string"
+    },
+    "reinforcement_method": {
+      "type": "string"
+    },
+    "escalation_signs": {
+      "type": "string"
+    },
+    "deescalation_steps": {
+      "type": "string"
+    },
+    "avoid_actions": {
+      "type": "string"
+    },
+    "safe_space_method": {
+      "type": "string"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL of the uploaded source document"
+    },
+    "file_name": {
+      "type": "string",
+      "description": "Original file name of the uploaded document"
+    }
+  },
+  "required": [
+    "child_id",
+    "behavior_name"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.id}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
