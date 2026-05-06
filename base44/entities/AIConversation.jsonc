@@ -1,0 +1,52 @@
+{
+  "name": "AIConversation",
+  "type": "object",
+  "properties": {
+    "parent_id": {
+      "type": "string",
+      "description": "ID of the parent user"
+    },
+    "child_id": {
+      "type": "string",
+      "description": "ID of the child"
+    },
+    "child_name": {
+      "type": "string"
+    },
+    "question": {
+      "type": "string",
+      "description": "Parent's question"
+    },
+    "ai_response": {
+      "type": "string",
+      "description": "AI-generated response"
+    }
+  },
+  "required": [
+    "question",
+    "ai_response"
+  ],
+  "rls": {
+    "create": {
+      "data.parent_id": "{{user.id}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.parent_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "data.parent_id": "{{user.id}}"
+    },
+    "delete": {
+      "data.parent_id": "{{user.id}}"
+    }
+  }
+}
