@@ -45,5 +45,67 @@
   },
   "required": [
     "child_name"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "data.parent_id": "{{user.id}}"
+        },
+        {
+          "data.parent_email": "{{user.email}}"
+        },
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.parent_id": "{{user.id}}"
+        },
+        {
+          "data.parent_email": "{{user.email}}"
+        },
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "app_role": "admin"
+          }
+        }
+      ]
+    }
+  }
 }
