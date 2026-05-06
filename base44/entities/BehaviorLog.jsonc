@@ -54,12 +54,22 @@
   ],
   "rls": {
     "create": {
-      "data.parent_id": "{{user.id}}"
+      "$or": [
+        {
+          "data.parent_id": "{{user.id}}"
+        },
+        {
+          "data.clinician_id": "{{user.id}}"
+        }
+      ]
     },
     "read": {
       "$or": [
         {
           "data.parent_id": "{{user.id}}"
+        },
+        {
+          "data.clinician_id": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -74,6 +84,9 @@
           "data.parent_id": "{{user.id}}"
         },
         {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
           "user_condition": {
             "app_role": "admin"
           }
@@ -84,6 +97,9 @@
       "$or": [
         {
           "data.parent_id": "{{user.id}}"
+        },
+        {
+          "data.clinician_id": "{{user.id}}"
         },
         {
           "user_condition": {
