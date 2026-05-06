@@ -5,7 +5,7 @@ import { Users, FileText, Plus, TrendingUp, MessageCircle, BarChart2, Upload, St
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import ChildCard from "../components/clinician/ChildCard";
-import AddFamilyModal from "../components/clinician/AddFamilyModal";
+import AddClientModal from "../components/clinician/AddClientModal";
 import AddChildToFamilyModal from "../components/clinician/AddChildToFamilyModal";
 
 export default function ClinicianDashboard() {
@@ -97,7 +97,7 @@ export default function ClinicianDashboard() {
               onClick={() => setShowAddChild(true)}
             >
               <Plus className="w-3.5 h-3.5" />
-              Add Child to Family
+              Add to Family
             </Button>
             <Button
               size="sm"
@@ -105,7 +105,7 @@ export default function ClinicianDashboard() {
               onClick={() => setShowAddFamily(true)}
             >
               <Plus className="w-3.5 h-3.5" />
-              Add Family
+              Add Client
             </Button>
           </div>
         </div>
@@ -146,8 +146,7 @@ export default function ClinicianDashboard() {
         <ActionCard label="Progress Reports" sub="View behavior logs & trends" color="bg-accent" icon={BarChart2} onClick={() => navigate("/ProgressReports")} />
       </div>
 
-      <AddFamilyModal
-
+      <AddClientModal
         open={showAddFamily}
         onClose={() => setShowAddFamily(false)}
         onSuccess={refresh}

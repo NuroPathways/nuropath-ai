@@ -5,16 +5,27 @@ import { ArrowLeft, AlertTriangle, ChevronRight, CheckCircle2, ShieldAlert, Load
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
-const BEHAVIOR_CATEGORIES = [
-  { key: "tantrum_meltdown", label: "Tantrum / Meltdown", emoji: "🌊", color: "bg-red-50 border-red-200 text-red-700" },
-  { key: "aggression", label: "Aggression", emoji: "⚡", color: "bg-orange-50 border-orange-200 text-orange-700" },
-  { key: "anxiety_episode", label: "Anxiety Episode", emoji: "😰", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
-  { key: "task_refusal", label: "Task Refusal", emoji: "🚫", color: "bg-purple-50 border-purple-200 text-purple-700" },
-  { key: "bedtime_refusal", label: "Bedtime Refusal", emoji: "🌙", color: "bg-indigo-50 border-indigo-200 text-indigo-700" },
-  { key: "school_refusal", label: "School Refusal", emoji: "🏫", color: "bg-blue-50 border-blue-200 text-blue-700" },
-  { key: "transition_difficulty", label: "Transition Difficulty", emoji: "🔄", color: "bg-teal-50 border-teal-200 text-teal-700" },
-  { key: "emotional_dysregulation", label: "Emotional Dysregulation", emoji: "💭", color: "bg-pink-50 border-pink-200 text-pink-700" },
-];
+// Category color mapping for display
+const CATEGORY_COLORS = {
+  tantrum_meltdown: "bg-red-50 border-red-200 text-red-700",
+  aggression: "bg-orange-50 border-orange-200 text-orange-700",
+  anxiety_episode: "bg-yellow-50 border-yellow-200 text-yellow-700",
+  task_refusal: "bg-purple-50 border-purple-200 text-purple-700",
+  bedtime_refusal: "bg-indigo-50 border-indigo-200 text-indigo-700",
+  school_refusal: "bg-blue-50 border-blue-200 text-blue-700",
+  transition_difficulty: "bg-teal-50 border-teal-200 text-teal-700",
+  emotional_dysregulation: "bg-pink-50 border-pink-200 text-pink-700",
+  other: "bg-slate-50 border-slate-200 text-slate-700",
+};
+const CATEGORY_EMOJIS = {
+  tantrum_meltdown: "🌊", aggression: "⚡", anxiety_episode: "😰",
+  task_refusal: "🚫", bedtime_refusal: "🌙", school_refusal: "🏫",
+  transition_difficulty: "🔄", emotional_dysregulation: "💭", other: "📋",
+};
+
+function formatCategoryLabel(key) {
+  return key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
 
 function StepList({ label, content, color = "bg-primary/10 text-primary" }) {
   if (!content) return null;
@@ -36,7 +47,8 @@ function StepList({ label, content, color = "bg-primary/10 text-primary" }) {
 
 export default function HelpNow() {
   const navigate = useNavigate();
-  const [childData, setChildData] = useState({ child: null, documents: [], interventionPlans: [] });
+  const [childData, setChildData] = useState({ child: null, documents: [], interventionPlans: [], behaviorPlans: [] });
+  const [availableCategories, setAvailableCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [plan, setPlan] = useState(null);
   const [aiGuidance, setAiGuidance] = useState(null);
@@ -52,7 +64,6 @@ export default function HelpNow() {
       const me = await base44.auth.me().catch(() => null);
       if (!me) { setLoading(false); return; }
 
-      // Get linked child
       const [byId, byEmail] = await Promise.all([
         base44.entities.Child.filter({ parent_id: me.id }),
         base44.entities.Child.filter({ parent_email: me.email }),
@@ -63,13 +74,75 @@ export default function HelpNow() {
       let child = childId ? allChildren.find(c => c.id === childId) : allChildren[0];
       if (!child) { setLoading(false); return; }
 
-      // Load all documents and intervention plans for this child in parallel
-      const [docs, plans] = await Promise.all([
-        base44.entities.Document.filter({ child_id: child.id }),
-        base44.entities.InterventionPlan.filter({ child_id: child.id }),
+      const [docs, interventionPlans, behaviorPlans] = await Promise.all([
+        base44.entities.Document.filter({ child_id: child.id }).catch(() => []),
+        base44.entities.InterventionPlan.filter({ child_id: child.id }).catch(() => []),
+        base44.entities.BehaviorPlan.filter({ child_id: child.id }).catch(() => []),
       ]);
 
-      setChildData({ child, documents: docs, interventionPlans: plans });
+      setChildData({ child, documents: docs, interventionPlans, behaviorPlans });
+
+      // Build available categories ONLY from actual client records
+      const cats = new Set();
+
+      // From structured intervention plans
+      interventionPlans.forEach(p => {
+        if (p.behavior_category && p.is_active !== false) {
+          cats.add(p.behavior_category);
+        }
+      });
+
+      // From behavior plans (behavior_name as free-form)
+      // We'll keep them as-is and try to map to a category
+      behaviorPlans.forEach(p => {
+        if (p.behavior_name) cats.add(`__plan__${p.id}`);
+      });
+
+      // From documents (any clinical document)
+      const hasDocs = docs.filter(d =>
+        ["treatment_plan", "behavior_protocol", "reinforcement_plan", "coping_strategy", "other"].includes(d.category)
+      ).length > 0;
+
+      // If we have documents but no structured categories, we'll offer AI-based lookup
+      const structuredCats = [...cats].filter(c => !c.startsWith("__plan__"));
+
+      // Build display list: structured intervention plan categories first, then behavior plan names
+      const displayCats = [];
+      structuredCats.forEach(key => {
+        displayCats.push({
+          type: "intervention",
+          key,
+          label: formatCategoryLabel(key),
+          emoji: CATEGORY_EMOJIS[key] || "📋",
+          color: CATEGORY_COLORS[key] || CATEGORY_COLORS.other,
+        });
+      });
+
+      behaviorPlans.forEach(p => {
+        displayCats.push({
+          type: "behavior_plan",
+          key: p.id,
+          planId: p.id,
+          label: p.behavior_name,
+          emoji: "📋",
+          color: CATEGORY_COLORS[p.severity_level] || "bg-slate-50 border-slate-200 text-slate-700",
+        });
+      });
+
+      // If documents exist but no structured plans, add document-based fallback
+      if (displayCats.length === 0 && hasDocs) {
+        // We'll show a "Search my documents" option
+        displayCats.push({
+          type: "doc_search",
+          key: "doc_search",
+          label: "Search my clinician's documents",
+          emoji: "📂",
+          color: "bg-blue-50 border-blue-200 text-blue-700",
+          promptUser: true,
+        });
+      }
+
+      setAvailableCategories(displayCats);
       setLoading(false);
     };
     load();
@@ -80,67 +153,93 @@ export default function HelpNow() {
     setSearching(true);
     setStep("loading");
 
-    const { child, documents, interventionPlans } = childData;
+    const { child, documents, interventionPlans, behaviorPlans } = childData;
 
-    // First: look for a matching structured intervention plan
-    const matchedPlan = interventionPlans.find(p =>
-      p.behavior_category === cat.key && p.is_active !== false
-    );
-
-    if (matchedPlan) {
-      setPlan(matchedPlan);
-      setAiGuidance(null);
-      setStep("show_plan");
-      setSearching(false);
-
-      if (child) {
-        await base44.entities.BehaviorLog.create({
-          child_id: child.id,
-          behavior_type: cat.label,
-          context: "Parent requested help via Help Now",
-        }).catch(() => {});
+    // 1. Try structured intervention plan
+    if (cat.type === "intervention") {
+      const matchedPlan = interventionPlans.find(p =>
+        p.behavior_category === cat.key && p.is_active !== false
+      );
+      if (matchedPlan) {
+        setPlan(matchedPlan);
+        setAiGuidance(null);
+        setStep("show_plan");
+        setSearching(false);
+        if (child) {
+          base44.entities.BehaviorLog.create({
+            child_id: child.id,
+            behavior_type: cat.label,
+            context: "Parent requested help via Help Now",
+          }).catch(() => {});
+        }
+        return;
       }
-      return;
     }
 
-    // Second: search uploaded documents for relevant content via AI
+    // 2. Try behavior plan (free-form)
+    if (cat.type === "behavior_plan") {
+      const bp = behaviorPlans.find(p => p.id === cat.key);
+      if (bp) {
+        // Synthesize a plan-like object from behavior plan data
+        const synth = {
+          title: bp.behavior_name,
+          description: bp.behavior_description,
+          immediate_steps: bp.strategy_steps,
+          deescalation_steps: bp.deescalation_steps,
+          reinforcement_steps: bp.reinforcement_method,
+          prevention_tips: bp.when_to_use,
+          things_to_avoid: bp.avoid_actions,
+          emergency_instructions: null,
+        };
+        setPlan(synth);
+        setAiGuidance(null);
+        setStep("show_plan");
+        setSearching(false);
+        if (child) {
+          base44.entities.BehaviorLog.create({
+            child_id: child.id,
+            behavior_type: cat.label,
+            context: "Parent requested help via Help Now (behavior plan)",
+          }).catch(() => {});
+        }
+        return;
+      }
+    }
+
+    // 3. Search uploaded documents via AI
     const relevantDocs = documents.filter(d =>
       ["treatment_plan", "behavior_protocol", "reinforcement_plan", "coping_strategy", "other"].includes(d.category)
     );
 
     if (relevantDocs.length > 0) {
-      // Use AI to extract relevant guidance from the uploaded documents
-      const docContext = relevantDocs.map(d => `Document: "${d.title}" (${d.category?.replace(/_/g, " ")})\nURL: ${d.file_url}`).join("\n\n");
+      const behaviorQuery = cat.type === "doc_search"
+        ? "any behavioral crisis, regulation challenge, or emotional difficulty"
+        : cat.label;
 
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `You are a clinical support assistant. A parent needs help right now with their child who is having: "${cat.label}".
+        prompt: `You are a clinical support assistant. A parent needs help right now with their child who is having: "${behaviorQuery}".
 
 The child's name is ${child?.child_name || "the child"}.
 ${child?.diagnosis ? `Diagnosis: ${child.diagnosis}` : ""}
 ${child?.triggers ? `Known triggers: ${child.triggers}` : ""}
 
-The clinician has uploaded the following documents for this child:
-${docContext}
+The clinician has uploaded documents for this child. Read them and extract ONLY clinician-approved guidance relevant to "${behaviorQuery}".
 
-Read these documents and extract ONLY clinician-approved guidance that is relevant to "${cat.label}". 
-
-IMPORTANT RULES:
-- Only provide guidance that comes directly from the uploaded documents.
+RULES:
+- Only provide guidance from the uploaded documents.
 - Do NOT generate generic behavioral advice outside what the documents say.
-- If the documents don't address this specific behavior, say so clearly.
+- If the documents don't address this behavior, set has_relevant_guidance to false.
 - Write in calm, clear, parent-friendly language.
-- Give immediate step-by-step instructions.
-
-Return as JSON.`,
+- Give immediate step-by-step instructions.`,
         file_urls: relevantDocs.slice(0, 3).map(d => d.file_url),
         response_json_schema: {
           type: "object",
           properties: {
             has_relevant_guidance: { type: "boolean" },
-            immediate_steps: { type: "string", description: "Step-by-step actions to take right now, one per line" },
-            deescalation_tips: { type: "string", description: "What to do if it gets worse, one per line" },
+            immediate_steps: { type: "string" },
+            deescalation_tips: { type: "string" },
             things_to_avoid: { type: "string" },
-            source_document: { type: "string", description: "Which document this came from" },
+            source_document: { type: "string" },
           },
           required: ["has_relevant_guidance"]
         }
@@ -152,7 +251,7 @@ Return as JSON.`,
         setStep("show_doc_guidance");
         setSearching(false);
         if (child) {
-          await base44.entities.BehaviorLog.create({
+          base44.entities.BehaviorLog.create({
             child_id: child.id,
             behavior_type: cat.label,
             context: "Parent requested help via Help Now (document-based)",
@@ -162,7 +261,7 @@ Return as JSON.`,
       }
     }
 
-    // No plan and no relevant docs — show "contact clinician" message
+    // 4. No clinician-approved guidance found
     setPlan(null);
     setAiGuidance(null);
     setStep("no_plan");
@@ -214,13 +313,27 @@ Return as JSON.`,
             <motion.div key="select" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
               {!child ? (
                 <div className="text-center py-12">
-                  <p className="text-muted-foreground text-sm">No child profile linked to your account. Ask your clinician for an invite.</p>
+                  <p className="text-muted-foreground text-sm">No client profile linked to your account. Ask your clinician for an invite.</p>
+                </div>
+              ) : availableCategories.length === 0 ? (
+                <div className="text-center py-12 space-y-4">
+                  <div className="text-5xl">📋</div>
+                  <h2 className="font-bold text-foreground text-lg">No Approved Plans Yet</h2>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 text-left">
+                    <p className="text-sm font-semibold text-yellow-800 mb-1">Your clinician hasn't uploaded any intervention plans or behavior protocols yet.</p>
+                    <p className="text-sm text-yellow-700">Once your clinician uploads documents or creates intervention plans for {child.child_name}, they'll appear here.</p>
+                  </div>
+                  <Button variant="outline" className="w-full rounded-xl" onClick={() => navigate("/Messages")}>
+                    Message Your Clinician
+                  </Button>
                 </div>
               ) : (
                 <>
-                  <p className="text-sm text-muted-foreground mb-5 text-center">What is happening right now? Select the situation.</p>
+                  <p className="text-sm text-muted-foreground mb-5 text-center">
+                    What is happening right now? Select the situation.
+                  </p>
                   <div className="grid grid-cols-2 gap-3">
-                    {BEHAVIOR_CATEGORIES.map((cat) => (
+                    {availableCategories.map((cat) => (
                       <button
                         key={cat.key}
                         onClick={() => handleSelectCategory(cat)}
@@ -232,6 +345,9 @@ Return as JSON.`,
                       </button>
                     ))}
                   </div>
+                  <p className="text-xs text-muted-foreground text-center mt-4">
+                    Only showing behaviors with clinician-approved plans for {child.child_name}.
+                  </p>
                 </>
               )}
             </motion.div>
@@ -250,7 +366,7 @@ Return as JSON.`,
             <motion.div key="plan" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
               <div className="bg-card border border-border rounded-2xl p-5 mb-5">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-2xl">{selectedCategory?.emoji}</span>
+                  <span className="text-2xl">{selectedCategory?.emoji || "📋"}</span>
                   <h2 className="font-bold text-foreground text-lg">{plan.title}</h2>
                 </div>
                 {plan.description && <p className="text-sm text-muted-foreground">{plan.description}</p>}
@@ -294,7 +410,7 @@ Return as JSON.`,
             <motion.div key="docguidance" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
               <div className="bg-card border border-border rounded-2xl p-5 mb-5">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-2xl">{selectedCategory?.emoji}</span>
+                  <span className="text-2xl">{selectedCategory?.emoji || "📋"}</span>
                   <h2 className="font-bold text-foreground text-lg">{selectedCategory?.label}</h2>
                 </div>
                 <p className="text-xs text-primary mt-1 font-medium">✓ Guidance from your clinician's uploaded documents</p>
@@ -329,10 +445,10 @@ Return as JSON.`,
           {/* No plan */}
           {step === "no_plan" && (
             <motion.div key="noplan" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="text-center py-10">
-              <div className="text-5xl mb-4">{selectedCategory?.emoji}</div>
+              <div className="text-5xl mb-4">{selectedCategory?.emoji || "📋"}</div>
               <h2 className="font-bold text-foreground text-lg mb-2">{selectedCategory?.label}</h2>
               <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 text-left mb-5">
-                <p className="text-sm font-semibold text-yellow-800 mb-1">No clinician-approved intervention plan exists for this behavior.</p>
+                <p className="text-sm font-semibold text-yellow-800 mb-1">No clinician-approved intervention currently exists for this behavior.</p>
                 <p className="text-sm text-yellow-700">Please contact your provider. Your clinician has not yet uploaded a plan or document that addresses this situation.</p>
               </div>
               <Button variant="outline" className="w-full rounded-xl" onClick={() => navigate("/Messages")}>

@@ -65,8 +65,8 @@ export default function ClinicianDocuments() {
       notes: form.notes,
     });
 
-    // Auto-generate intervention plan from behavioral documents
-    const autoSyncCategories = ["treatment_plan", "behavior_protocol", "reinforcement_plan", "coping_strategy"];
+    // Auto-sync: extract behavior plans and intervention plans from clinical documents immediately
+    const autoSyncCategories = ["treatment_plan", "behavior_protocol", "reinforcement_plan", "coping_strategy", "session_notes"];
     if (autoSyncCategories.includes(form.category)) {
       generateInterventionPlan(doc).catch(() => {});
     }
@@ -91,16 +91,18 @@ export default function ClinicianDocuments() {
   const generateInterventionPlan = async (doc) => {
     setGeneratingPlan(doc.id);
     setGeneratedMsg(null);
-    // Fetch file content and extract intervention plan via LLM
+
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are a behavioral intervention specialist. Read the clinical document at this URL and extract a structured intervention plan from it.
+      prompt: `You are a behavioral intervention specialist. Read the clinical document and extract ALL structured information from it.
 
 Document title: "${doc.title}"
-Document URL: ${doc.file_url}
+Category: ${doc.category}
 
-Based on the document content, create a complete intervention plan. If the document covers multiple behaviors, focus on the most prominent one. Generate the plan fields as best you can from the document.
+Extract:
+1. A primary intervention plan (behavior category + step-by-step guidance)
+2. All behavior plans mentioned (behavior name, description, strategy steps, triggers)
 
-Return ONLY valid JSON.`,
+Return ONLY valid JSON matching the schema.`,
       file_urls: [doc.file_url],
       response_json_schema: {
         type: "object",
@@ -113,12 +115,32 @@ Return ONLY valid JSON.`,
           reinforcement_steps: { type: "string" },
           prevention_tips: { type: "string" },
           things_to_avoid: { type: "string" },
-          emergency_instructions: { type: "string" }
+          emergency_instructions: { type: "string" },
+          behavior_plans: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                behavior_name: { type: "string" },
+                behavior_description: { type: "string" },
+                behavior_function: { type: "string" },
+                common_triggers: { type: "string" },
+                severity_level: { type: "string", enum: ["low", "moderate", "high", "crisis"] },
+                strategy_title: { type: "string" },
+                strategy_steps: { type: "string" },
+                reinforcement_method: { type: "string" },
+                deescalation_steps: { type: "string" },
+                avoid_actions: { type: "string" },
+              },
+              required: ["behavior_name"]
+            }
+          }
         },
         required: ["title", "behavior_category", "immediate_steps"]
       }
     });
 
+    // Create the intervention plan
     await base44.entities.InterventionPlan.create({
       child_id: doc.child_id,
       clinician_id: clinicianId,
@@ -134,6 +156,28 @@ Return ONLY valid JSON.`,
       is_active: true,
     });
 
+    // Also create BehaviorPlan records for each behavior found — AI can read these immediately
+    if (result.behavior_plans && result.behavior_plans.length > 0) {
+      await Promise.all(result.behavior_plans.map(bp =>
+        base44.entities.BehaviorPlan.create({
+          child_id: doc.child_id,
+          behavior_name: bp.behavior_name,
+          behavior_description: bp.behavior_description || "",
+          behavior_function: bp.behavior_function || "",
+          common_triggers: bp.common_triggers || "",
+          severity_level: bp.severity_level || "moderate",
+          strategy_title: bp.strategy_title || "",
+          strategy_steps: bp.strategy_steps || "",
+          reinforcement_method: bp.reinforcement_method || "",
+          deescalation_steps: bp.deescalation_steps || "",
+          avoid_actions: bp.avoid_actions || "",
+          file_url: doc.file_url,
+          file_name: doc.file_name || doc.title,
+          created_by: clinicianId,
+        }).catch(() => {})
+      ));
+    }
+
     setGeneratingPlan(null);
     setGeneratedMsg(doc.id);
     setTimeout(() => setGeneratedMsg(null), 4000);
@@ -147,7 +191,7 @@ Return ONLY valid JSON.`,
         <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="font-bold text-foreground flex-1">Document Upload Center</h1>
+        <h1 className="font-bold text-foreground flex-1">Client Documents</h1>
         <Button size="sm" className="rounded-xl gap-1.5 h-8 text-xs" onClick={() => setShowForm(true)}>
           <Upload className="w-3.5 h-3.5" /> Upload
         </Button>
@@ -157,7 +201,10 @@ Return ONLY valid JSON.`,
         <AnimatePresence>
           {showForm && (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-card border border-border rounded-2xl p-5 mb-5 space-y-3">
-              <h3 className="font-semibold text-foreground">Upload Document</h3>
+              <div>
+                <h3 className="font-semibold text-foreground">Upload Care Document</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Treatment plans, behavioral protocols, and session notes are automatically extracted and made available to the AI immediately after upload.</p>
+              </div>
               <div>
                 <p className={LABEL}>Client *</p>
                 <Select value={form.child_id} onValueChange={v => set("child_id", v)}>
@@ -204,7 +251,7 @@ Return ONLY valid JSON.`,
           <div className="text-center py-16 border-2 border-dashed border-border rounded-2xl">
             <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="font-medium text-foreground mb-1">No documents uploaded yet</p>
-            <p className="text-sm text-muted-foreground">Upload PDFs, protocols, and resources for your clients.</p>
+            <p className="text-sm text-muted-foreground">Upload care documents, treatment plans, and behavioral protocols for your clients.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -219,12 +266,12 @@ Return ONLY valid JSON.`,
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {generatedMsg === doc.id ? (
-                    <span className="flex items-center gap-1 text-xs text-green-600 font-medium"><CheckCircle2 className="w-3.5 h-3.5" /> Plan created!</span>
+                    <span className="flex items-center gap-1 text-xs text-green-600 font-medium"><CheckCircle2 className="w-3.5 h-3.5" /> Synced to AI!</span>
                   ) : (
                     <button
                       onClick={() => generateInterventionPlan(doc)}
                       disabled={generatingPlan === doc.id}
-                      title="Generate Intervention Plan from this document"
+                      title="Extract behavior & intervention plans from this document (makes it available to AI immediately)"
                       className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
                     >
                       {generatingPlan === doc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
