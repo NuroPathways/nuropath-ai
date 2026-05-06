@@ -36,9 +36,6 @@
       "$or": [
         {
           "data.from_user_id": "{{user.id}}"
-        },
-        {
-          "data.to_user_id": "{{user.id}}"
         }
       ]
     },
@@ -49,37 +46,14 @@
         },
         {
           "data.to_user_id": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "app_role": "admin"
-          }
         }
       ]
     },
     "update": {
-      "$or": [
-        {
-          "data.from_user_id": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "app_role": "admin"
-          }
-        }
-      ]
+      "data.to_user_id": "{{user.id}}"
     },
     "delete": {
-      "$or": [
-        {
-          "data.from_user_id": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "app_role": "admin"
-          }
-        }
-      ]
+      "data.to_user_id": "{{user.id}}"
     }
   }
 }
