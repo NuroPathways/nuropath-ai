@@ -29,6 +29,119 @@ function cleanTitle(fileName) {
     .trim();
 }
 
+// Runs entirely in background — doesn't block UI
+// Now correctly passes clinicianId and source_document_id, updates scan_status
+async function scanDocumentInBackground(doc, clinicianId) {
+  // Mark as scanning
+  await base44.entities.Document.update(doc.id, { scan_status: "scanning" }).catch(() => {});
+
+  try {
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `You are a behavioral intervention specialist. Read this clinical document and extract ALL structured behavioral information concisely.
+
+Document: "${doc.title}" (${doc.category?.replace(/_/g, " ")})
+
+Extract a primary intervention plan and all behavior plans mentioned. Be brief but complete. Only extract information that is explicitly present in the document — do not invent or hallucinate.`,
+      file_urls: [doc.file_url],
+      response_json_schema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          behavior_category: {
+            type: "string",
+            enum: ["tantrum_meltdown", "aggression", "anxiety_episode", "task_refusal",
+                   "bedtime_refusal", "school_refusal", "transition_difficulty",
+                   "emotional_dysregulation", "other"]
+          },
+          description: { type: "string" },
+          immediate_steps: { type: "string" },
+          deescalation_steps: { type: "string" },
+          reinforcement_steps: { type: "string" },
+          prevention_tips: { type: "string" },
+          things_to_avoid: { type: "string" },
+          emergency_instructions: { type: "string" },
+          behavior_plans: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                behavior_name: { type: "string" },
+                behavior_description: { type: "string" },
+                behavior_function: { type: "string" },
+                common_triggers: { type: "string" },
+                severity_level: { type: "string", enum: ["low", "moderate", "high", "crisis"] },
+                strategy_title: { type: "string" },
+                strategy_steps: { type: "string" },
+                reinforcement_method: { type: "string" },
+                deescalation_steps: { type: "string" },
+                avoid_actions: { type: "string" },
+              },
+              required: ["behavior_name"]
+            }
+          }
+        },
+        required: ["title", "behavior_category"]
+      }
+    });
+
+    // Check for existing plans from this document to prevent duplicates
+    const existingPlans = await base44.entities.InterventionPlan.filter({
+      source_document_id: doc.id
+    }).catch(() => []);
+
+    if (existingPlans.length === 0 && result.immediate_steps) {
+      await base44.entities.InterventionPlan.create({
+        child_id: doc.child_id,
+        clinician_id: clinicianId,
+        title: result.title || doc.title,
+        behavior_category: result.behavior_category || "other",
+        description: result.description || "",
+        immediate_steps: result.immediate_steps || "",
+        deescalation_steps: result.deescalation_steps || "",
+        reinforcement_steps: result.reinforcement_steps || "",
+        prevention_tips: result.prevention_tips || "",
+        things_to_avoid: result.things_to_avoid || "",
+        emergency_instructions: result.emergency_instructions || "",
+        source_document_id: doc.id,
+        is_active: true,
+      });
+    }
+
+    // Extract behavior plans — only create ones not already extracted from this doc
+    if (result.behavior_plans?.length > 0) {
+      const existingBP = await base44.entities.BehaviorPlan.filter({
+        source_document_id: doc.id
+      }).catch(() => []);
+
+      if (existingBP.length === 0) {
+        await Promise.all(result.behavior_plans.map(bp =>
+          base44.entities.BehaviorPlan.create({
+            child_id: doc.child_id,
+            behavior_name: bp.behavior_name,
+            behavior_description: bp.behavior_description || "",
+            behavior_function: bp.behavior_function || "",
+            common_triggers: bp.common_triggers || "",
+            severity_level: bp.severity_level || "moderate",
+            strategy_title: bp.strategy_title || "",
+            strategy_steps: bp.strategy_steps || "",
+            reinforcement_method: bp.reinforcement_method || "",
+            deescalation_steps: bp.deescalation_steps || "",
+            avoid_actions: bp.avoid_actions || "",
+            created_by: clinicianId,
+            source_document_id: doc.id,
+          }).catch(() => {})
+        ));
+      }
+    }
+
+    // Mark document as done
+    await base44.entities.Document.update(doc.id, { scan_status: "done" }).catch(() => {});
+  } catch (e) {
+    await base44.entities.Document.update(doc.id, { scan_status: "error" }).catch(() => {});
+    throw e;
+  }
+}
+
 export default function ClinicianDocuments() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
@@ -38,22 +151,27 @@ export default function ClinicianDocuments() {
   const [showForm, setShowForm] = useState(false);
   const [clinicianId, setClinicianId] = useState("");
 
-  // Per-file queue: [{ file, title, category, status: idle|uploading|done|error, docId }]
   const [queue, setQueue] = useState([]);
   const [childId, setChildId] = useState("");
   const [uploading, setUploading] = useState(false);
-
-  // Background AI scan tracking: { [docId]: "scanning" | "done" }
   const [scanStatus, setScanStatus] = useState({});
 
   useEffect(() => {
     const load = async () => {
-      const me = await base44.auth.me();
+      let me;
+      try {
+        me = await base44.auth.me();
+      } catch {
+        navigate("/");
+        return;
+      }
       setClinicianId(me.id);
-      const kids = await base44.entities.Child.filter({ clinician_id: me.id });
+      const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
       setChildren(kids);
       if (kids.length > 0) {
-        const results = await Promise.all(kids.map(k => base44.entities.Document.filter({ child_id: k.id })));
+        const results = await Promise.all(
+          kids.map(k => base44.entities.Document.filter({ child_id: k.id }).catch(() => []))
+        );
         setDocuments(results.flat());
       }
       setLoading(false);
@@ -81,10 +199,9 @@ export default function ClinicianDocuments() {
   };
 
   const handleUploadAll = async () => {
-    if (!childId || queue.length === 0) return;
+    if (!childId || queue.length === 0 || !clinicianId) return;
     setUploading(true);
 
-    // Upload all files in parallel
     await Promise.all(queue.map(async (item) => {
       updateQueue(item.id, { status: "uploading" });
       try {
@@ -97,15 +214,16 @@ export default function ClinicianDocuments() {
           category: item.category,
           file_url,
           file_name: item.file.name,
+          scan_status: AUTO_SYNC.includes(item.category) ? "pending" : "done",
         });
         updateQueue(item.id, { status: "done", docId: doc.id });
         setDocuments(prev => [doc, ...prev]);
 
-        // Kick off AI scanning in background — non-blocking
         if (AUTO_SYNC.includes(item.category)) {
           setScanStatus(s => ({ ...s, [doc.id]: "scanning" }));
           scanDocumentInBackground(doc, clinicianId).then(() => {
             setScanStatus(s => ({ ...s, [doc.id]: "done" }));
+            setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, scan_status: "done" } : d));
           }).catch(() => {
             setScanStatus(s => { const n = { ...s }; delete n[doc.id]; return n; });
           });
@@ -116,7 +234,6 @@ export default function ClinicianDocuments() {
     }));
 
     setUploading(false);
-    // Close form after all uploads done
     setTimeout(() => {
       setShowForm(false);
       setQueue([]);
@@ -125,15 +242,17 @@ export default function ClinicianDocuments() {
   };
 
   const handleDelete = async (docId) => {
-    await base44.entities.Document.delete(docId);
+    await base44.entities.Document.delete(docId).catch(() => {});
     setDocuments(prev => prev.filter(d => d.id !== docId));
   };
 
   const manualScan = async (doc) => {
+    if (!clinicianId) return;
     setScanStatus(s => ({ ...s, [doc.id]: "scanning" }));
     try {
       await scanDocumentInBackground(doc, clinicianId);
       setScanStatus(s => ({ ...s, [doc.id]: "done" }));
+      setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, scan_status: "done" } : d));
     } catch {
       setScanStatus(s => { const n = { ...s }; delete n[doc.id]; return n; });
     }
@@ -141,6 +260,11 @@ export default function ClinicianDocuments() {
 
   const childMap = Object.fromEntries(children.map(c => [c.id, c.child_name]));
   const allDone = queue.length > 0 && queue.every(i => i.status === "done" || i.status === "error");
+
+  const getDocScanStatus = (doc) => {
+    if (scanStatus[doc.id]) return scanStatus[doc.id];
+    return doc.scan_status || "pending";
+  };
 
   return (
     <div className="min-h-screen bg-background font-inter">
@@ -173,7 +297,6 @@ export default function ClinicianDocuments() {
                 </button>
               </div>
 
-              {/* Client selector */}
               <div>
                 <p className={LABEL}>Client *</p>
                 <Select value={childId} onValueChange={setChildId}>
@@ -184,7 +307,6 @@ export default function ClinicianDocuments() {
                 </Select>
               </div>
 
-              {/* Drop zone */}
               <div
                 onDrop={handleDrop}
                 onDragOver={e => e.preventDefault()}
@@ -204,7 +326,6 @@ export default function ClinicianDocuments() {
                 />
               </div>
 
-              {/* File queue */}
               {queue.length > 0 && (
                 <div className="space-y-2 max-h-72 overflow-y-auto">
                   {queue.map(item => (
@@ -278,134 +399,55 @@ export default function ClinicianDocuments() {
           </div>
         ) : (
           <div className="space-y-2">
-            {documents.map((doc, i) => (
-              <motion.div
-                key={doc.id}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.03 }}
-                className="flex items-center gap-4 p-4 bg-card border border-border rounded-2xl"
-              >
-                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <FileText className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-foreground hover:text-primary truncate block">
-                    {doc.title}
-                  </a>
-                  <p className="text-xs text-muted-foreground">{childMap[doc.child_id] || "Unknown"} • {doc.category?.replace(/_/g, " ")}</p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {scanStatus[doc.id] === "scanning" && (
-                    <span className="flex items-center gap-1 text-xs text-primary font-medium">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Scanning...
-                    </span>
-                  )}
-                  {scanStatus[doc.id] === "done" && (
-                    <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Synced!
-                    </span>
-                  )}
-                  {!scanStatus[doc.id] && (
-                    <button
-                      onClick={() => manualScan(doc)}
-                      title="Extract behavior & intervention plans (runs in background)"
-                      className="text-muted-foreground hover:text-primary transition-colors"
-                    >
-                      <Sparkles className="w-4 h-4" />
+            {documents.map((doc, i) => {
+              const docStatus = getDocScanStatus(doc);
+              return (
+                <motion.div
+                  key={doc.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                  className="flex items-center gap-4 p-4 bg-card border border-border rounded-2xl"
+                >
+                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-foreground hover:text-primary truncate block">
+                      {doc.title}
+                    </a>
+                    <p className="text-xs text-muted-foreground">{childMap[doc.child_id] || "Unknown"} • {doc.category?.replace(/_/g, " ")}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {docStatus === "scanning" && (
+                      <span className="flex items-center gap-1 text-xs text-primary font-medium">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Scanning...
+                      </span>
+                    )}
+                    {docStatus === "done" && (
+                      <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Synced
+                      </span>
+                    )}
+                    {(docStatus === "pending" || docStatus === "error") && (
+                      <button
+                        onClick={() => manualScan(doc)}
+                        title="Extract behavior & intervention plans"
+                        className="text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button onClick={() => handleDelete(doc.id)} className="text-muted-foreground hover:text-destructive">
+                      <Trash2 className="w-4 h-4" />
                     </button>
-                  )}
-                  <button onClick={() => handleDelete(doc.id)} className="text-muted-foreground hover:text-destructive">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </div>
     </div>
   );
-}
-
-// Runs entirely in background — doesn't block UI
-async function scanDocumentInBackground(doc, clinicianId = "") {
-  const result = await base44.integrations.Core.InvokeLLM({
-    prompt: `You are a behavioral intervention specialist. Read this clinical document and extract ALL structured behavioral information concisely.
-
-Document: "${doc.title}" (${doc.category})
-
-Extract a primary intervention plan and all behavior plans. Be brief but complete.`,
-    file_urls: [doc.file_url],
-    response_json_schema: {
-      type: "object",
-      properties: {
-        title: { type: "string" },
-        behavior_category: { type: "string", enum: ["tantrum_meltdown", "aggression", "anxiety_episode", "task_refusal", "bedtime_refusal", "school_refusal", "transition_difficulty", "emotional_dysregulation", "other"] },
-        description: { type: "string" },
-        immediate_steps: { type: "string" },
-        deescalation_steps: { type: "string" },
-        reinforcement_steps: { type: "string" },
-        prevention_tips: { type: "string" },
-        things_to_avoid: { type: "string" },
-        emergency_instructions: { type: "string" },
-        behavior_plans: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              behavior_name: { type: "string" },
-              behavior_description: { type: "string" },
-              behavior_function: { type: "string" },
-              common_triggers: { type: "string" },
-              severity_level: { type: "string", enum: ["low", "moderate", "high", "crisis"] },
-              strategy_title: { type: "string" },
-              strategy_steps: { type: "string" },
-              reinforcement_method: { type: "string" },
-              deescalation_steps: { type: "string" },
-              avoid_actions: { type: "string" },
-            },
-            required: ["behavior_name"]
-          }
-        }
-      },
-      required: ["title", "behavior_category", "immediate_steps"]
-    }
-  });
-
-  await base44.entities.InterventionPlan.create({
-    child_id: doc.child_id,
-    clinician_id: clinicianId,
-    title: result.title || doc.title,
-    behavior_category: result.behavior_category || "other",
-    description: result.description || "",
-    immediate_steps: result.immediate_steps || "",
-    deescalation_steps: result.deescalation_steps || "",
-    reinforcement_steps: result.reinforcement_steps || "",
-    prevention_tips: result.prevention_tips || "",
-    things_to_avoid: result.things_to_avoid || "",
-    emergency_instructions: result.emergency_instructions || "",
-    is_active: true,
-  });
-
-  if (result.behavior_plans?.length > 0) {
-    await Promise.all(result.behavior_plans.map(bp =>
-      base44.entities.BehaviorPlan.create({
-        child_id: doc.child_id,
-        behavior_name: bp.behavior_name,
-        behavior_description: bp.behavior_description || "",
-        behavior_function: bp.behavior_function || "",
-        common_triggers: bp.common_triggers || "",
-        severity_level: bp.severity_level || "moderate",
-        strategy_title: bp.strategy_title || "",
-        strategy_steps: bp.strategy_steps || "",
-        reinforcement_method: bp.reinforcement_method || "",
-        deescalation_steps: bp.deescalation_steps || "",
-        avoid_actions: bp.avoid_actions || "",
-        file_url: doc.file_url,
-        file_name: doc.file_name || doc.title,
-        created_by: clinicianId,
-      }).catch(() => {})
-    ));
-  }
 }
