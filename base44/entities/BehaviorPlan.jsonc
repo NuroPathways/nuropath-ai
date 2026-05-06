@@ -24,12 +24,7 @@
     },
     "severity_level": {
       "type": "string",
-      "enum": [
-        "low",
-        "moderate",
-        "high",
-        "crisis"
-      ],
+      "enum": ["low", "moderate", "high", "crisis"],
       "description": "Severity level of the behavior"
     },
     "created_by": {
@@ -67,12 +62,13 @@
     "file_name": {
       "type": "string",
       "description": "Original file name of the uploaded document"
+    },
+    "source_document_id": {
+      "type": "string",
+      "description": "ID of the Document record this was extracted from"
     }
   },
-  "required": [
-    "child_id",
-    "behavior_name"
-  ],
+  "required": ["child_id", "behavior_name"],
   "rls": {
     "create": {
       "user_condition": {
@@ -82,10 +78,12 @@
     "read": {
       "$or": [
         {
-          "data.child_id": "{{user.id}}"
+          "data.created_by": "{{user.id}}"
         },
         {
-          "created_by": "{{user.id}}"
+          "user_condition": {
+            "app_role": "parent"
+          }
         },
         {
           "user_condition": {
@@ -95,10 +93,10 @@
       ]
     },
     "update": {
-      "created_by": "{{user.id}}"
+      "data.created_by": "{{user.id}}"
     },
     "delete": {
-      "created_by": "{{user.id}}"
+      "data.created_by": "{{user.id}}"
     }
   }
 }
