@@ -1,4 +1,4 @@
-import { User, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 export default function ChildOverviewCard({ child }) {
   if (!child) return null;
@@ -6,11 +6,16 @@ export default function ChildOverviewCard({ child }) {
     <div className="bg-card rounded-2xl border border-border p-5">
       <div className="flex items-center gap-4">
         <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center flex-shrink-0">
-          <span className="text-accent font-bold text-xl">{child.child_name?.[0]?.toUpperCase()}</span>
+          <span className="text-accent font-bold text-xl">
+            {child.child_name?.[0]?.toUpperCase() || "?"}
+          </span>
         </div>
         <div>
-          <p className="font-semibold text-foreground">{child.child_name}</p>
-          <p className="text-sm text-muted-foreground mt-0.5">Age {child.age}{child.diagnosis ? ` · ${child.diagnosis}` : ""}</p>
+          <p className="font-semibold text-foreground">{child.child_name || "Unknown"}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {child.age ? `Age ${child.age}` : "Age unknown"}
+            {child.diagnosis ? ` · ${child.diagnosis}` : ""}
+          </p>
         </div>
       </div>
       {child.triggers && (
