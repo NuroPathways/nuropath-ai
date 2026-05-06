@@ -11,9 +11,11 @@ export default function Layout({ children, currentPageName }) {
   const [user, setUser] = useState(null);
   const [children_list, setChildrenList] = useState([]);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [loadingUser, setLoadingUser] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
+    setLoadingUser(true);
     base44.auth.me().then((me) => {
       setUser(me);
       if (me?.app_role === "clinician") {
@@ -21,11 +23,19 @@ export default function Layout({ children, currentPageName }) {
       } else if (me?.app_role === "parent") {
         base44.entities.Child.filter({ parent_id: me.id }).then(setChildrenList).catch(() => {});
       }
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setLoadingUser(false));
   }, [currentPageName]);
 
   if (noLayoutPages.includes(currentPageName)) {
     return <>{children}</>;
+  }
+
+  if (loadingUser) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-border border-t-primary rounded-full animate-spin" />
+      </div>
+    );
   }
 
   if (!user) return <>{children}</>;
