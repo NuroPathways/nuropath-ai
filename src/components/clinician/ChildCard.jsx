@@ -1,6 +1,5 @@
 import { User, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
 
 export default function ChildCard({ child }) {
   return (
@@ -16,7 +15,8 @@ export default function ChildCard({ child }) {
       <div className="flex-1 min-w-0">
         <p className="font-medium text-foreground text-sm truncate">{child.child_name}</p>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Age {child.age} {child.diagnosis ? `· ${child.diagnosis}` : ""}
+          {child.age ? `Age ${child.age}` : "Age unknown"}
+          {child.diagnosis ? ` · ${child.diagnosis}` : ""}
         </p>
       </div>
       <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
