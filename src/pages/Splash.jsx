@@ -30,7 +30,7 @@ export default function Splash() {
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-sm">
             <Brain className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-foreground text-lg tracking-tight">NeuroPath</span>
+          <span className="font-bold text-foreground text-lg tracking-tight">NuroPathways</span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -120,7 +120,7 @@ export default function Splash() {
       <section className="max-w-6xl mx-auto px-6 pb-20">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
           <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">How NeuroPath Works</h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">How NuroPathways Works</h2>
             <p className="text-muted-foreground">A complete behavioral support system for clinicians and families</p>
           </div>
           <div className="grid md:grid-cols-3 gap-5">
@@ -145,7 +145,7 @@ export default function Splash() {
       <footer className="border-t border-border/40 py-6 text-center text-xs text-muted-foreground">
         <div className="flex items-center justify-center gap-2 mb-1">
           <Brain className="w-3.5 h-3.5 text-primary" />
-          <span className="font-semibold text-foreground">NeuroPath AI</span>
+          <span className="font-semibold text-foreground">NuroPathways</span>
         </div>
         <p>Behavioral health support platform for clinicians, families, and clients.</p>
       </footer>

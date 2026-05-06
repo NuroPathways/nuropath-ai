@@ -59,7 +59,7 @@ export default function Layout({ children, currentPageName }) {
               <Brain className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <p className="font-semibold text-foreground text-sm">NuroPath AI</p>
+              <p className="font-semibold text-foreground text-sm">NuroPathways</p>
               <p className="text-xs text-muted-foreground">{role === "clinician" ? "Clinician Portal" : "Client Portal"}</p>
             </div>
           </div>
