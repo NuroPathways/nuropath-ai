@@ -37,12 +37,18 @@
   ],
   "rls": {
     "create": {
-      "data.parent_id": "{{user.id}}"
+      "data.parent_id": "{{user.id}}",
+      "user_condition": {
+        "app_role": "parent"
+      }
     },
     "read": {
       "$or": [
         {
           "data.parent_id": "{{user.id}}"
+        },
+        {
+          "data.clinician_id": "{{user.id}}"
         },
         {
           "user_condition": {
