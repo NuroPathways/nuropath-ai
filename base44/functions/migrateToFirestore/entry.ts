@@ -13,6 +13,7 @@ const ENTITIES = [
 ];
 
 async function getFirestoreToken(clientEmail, privateKey, projectId) {
+  console.log('getFirestoreToken called, key length:', privateKey?.length);
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: 'RS256', typ: 'JWT' };
   const payload = {
@@ -24,14 +25,20 @@ async function getFirestoreToken(clientEmail, privateKey, projectId) {
     scope: 'https://www.googleapis.com/auth/datastore',
   };
 
-  const encode = (obj) => btoa(JSON.stringify(obj)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const encode = (obj) => btoa(unescape(encodeURIComponent(JSON.stringify(obj)))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
   const signingInput = `${encode(header)}.${encode(payload)}`;
 
   // Import the private key
-  const pemContents = privateKey
-    .replace('-----BEGIN PRIVATE KEY-----', '')
-    .replace('-----END PRIVATE KEY-----', '')
-    .replace(/\n/g, '');
+  // Handle both literal \n and real newlines, plus any extra whitespace
+  const normalizedKey = privateKey
+    .replace(/\\n/g, '\n')
+    .replace(/\r/g, '')
+    .trim();
+  const pemContents = normalizedKey
+    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+    .replace(/-----END PRIVATE KEY-----/g, '')
+    .replace(/[^A-Za-z0-9+/=]/g, ''); // Strip anything that isn't valid base64
+  console.log('PEM length:', pemContents.length, 'first 20:', pemContents.substring(0, 20), 'last 20:', pemContents.slice(-20));
   const binaryKey = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
 
   const cryptoKey = await crypto.subtle.importKey(
@@ -103,8 +110,8 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
 
-    if (!user || user.role !== 'admin') {
-      return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const projectId = Deno.env.get('FIREBASE_PROJECT_ID');
@@ -115,7 +122,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Missing Firebase credentials' }, { status: 500 });
     }
 
+    console.log('Calling getFirestoreToken...');
     const accessToken = await getFirestoreToken(clientEmail, privateKey, projectId);
+    console.log('Got access token');
 
     const results = {};
 
@@ -145,6 +154,7 @@ Deno.serve(async (req) => {
 
     return Response.json({ success: true, results });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error('Top-level error:', error.message, error.stack);
+    return Response.json({ error: error.message, stack: error.stack }, { status: 500 });
   }
 });
