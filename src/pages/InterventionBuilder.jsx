@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { useFirebaseUser } from "@/lib/useFirebaseUser";
+import { Collections } from "@/lib/firestore";
 import { ArrowLeft, Save, Plus, Trash2, CheckCircle2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,6 +68,7 @@ function PhaseEditor({ label, placeholder, value, onChange, color = "bg-green-50
 
 export default function InterventionBuilder() {
   const navigate = useNavigate();
+  const { user } = useFirebaseUser();
   const [children, setChildren] = useState([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -89,33 +91,24 @@ export default function InterventionBuilder() {
   });
 
   useEffect(() => {
+    if (!user) return;
     const load = async () => {
-      let me;
-      try {
-        me = await base44.auth.me();
-      } catch {
-        navigate("/");
-        return;
-      }
-
-      const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
+      const kids = await Collections.Child.filter({ clinician_id: user.id }).catch(() => []);
       setChildren(kids);
 
-      // Set default child only if not editing and no param provided
       if (!childIdParam && !planIdParam && kids[0]) {
         setForm(f => ({ ...f, child_id: kids[0].id }));
       }
 
-      // Load existing plan for editing
       if (planIdParam) {
-        const plans = await base44.entities.InterventionPlan.filter({ id: planIdParam }).catch(() => []);
-        if (plans[0]) setForm({ ...plans[0] });
+        const plan = await Collections.InterventionPlan.get(planIdParam).catch(() => null);
+        if (plan) setForm({ ...plan });
       }
 
       setLoading(false);
     };
     load();
-  }, [planIdParam, childIdParam]);
+  }, [planIdParam, childIdParam, user?.id]);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
@@ -124,9 +117,9 @@ export default function InterventionBuilder() {
     setSaving(true);
     try {
       if (planIdParam) {
-        await base44.entities.InterventionPlan.update(planIdParam, form);
+        await Collections.InterventionPlan.update(planIdParam, form);
       } else {
-        await base44.entities.InterventionPlan.create(form);
+        await Collections.InterventionPlan.create({ ...form, clinician_id: user?.id });
       }
       setSaved(true);
       setTimeout(() => navigate(-1), 1500);

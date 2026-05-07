@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { Collections } from "@/lib/firestore";
 import { X, Baby, Plus, Trash2, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,8 +20,8 @@ export default function AddChildToFamilyModal({ open, onClose, onSuccess, clinic
 
   useEffect(() => {
     if (open && clinicianId) {
-      base44.entities.Family.filter({ clinician_id: clinicianId }).then(setFamilies);
-      base44.entities.Child.filter({ clinician_id: clinicianId }).then(setAllChildren);
+      Collections.Family.filter({ clinician_id: clinicianId }).then(setFamilies).catch(() => {});
+      Collections.Child.filter({ clinician_id: clinicianId }).then(setAllChildren).catch(() => {});
     }
   }, [open, clinicianId]);
 
@@ -39,15 +39,15 @@ export default function AddChildToFamilyModal({ open, onClose, onSuccess, clinic
 
     if (mode === "existing") {
       for (const id of selectedChildIds) {
-        await base44.entities.Child.update(id, { family_id: selectedFamilyId });
+        await Collections.Child.update(id, { family_id: selectedFamilyId });
       }
     } else {
-      const existingKids = await base44.entities.Child.filter({ family_id: selectedFamilyId });
+      const existingKids = await Collections.Child.filter({ family_id: selectedFamilyId }).catch(() => []);
       const parentEmail = existingKids[0]?.parent_email;
       const parentId = existingKids[0]?.parent_id;
       for (const child of children) {
         if (!child.child_name.trim()) continue;
-        await base44.entities.Child.create({
+        await Collections.Child.create({
           child_name: child.child_name.trim(),
           age: child.age ? Number(child.age) : undefined,
           diagnosis: child.diagnosis || undefined,

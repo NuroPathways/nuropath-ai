@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { Collections } from "@/lib/firestore";
 import { X, Plus, Trash2, ChevronRight, ChevronLeft, Users, User, Baby, Mail, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,7 +88,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
 
     if (isFamily) {
       // Create family record
-      const fam = await base44.entities.Family.create({
+      const fam = await Collections.Family.create({
         family_name: clientName.trim() || `${holder.name}'s Family`,
         notes: clientNotes || undefined,
         clinician_id: clinicianId,
@@ -100,7 +101,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
       // Create children linked to family
       for (const child of children) {
         if (!child.child_name.trim()) continue;
-        await base44.entities.Child.create({
+        await Collections.Child.create({
           child_name: child.child_name.trim(),
           age: child.age ? Number(child.age) : undefined,
           diagnosis: child.diagnosis || undefined,
@@ -114,7 +115,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
       }
     } else {
       // Individual client — create as Child record (the "child" IS the client)
-      const fam = await base44.entities.Family.create({
+      const fam = await Collections.Family.create({
         family_name: holder.name.trim() || "Individual Client",
         notes: individual.notes || undefined,
         clinician_id: clinicianId,
@@ -124,7 +125,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
         parent_name: holder.name || undefined,
       });
 
-      await base44.entities.Child.create({
+      await Collections.Child.create({
         child_name: holder.name.trim(),
         age: individual.age ? Number(individual.age) : undefined,
         diagnosis: individual.diagnosis || undefined,

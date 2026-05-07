@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { useFirebaseUser } from "@/lib/useFirebaseUser";
+import { Collections } from "@/lib/firestore";
 import { ArrowLeft, TrendingUp, BarChart2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
@@ -11,39 +12,31 @@ const INTENSITY_COLORS = { low: "#22c55e", moderate: "#f59e0b", high: "#ef4444" 
 
 export default function ProgressReports() {
   const navigate = useNavigate();
+  const { user } = useFirebaseUser();
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState("all");
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user) return;
+    if (user.app_role !== "clinician") {
+      navigate("/ParentDashboard");
+      return;
+    }
     const load = async () => {
-      let me;
-      try {
-        me = await base44.auth.me();
-      } catch {
-        navigate("/");
-        return;
-      }
-
-      // If a parent lands here somehow, redirect them to their dashboard
-      if (me.app_role !== "clinician") {
-        navigate("/ParentDashboard");
-        return;
-      }
-
-      const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
+      const kids = await Collections.Child.filter({ clinician_id: user.id }).catch(() => []);
       setChildren(kids);
       if (kids.length > 0) {
         const results = await Promise.all(
-          kids.map(k => base44.entities.BehaviorLog.filter({ child_id: k.id }).catch(() => []))
+          kids.map(k => Collections.BehaviorLog.filter({ child_id: k.id }).catch(() => []))
         );
         setLogs(results.flat());
       }
       setLoading(false);
     };
     load();
-  }, []);
+  }, [user?.id]);
 
   const filteredLogs = selectedChildId === "all"
     ? logs
