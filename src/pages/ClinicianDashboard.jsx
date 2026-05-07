@@ -135,7 +135,7 @@ export default function ClinicianDashboard() {
       </div>
 
       {/* Migrate to Firestore */}
-      {user?.role === 'admin' && (
+      {(user?.role === 'admin' || user?.app_role === 'clinician') && (
         <div className="mb-8 bg-card border border-border rounded-2xl p-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
