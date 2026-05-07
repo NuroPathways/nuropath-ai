@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 export default function RoleSetup() {
   const [saving, setSaving] = useState(false);
   const [user, setUser] = useState(null);
-  const [inviteFamily, setInviteFamily] = useState(null); // family record from invite token
+  const [inviteFamily, setInviteFamily] = useState(null);
   const navigate = useNavigate();
 
   const inviteToken = new URLSearchParams(window.location.search).get("invite");
@@ -23,11 +23,9 @@ export default function RoleSetup() {
       }
       setUser(me);
 
-      // If already set up, redirect
       if (me?.app_role === "clinician") { navigate("/ClinicianDashboard"); return; }
-      if (me?.app_role === "parent") { navigate("/ClientDashboard"); return; }
+      if (me?.app_role === "parent") { navigate("/ParentDashboard"); return; }
 
-      // If there's an invite token, look up the family
       if (inviteToken) {
         const families = await base44.entities.Family.filter({ invite_token: inviteToken }).catch(() => []);
         if (families[0]) setInviteFamily(families[0]);
@@ -38,32 +36,37 @@ export default function RoleSetup() {
 
   const setupClinician = async () => {
     setSaving(true);
-    await base44.auth.updateMe({ app_role: "clinician" });
-    navigate("/ClinicianDashboard");
+    try {
+      await base44.auth.updateMe({ app_role: "clinician" });
+      navigate("/ClinicianDashboard");
+    } catch {
+      setSaving(false);
+    }
   };
 
   const setupParent = async () => {
     setSaving(true);
-    const updates = { app_role: "parent" };
+    try {
+      const updates = { app_role: "parent" };
 
-    if (inviteFamily) {
-      // Link parent to family and clinician
-      updates.linked_family_id = inviteFamily.id;
-      updates.linked_clinician_id = inviteFamily.clinician_id;
-      updates.invite_token = inviteToken;
+      if (inviteFamily) {
+        updates.linked_family_id = inviteFamily.id;
+        updates.linked_clinician_id = inviteFamily.clinician_id;
+        updates.invite_token = inviteToken;
 
-      // Update children in this family to store parent_id
-      const kids = await base44.entities.Child.filter({ family_id: inviteFamily.id }).catch(() => []);
-      for (const kid of kids) {
-        await base44.entities.Child.update(kid.id, { parent_id: user.id, parent_email: user.email });
+        const kids = await base44.entities.Child.filter({ family_id: inviteFamily.id }).catch(() => []);
+        for (const kid of kids) {
+          await base44.entities.Child.update(kid.id, { parent_id: user.id, parent_email: user.email });
+        }
+
+        await base44.entities.Family.update(inviteFamily.id, { invite_status: "accepted" });
       }
 
-      // Mark family invite as accepted
-      await base44.entities.Family.update(inviteFamily.id, { invite_status: "accepted" });
+      await base44.auth.updateMe(updates);
+      navigate("/ParentDashboard");
+    } catch {
+      setSaving(false);
     }
-
-    await base44.auth.updateMe(updates);
-    navigate("/ClientDashboard");
   };
 
   if (!user) return (
@@ -72,7 +75,6 @@ export default function RoleSetup() {
     </div>
   );
 
-  // If parent coming via invite link — show simplified confirmation
   if (inviteToken) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4 font-inter">
@@ -115,7 +117,6 @@ export default function RoleSetup() {
     );
   }
 
-  // Default: role selection (for clinicians and manually-onboarded parents)
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 font-inter">
       <AnimatePresence mode="wait">
