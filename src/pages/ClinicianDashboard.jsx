@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Users, FileText, Plus, TrendingUp, MessageCircle, BarChart2, Upload, Stethoscope, ShieldAlert } from "lucide-react";
+import { Users, FileText, Plus, TrendingUp, MessageCircle, BarChart2, Upload, Stethoscope, ShieldAlert, Database, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import ChildCard from "../components/clinician/ChildCard";
@@ -16,6 +16,8 @@ export default function ClinicianDashboard() {
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [showAddChild, setShowAddChild] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [migrating, setMigrating] = useState(false);
+  const [migrateResult, setMigrateResult] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -138,6 +140,60 @@ export default function ClinicianDashboard() {
           </div>
         )}
       </div>
+
+      {/* Migrate to Firestore */}
+      {user?.role === 'admin' && (
+        <div className="mb-8 bg-card border border-border rounded-2xl p-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
+                <Database className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Migrate Data to Firestore</p>
+                <p className="text-xs text-muted-foreground">Export all records to your Firebase project</p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-xl gap-1.5 text-xs h-8"
+              disabled={migrating}
+              onClick={async () => {
+                setMigrating(true);
+                setMigrateResult(null);
+                const res = await base44.functions.invoke('migrateToFirestore', {});
+                setMigrateResult(res.data);
+                setMigrating(false);
+              }}
+            >
+              <Database className="w-3.5 h-3.5" />
+              {migrating ? 'Migrating...' : 'Run Migration'}
+            </Button>
+          </div>
+          {migrateResult && (
+            <div className="mt-4 p-3 rounded-xl bg-muted text-xs space-y-1">
+              {migrateResult.success ? (
+                <>
+                  <div className="flex items-center gap-1.5 text-green-700 font-medium mb-2">
+                    <CheckCircle className="w-3.5 h-3.5" /> Migration complete
+                  </div>
+                  {Object.entries(migrateResult.results).map(([entity, info]) => (
+                    <div key={entity} className="flex justify-between text-muted-foreground">
+                      <span>{entity}</span>
+                      <span>{info.error ? <span className="text-red-500">{info.error}</span> : `${info.migrated} migrated${info.errors ? `, ${info.errors} errors` : ''}`}</span>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <div className="flex items-center gap-1.5 text-red-600">
+                  <AlertCircle className="w-3.5 h-3.5" /> {migrateResult.error}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Quick actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
