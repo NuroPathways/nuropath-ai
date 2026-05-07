@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Collections } from "@/lib/firestore";
-import { auth } from "@/lib/firebase";
+import { base44 } from "@/api/base44Client";
 import { ArrowLeft, Star, Plus, Trophy, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export default function RewardTracker() {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState("");
   const [tokens, setTokens] = useState([]);
@@ -20,13 +20,13 @@ export default function RewardTracker() {
   const childIdParam = new URLSearchParams(window.location.search).get("child_id");
 
   useEffect(() => {
-    const firebaseUser = auth.currentUser;
-    if (!firebaseUser) { navigate("/"); return; }
-
     const load = async () => {
+      const me = await base44.auth.me().catch(() => null);
+      if (!me) { navigate("/"); return; }
+      setUser(me);
       const [byId, byEmail] = await Promise.all([
-        Collections.Child.filter({ parent_id: firebaseUser.uid }).catch(() => []),
-        Collections.Child.filter({ parent_email: firebaseUser.email }).catch(() => []),
+        base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
+        base44.entities.Child.filter({ parent_email: me.email }).catch(() => []),
       ]);
       const seen = new Set();
       const merged = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
@@ -40,14 +40,14 @@ export default function RewardTracker() {
   useEffect(() => {
     if (!selectedChildId) return;
     setLoading(true);
-    Collections.RewardToken.filter({ child_id: selectedChildId }).then(r => { setTokens(r); setLoading(false); });
+    base44.entities.RewardToken.filter({ child_id: selectedChildId }).then(r => { setTokens(r); setLoading(false); });
   }, [selectedChildId]);
 
   const handleAdd = async () => {
     if (!selectedChildId) return;
     setSaving(true);
-    await Collections.RewardToken.create({ ...form, child_id: selectedChildId, tokens_earned: Number(form.tokens_earned), tokens_goal: Number(form.tokens_goal) });
-    const updated = await Collections.RewardToken.filter({ child_id: selectedChildId });
+    await base44.entities.RewardToken.create({ ...form, child_id: selectedChildId, tokens_earned: Number(form.tokens_earned), tokens_goal: Number(form.tokens_goal) });
+    const updated = await base44.entities.RewardToken.filter({ child_id: selectedChildId });
     setTokens(updated);
     setShowForm(false);
     setSaving(false);
@@ -56,7 +56,7 @@ export default function RewardTracker() {
 
   const addToken = async (tokenRecord) => {
     const newEarned = tokenRecord.tokens_earned + 1;
-    await Collections.RewardToken.update(tokenRecord.id, { tokens_earned: newEarned });
+    await base44.entities.RewardToken.update(tokenRecord.id, { tokens_earned: newEarned });
     setTokens(prev => prev.map(t => t.id === tokenRecord.id ? { ...t, tokens_earned: newEarned } : t));
   };
 

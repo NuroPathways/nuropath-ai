@@ -1,23 +1,24 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useFirebaseUser } from "@/lib/useFirebaseUser";
-import { Collections } from "@/lib/firestore";
+import { base44 } from "@/api/base44Client";
 import { MessageSquare, Sparkles, Baby, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
 export default function ParentDashboard() {
   const navigate = useNavigate();
-  const { user } = useFirebaseUser();
+  const [user, setUser] = useState(null);
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
     const load = async () => {
+      const me = await base44.auth.me().catch(() => null);
+      if (!me) { navigate("/"); return; }
+      setUser(me);
       const [byId, byEmail] = await Promise.all([
-        Collections.Child.filter({ parent_id: user.id }).catch(() => []),
-        Collections.Child.filter({ parent_email: user.email }).catch(() => []),
+        base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
+        base44.entities.Child.filter({ parent_email: me.email }).catch(() => []),
       ]);
       const seen = new Set();
       const merged = [...byId, ...byEmail].filter(c => {
@@ -29,7 +30,7 @@ export default function ParentDashboard() {
       setLoading(false);
     };
     load();
-  }, [user?.id]);
+  }, []);
 
   return (
     <div className="p-6 md:p-8 max-w-3xl mx-auto font-inter">
@@ -38,7 +39,6 @@ export default function ParentDashboard() {
         <h1 className="text-2xl font-bold text-foreground">{user?.full_name || "Parent"}</h1>
       </div>
 
-      {/* Ask AI CTA */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -59,7 +59,6 @@ export default function ParentDashboard() {
         </Button>
       </motion.div>
 
-      {/* Children */}
       <div>
         <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
           <Baby className="w-4 h-4" /> My Children

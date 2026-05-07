@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useFirebaseUser } from "@/lib/useFirebaseUser";
-import { Collections } from "@/lib/firestore";
+import { base44 } from "@/api/base44Client";
 import { ArrowLeft, Send, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +10,7 @@ import { format } from "date-fns";
 
 export default function Messages() {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState("");
   const [messages, setMessages] = useState([]);
@@ -20,19 +20,19 @@ export default function Messages() {
   const bottomRef = useRef(null);
   const pollingRef = useRef(null);
 
-  const { user } = useFirebaseUser();
-
   useEffect(() => {
-    if (!user) return;
     const load = async () => {
-      if (user.app_role === "clinician") {
-        const kids = await Collections.Child.filter({ clinician_id: user.id }).catch(() => []);
+      const me = await base44.auth.me().catch(() => null);
+      if (!me) { navigate("/"); return; }
+      setUser(me);
+      if (me.app_role === "clinician") {
+        const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
         setChildren(kids);
         if (kids[0]) setSelectedChildId(kids[0].id);
       } else {
         const [byId, byEmail] = await Promise.all([
-          Collections.Child.filter({ parent_id: user.id }).catch(() => []),
-          Collections.Child.filter({ parent_email: user.email }).catch(() => []),
+          base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
+          base44.entities.Child.filter({ parent_email: me.email }).catch(() => []),
         ]);
         const seen = new Set();
         const merged = [...byId, ...byEmail].filter(c => {
@@ -49,38 +49,27 @@ export default function Messages() {
     };
     load();
     return () => clearInterval(pollingRef.current);
-  }, [user?.id]);
+  }, []);
 
   const fetchMessages = (childId) => {
     if (!childId) return;
-    Collections.Message.filter({ child_id: childId }).then(msgs => {
+    base44.entities.Message.filter({ child_id: childId }).then(msgs => {
       setMessages(msgs.sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
     }).catch(() => {});
   };
 
   useEffect(() => {
     if (!user || !selectedChildId) return;
-
-    // Load messages immediately
     fetchMessages(selectedChildId);
-
-    // For clinician: look up the parent_id from the child record to use as recipient
     if (user.app_role === "clinician") {
       const child = children.find(c => c.id === selectedChildId);
-      if (child?.parent_id) {
-        setRecipientId(child.parent_id);
-      } else {
-        setRecipientId(""); // no parent linked yet
-      }
+      setRecipientId(child?.parent_id || "");
     } else {
       const child = children.find(c => c.id === selectedChildId);
       if (child?.clinician_id) setRecipientId(child.clinician_id);
     }
-
-    // Poll for new messages every 10 seconds
     clearInterval(pollingRef.current);
     pollingRef.current = setInterval(() => fetchMessages(selectedChildId), 10000);
-
     return () => clearInterval(pollingRef.current);
   }, [selectedChildId, user, children]);
 
@@ -90,23 +79,18 @@ export default function Messages() {
 
   const handleSend = async () => {
     if (!newMsg.trim()) return;
-    // For clinicians, allow sending even without a recipient (message stored by child_id)
     if (!recipientId && user?.app_role !== "clinician") return;
     setSending(true);
-    try {
-      const msg = await Collections.Message.create({
-        from_user_id: user.id,
-        to_user_id: recipientId || null,
-        child_id: selectedChildId,
-        body: newMsg.trim(),
-        sender_role: user.app_role === "clinician" ? "clinician" : "parent",
-        is_read: false,
-      });
-      setMessages(prev => [...prev, msg]);
-      setNewMsg("");
-    } catch (e) {
-      console.error("Failed to send message:", e);
-    }
+    const msg = await base44.entities.Message.create({
+      from_user_id: user.id,
+      to_user_id: recipientId || null,
+      child_id: selectedChildId,
+      body: newMsg.trim(),
+      sender_role: user.app_role === "clinician" ? "clinician" : "parent",
+      is_read: false,
+    });
+    setMessages(prev => [...prev, msg]);
+    setNewMsg("");
     setSending(false);
   };
 
@@ -125,20 +109,14 @@ export default function Messages() {
         </button>
         <MessageCircle className="w-5 h-5 text-primary" />
         <h1 className="font-bold text-foreground flex-1">Messages</h1>
-        {selectedChild && (
-          <span className="text-xs text-muted-foreground">{selectedChild.child_name}</span>
-        )}
+        {selectedChild && <span className="text-xs text-muted-foreground">{selectedChild.child_name}</span>}
       </div>
 
       {children.length > 1 && (
         <div className="px-4 py-3 bg-card border-b border-border flex-shrink-0">
           <Select value={selectedChildId} onValueChange={setSelectedChildId}>
-            <SelectTrigger className="rounded-xl text-sm h-9">
-              <SelectValue placeholder="Select child" />
-            </SelectTrigger>
-            <SelectContent>
-              {children.map(c => <SelectItem key={c.id} value={c.id}>{c.child_name}</SelectItem>)}
-            </SelectContent>
+            <SelectTrigger className="rounded-xl text-sm h-9"><SelectValue placeholder="Select child" /></SelectTrigger>
+            <SelectContent>{children.map(c => <SelectItem key={c.id} value={c.id}>{c.child_name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
       )}
@@ -147,27 +125,15 @@ export default function Messages() {
         {messages.length === 0 ? (
           <div className="text-center py-16">
             <MessageCircle className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">
-              No messages yet{selectedChild ? ` for ${selectedChild.child_name}` : ""}.
-            </p>
+            <p className="text-sm text-muted-foreground">No messages yet{selectedChild ? ` for ${selectedChild.child_name}` : ""}.</p>
           </div>
         ) : (
           <div className="space-y-3 max-w-xl mx-auto">
             {messages.map((msg, i) => {
               const isMe = msg.from_user_id === user?.id;
               return (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.02 }}
-                  className={`flex ${isMe ? "justify-end" : "justify-start"}`}
-                >
-                  <div className={`max-w-[78%] px-4 py-2.5 rounded-2xl text-sm ${
-                    isMe
-                      ? "bg-primary text-primary-foreground rounded-br-sm"
-                      : "bg-card border border-border text-foreground rounded-bl-sm"
-                  }`}>
+                <motion.div key={msg.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[78%] px-4 py-2.5 rounded-2xl text-sm ${isMe ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-card border border-border text-foreground rounded-bl-sm"}`}>
                     <p>{msg.body}</p>
                     <p className={`text-xs mt-1 ${isMe ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
                       {msg.created_date ? format(new Date(msg.created_date), "MMM d, h:mm a") : ""}
@@ -183,26 +149,14 @@ export default function Messages() {
 
       {!recipientId && user?.app_role !== "clinician" && (
         <div className="px-4 py-3 bg-yellow-50 border-t border-yellow-200 text-xs text-yellow-700 text-center flex-shrink-0">
-          No clinician linked to this child yet. Ask your clinician to set up your account.
+          No clinician linked to this child yet.
         </div>
       )}
 
       <div className="flex-shrink-0 border-t border-border bg-card px-4 py-3">
         <div className="max-w-xl mx-auto flex gap-2 items-end">
-          <Textarea
-            value={newMsg}
-            onChange={e => setNewMsg(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Type a message..."
-            rows={1}
-            className="flex-1 resize-none rounded-xl text-sm max-h-28 min-h-[40px]"
-            disabled={!canSend && !newMsg}
-          />
-          <Button
-            onClick={handleSend}
-            disabled={sending || !canSend}
-            className="h-10 w-10 p-0 rounded-xl flex-shrink-0"
-          >
+          <Textarea value={newMsg} onChange={e => setNewMsg(e.target.value)} onKeyDown={handleKeyDown} placeholder="Type a message..." rows={1} className="flex-1 resize-none rounded-xl text-sm max-h-28 min-h-[40px]" />
+          <Button onClick={handleSend} disabled={sending || !canSend} className="h-10 w-10 p-0 rounded-xl flex-shrink-0">
             <Send className="w-4 h-4" />
           </Button>
         </div>

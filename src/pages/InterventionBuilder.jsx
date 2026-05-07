@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Collections } from "@/lib/firestore";
-import { auth } from "@/lib/firebase";
+import { base44 } from "@/api/base44Client";
 import { ArrowLeft, Save, Plus, Trash2, CheckCircle2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +53,7 @@ function PhaseEditor({ label, placeholder, value, onChange, color = "bg-green-50
 
 export default function InterventionBuilder() {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
   const [children, setChildren] = useState([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -76,11 +76,11 @@ export default function InterventionBuilder() {
   });
 
   useEffect(() => {
-    const firebaseUser = auth.currentUser;
-    if (!firebaseUser) { navigate("/"); return; }
-
     const load = async () => {
-      const kids = await Collections.Child.filter({ clinician_id: firebaseUser.uid }).catch(() => []);
+      const me = await base44.auth.me().catch(() => null);
+      if (!me) { navigate("/"); return; }
+      setUser(me);
+      const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
       setChildren(kids);
 
       if (!childIdParam && !planIdParam && kids[0]) {
@@ -88,8 +88,8 @@ export default function InterventionBuilder() {
       }
 
       if (planIdParam) {
-        const plan = await Collections.InterventionPlan.get(planIdParam).catch(() => null);
-        if (plan) setForm({ ...plan });
+        const plans = await base44.entities.InterventionPlan.filter({ id: planIdParam }).catch(() => []);
+        if (plans[0]) setForm({ ...plans[0] });
       }
 
       setLoading(false);
@@ -102,17 +102,13 @@ export default function InterventionBuilder() {
   const handleSave = async () => {
     if (!form.child_id || !form.behavior_category || !form.title) return;
     setSaving(true);
-    try {
-      if (planIdParam) {
-        await Collections.InterventionPlan.update(planIdParam, form);
-      } else {
-        await Collections.InterventionPlan.create({ ...form, clinician_id: auth.currentUser?.uid });
-      }
-      setSaved(true);
-      setTimeout(() => navigate(-1), 1500);
-    } catch (e) {
-      console.error("Failed to save plan:", e);
+    if (planIdParam) {
+      await base44.entities.InterventionPlan.update(planIdParam, form);
+    } else {
+      await base44.entities.InterventionPlan.create({ ...form, clinician_id: user?.id });
     }
+    setSaved(true);
+    setTimeout(() => navigate(-1), 1500);
     setSaving(false);
   };
 

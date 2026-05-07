@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Collections } from "@/lib/firestore";
-import { auth } from "@/lib/firebase";
+import { base44 } from "@/api/base44Client";
 import { ArrowLeft, TrendingUp, BarChart2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
@@ -16,34 +15,27 @@ export default function ProgressReports() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const firebaseUser = auth.currentUser;
-    if (!firebaseUser) { navigate("/"); return; }
-
     const load = async () => {
-      try {
-        const kids = await Collections.Child.filter({ clinician_id: firebaseUser.uid }).catch(() => []);
-        setChildren(kids);
-        if (kids.length > 0) {
-          setSelectedChildId(kids[0].id);
-          const allLogs = await Promise.all(
-            kids.map(k => Collections.BehaviorLog.filter({ child_id: k.id }).catch(() => []))
-          );
-          setLogs(allLogs.flat());
-        }
-      } catch (e) {
-        console.error("Failed to load data:", e);
-      } finally {
-        setLoading(false);
+      const me = await base44.auth.me().catch(() => null);
+      if (!me) { navigate("/"); return; }
+      const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
+      setChildren(kids);
+      if (kids.length > 0) {
+        setSelectedChildId(kids[0].id);
+        const allLogs = await Promise.all(
+          kids.map(k => base44.entities.BehaviorLog.filter({ child_id: k.id }).catch(() => []))
+        );
+        setLogs(allLogs.flat());
       }
+      setLoading(false);
     };
     load();
   }, []);
 
   const childLogs = logs.filter(l => l.child_id === selectedChildId);
-  const selectedChild = children.find(c => c.id === selectedChildId);
 
   const chartData = childLogs.slice(-14).map((log, i) => ({
-    day: log.created_date?.toDate ? format(log.created_date.toDate(), "MMM d") : `Day ${i + 1}`,
+    day: log.created_date ? format(new Date(log.created_date), "MMM d") : `Day ${i + 1}`,
     intensity: Number(log.intensity) || 0,
   }));
 

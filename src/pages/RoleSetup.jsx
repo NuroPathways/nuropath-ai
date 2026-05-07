@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { doc, setDoc, getDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
-import { Collections } from "@/lib/firestore";
+import { base44 } from "@/api/base44Client";
 import { Brain, Stethoscope, Users, Loader2, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -15,57 +13,46 @@ export default function RoleSetup() {
   const inviteToken = new URLSearchParams(window.location.search).get("invite");
 
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged(async (firebaseUser) => {
-      if (!firebaseUser) { navigate("/"); return; }
+    const init = async () => {
+      const me = await base44.auth.me().catch(() => null);
+      if (!me) { base44.auth.redirectToLogin(window.location.href); return; }
+      setUser(me);
 
-      const userDoc = await getDoc(doc(db, "User", firebaseUser.uid));
-      const profile = userDoc.exists() ? userDoc.data() : {};
-      const fullUser = { id: firebaseUser.uid, email: firebaseUser.email, full_name: firebaseUser.displayName || "", ...profile };
-      setUser(fullUser);
-
-      if (profile.app_role === "clinician") { navigate("/ClinicianDashboard"); return; }
-      if (profile.app_role === "parent") { navigate("/ParentDashboard"); return; }
+      if (me.app_role === "clinician") { navigate("/ClinicianDashboard"); return; }
+      if (me.app_role === "parent") { navigate("/ParentDashboard"); return; }
 
       if (inviteToken) {
-        const families = await Collections.Family.filter({ invite_token: inviteToken }).catch(() => []);
+        const families = await base44.entities.Family.filter({ invite_token: inviteToken }).catch(() => []);
         if (families[0]) setInviteFamily(families[0]);
       }
-    });
-    return unsub;
-  }, [navigate, inviteToken]);
+    };
+    init();
+  }, [inviteToken]);
 
   const setupClinician = async () => {
     setSaving(true);
-    try {
-      await setDoc(doc(db, "User", user.id), { app_role: "clinician" }, { merge: true });
-      navigate("/ClinicianDashboard");
-    } catch {
-      setSaving(false);
-    }
+    await base44.auth.updateMe({ app_role: "clinician" });
+    navigate("/ClinicianDashboard");
   };
 
   const setupParent = async () => {
     setSaving(true);
-    try {
-      const updates = { app_role: "parent" };
+    const updates = { app_role: "parent" };
 
-      if (inviteFamily) {
-        updates.linked_family_id = inviteFamily.id;
-        updates.linked_clinician_id = inviteFamily.clinician_id;
-        updates.invite_token = inviteToken;
+    if (inviteFamily) {
+      updates.linked_family_id = inviteFamily.id;
+      updates.linked_clinician_id = inviteFamily.clinician_id;
+      updates.invite_token = inviteToken;
 
-        const kids = await Collections.Child.filter({ family_id: inviteFamily.id }).catch(() => []);
-        for (const kid of kids) {
-          await Collections.Child.update(kid.id, { parent_id: user.id, parent_email: user.email });
-        }
-        await Collections.Family.update(inviteFamily.id, { invite_status: "accepted" });
+      const kids = await base44.entities.Child.filter({ family_id: inviteFamily.id }).catch(() => []);
+      for (const kid of kids) {
+        await base44.entities.Child.update(kid.id, { parent_id: user.id, parent_email: user.email });
       }
-
-      await setDoc(doc(db, "User", user.id), updates, { merge: true });
-      navigate("/ParentDashboard");
-    } catch {
-      setSaving(false);
+      await base44.entities.Family.update(inviteFamily.id, { invite_status: "accepted" });
     }
+
+    await base44.auth.updateMe(updates);
+    navigate("/ParentDashboard");
   };
 
   if (!user) return (
@@ -86,7 +73,7 @@ export default function RoleSetup() {
           {inviteFamily ? (
             <>
               <p className="text-muted-foreground mb-2">You've been invited to join the <strong>{inviteFamily.family_name}</strong> family profile.</p>
-              <p className="text-sm text-muted-foreground mb-8">Your clinician has already set up your child's plans and documents. They'll be ready as soon as you complete setup.</p>
+              <p className="text-sm text-muted-foreground mb-8">Your clinician has already set up your child's plans and documents.</p>
               <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 mb-6 text-left">
                 <div className="flex items-center gap-3 mb-2">
                   <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />

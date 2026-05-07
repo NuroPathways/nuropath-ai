@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { useFirebaseUser } from "@/lib/useFirebaseUser";
-import { Collections } from "@/lib/firestore";
-import { Send, Brain, Sparkles, ChevronDown } from "lucide-react";
+import { Send, Brain, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,15 +16,13 @@ const SUGGESTED = [
   "Show me a morning routine based on the plan",
 ];
 
-// ─── Build full context from all clinician data ──────────────────────────────
-
 async function buildContext(childId, childName) {
   const [plans, documents, interventions, sessions, logs] = await Promise.all([
-    Collections.BehaviorPlan.filter({ child_id: childId }).catch(() => []),
-    Collections.Document.filter({ child_id: childId }).catch(() => []),
-    Collections.InterventionPlan.filter({ child_id: childId }).catch(() => []),
-    Collections.AIConversation.filter({ child_id: childId }).catch(() => []),
-    Collections.BehaviorLog.filter({ child_id: childId }).catch(() => []),
+    base44.entities.BehaviorPlan.filter({ child_id: childId }).catch(() => []),
+    base44.entities.Document.filter({ child_id: childId }).catch(() => []),
+    base44.entities.InterventionPlan.filter({ child_id: childId }).catch(() => []),
+    base44.entities.AIConversation.filter({ child_id: childId }).catch(() => []),
+    base44.entities.BehaviorLog.filter({ child_id: childId }).catch(() => []),
   ]);
 
   let context = `== CHILD: ${childName} ==\n\n`;
@@ -73,7 +69,7 @@ async function buildContext(childId, childName) {
   }
 
   if (sessions.length > 0) {
-    context += `=== SESSION HISTORY (AI Conversations / Logs) ===\n`;
+    context += `=== SESSION HISTORY ===\n`;
     const sorted = [...sessions].sort((a, b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 20);
     sorted.forEach(s => {
       const sessionDate = s.created_date ? new Date(s.created_date).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }) : "Unknown date";
@@ -99,13 +95,11 @@ async function buildContext(childId, childName) {
   return { context, hasPlans: plans.length + interventions.length > 0, hasDocuments: documents.length > 0 };
 }
 
-// ─── Intelligent Response Engine ─────────────────────────────────────────────
-
 async function generateResponse(userMessage, child, clinicianContext, conversationHistory) {
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   const historyText = conversationHistory.slice(-8).map(m => `${m.role === "user" ? "Parent" : "Aspire AI"}: ${m.content}`).join("\n\n");
 
-  const systemPrompt = `You are Aspire AI — an intelligent, warm, and highly capable behavioral support assistant for parents and caregivers. You have been provided with all of the clinician's documented plans, uploaded documents, session history, and behavior logs for this child. You are NOT a generic chatbot. You respond with precision, warmth, and specificity based on the actual data provided.
+  const systemPrompt = `You are Aspire AI — an intelligent, warm behavioral support assistant for parents. You have all of the clinician's documented plans, documents, session history, and behavior logs for this child. Respond with precision and warmth based on the actual data provided.
 
 TODAY'S DATE: ${today}
 CHILD: ${child?.child_name || "Unknown"}, Age: ${child?.age || "N/A"}, Diagnosis: ${child?.diagnosis || "N/A"}
@@ -118,39 +112,16 @@ ${clinicianContext.context || "No data loaded yet."}
 ${historyText || "No prior messages."}
 === END CONVERSATION ===
 
-YOUR CAPABILITIES — respond to ANY of these intelligently:
-1. **Document summaries** — If asked about a document, treatment plan, or overview, provide a clear, organized summary of the actual content from the data above.
-2. **Daily schedules** — If asked for a schedule or routine, create a realistic, time-blocked daily plan based on the actual intervention plans, behavior strategies, and the child's needs. Include specific times (morning, school, afternoon, evening).
-3. **Homework & task planning** — Help plan specific tasks, break them into manageable steps using strategies from the plan.
-4. **Specific date queries** — If asked about a specific session or date, search the session history and logs above and report what actually happened. Be specific.
-5. **Behavior guidance** — Give real-time, step-by-step guidance based on the clinician-approved strategies in the data.
-6. **Progress summaries** — Analyze behavior log patterns, identify trends, highlight improvements or concerns.
-7. **Prevention & triggers** — Identify known triggers from the plans and give proactive tips.
-8. **Anything the parent needs** — Be flexible and genuinely helpful. If they ask something outside clinical scope, you can briefly help and gently note if clinical guidance would be better.
+Respond to ANY of: document summaries, daily schedules, homework planning, date-specific session queries, behavior guidance, progress summaries, trigger identification. Be warm, specific, and reference actual clinical data when relevant. Use markdown for structure.`;
 
-RESPONSE STYLE:
-- Warm, clear, specific — never generic
-- Use the actual child's name
-- Reference specific content from the clinician data when relevant (quote strategies, steps, dates)
-- Use markdown for structure (bold, bullet points, numbered steps) — but keep it conversational
-- Vary your responses naturally — do NOT follow a fixed template every time
-- If no clinician data exists, be honest and suggest they ask their clinician, but still be as helpful as possible
-- For schedules, use time-blocked format (e.g., 7:00 AM — Morning routine...)
-- For summaries, use clear sections with headers
-- For date queries, be specific: "Based on the log from [date]..."`;
-
-  const response = await base44.integrations.Core.InvokeLLM({
+  return await base44.integrations.Core.InvokeLLM({
     model: "claude_sonnet_4_6",
     prompt: `${systemPrompt}\n\nParent's message: "${userMessage}"\n\nRespond directly and helpfully:`
   });
-
-  return response;
 }
 
-// ─── Main Component ─────────────────────────────────────────────────────────
-
 export default function AIChat() {
-  const { user } = useFirebaseUser();
+  const [user, setUser] = useState(null);
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState("");
   const [clinicianContext, setClinicianContext] = useState({ context: "", hasPlans: false, hasDocuments: false });
@@ -161,11 +132,13 @@ export default function AIChat() {
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    if (!user) return;
     const load = async () => {
+      const me = await base44.auth.me().catch(() => null);
+      if (!me) return;
+      setUser(me);
       const [byId, byEmail] = await Promise.all([
-        Collections.Child.filter({ parent_id: user.id }).catch(() => []),
-        Collections.Child.filter({ parent_email: user.email }).catch(() => []),
+        base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
+        base44.entities.Child.filter({ parent_email: me.email }).catch(() => []),
       ]);
       const seen = new Set();
       const merged = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
@@ -173,7 +146,7 @@ export default function AIChat() {
       if (merged.length > 0) setSelectedChildId(merged[0].id);
     };
     load();
-  }, [user?.id]);
+  }, []);
 
   useEffect(() => {
     if (!selectedChildId) return;
@@ -200,15 +173,13 @@ export default function AIChat() {
 
     const child = children.find(c => c.id === selectedChildId);
     const updatedHistory = [...messages, userMsg];
-
     const response = await generateResponse(msg, child, clinicianContext, updatedHistory);
 
     setMessages(prev => [...prev, { role: "assistant", content: response }]);
     setIsLoading(false);
 
-    // Log conversation
     if (user && selectedChildId) {
-      Collections.AIConversation.create({
+      base44.entities.AIConversation.create({
         parent_id: user.id,
         child_id: selectedChildId,
         child_name: child?.child_name || "",
@@ -219,15 +190,11 @@ export default function AIChat() {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
   return (
     <div className="flex flex-col h-screen font-inter">
-      {/* Header */}
       <div className="px-6 py-4 border-b border-border bg-card flex-shrink-0">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -254,7 +221,6 @@ export default function AIChat() {
         </div>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="max-w-2xl mx-auto space-y-5">
           {messages.length === 0 && !isLoading && (
@@ -263,13 +229,10 @@ export default function AIChat() {
                 <Sparkles className="w-8 h-8 text-primary" />
               </div>
               <h2 className="font-semibold text-foreground mb-1">How can I help today?</h2>
-              <p className="text-sm text-muted-foreground mb-6">
-                I can summarize your child's treatment plan, build daily schedules, answer questions about specific sessions, help with homework planning, and more.
-              </p>
+              <p className="text-sm text-muted-foreground mb-6">I can summarize your child's treatment plan, build daily schedules, answer questions about specific sessions, and more.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {SUGGESTED.map(s => (
-                  <button key={s} onClick={() => sendMessage(s)}
-                    className="text-left px-4 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:bg-muted/50 text-sm text-foreground transition-all">
+                  <button key={s} onClick={() => sendMessage(s)} className="text-left px-4 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:bg-muted/50 text-sm text-foreground transition-all">
                     {s}
                   </button>
                 ))}
@@ -279,23 +242,18 @@ export default function AIChat() {
 
           <AnimatePresence>
             {messages.map((m, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+              <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 {m.role === "assistant" && (
                   <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
                     <Brain className="w-4 h-4 text-primary-foreground" />
                   </div>
                 )}
-                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                  m.role === "user"
-                    ? "bg-primary text-primary-foreground rounded-tr-sm"
-                    : "bg-card border border-border rounded-tl-sm text-foreground"
-                }`}>
+                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${m.role === "user" ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-card border border-border rounded-tl-sm text-foreground"}`}>
                   {m.role === "user" ? (
                     <p>{m.content}</p>
                   ) : (
                     <ReactMarkdown
-                      className="prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-strong:font-semibold prose-headings:font-semibold prose-headings:text-foreground"
+                      className="prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-strong:font-semibold"
                       components={{
                         p: ({ children }) => <p className="my-1 leading-relaxed text-foreground">{children}</p>,
                         strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
@@ -305,7 +263,6 @@ export default function AIChat() {
                         h1: ({ children }) => <h1 className="text-base font-semibold text-foreground mt-3 mb-1">{children}</h1>,
                         h2: ({ children }) => <h2 className="text-sm font-semibold text-foreground mt-3 mb-1">{children}</h2>,
                         h3: ({ children }) => <h3 className="text-sm font-medium text-foreground mt-2 mb-1">{children}</h3>,
-                        blockquote: ({ children }) => <blockquote className="border-l-2 border-primary/40 pl-3 my-2 text-muted-foreground italic">{children}</blockquote>,
                         code: ({ children }) => <code className="bg-muted px-1 py-0.5 rounded text-xs">{children}</code>,
                         hr: () => <hr className="my-3 border-border" />,
                       }}
@@ -340,7 +297,6 @@ export default function AIChat() {
         </div>
       </div>
 
-      {/* Input */}
       <div className="flex-shrink-0 border-t border-border bg-card px-4 py-4">
         <div className="max-w-2xl mx-auto flex gap-3 items-end">
           <Textarea
@@ -352,11 +308,7 @@ export default function AIChat() {
             disabled={isLoading}
             className="flex-1 resize-none rounded-xl border-border text-sm max-h-32 min-h-[44px]"
           />
-          <Button
-            onClick={() => sendMessage()}
-            disabled={isLoading || !input.trim()}
-            className="h-11 w-11 p-0 rounded-xl bg-primary hover:bg-primary/90 flex-shrink-0"
-          >
+          <Button onClick={() => sendMessage()} disabled={isLoading || !input.trim()} className="h-11 w-11 p-0 rounded-xl bg-primary hover:bg-primary/90 flex-shrink-0">
             <Send className="w-4 h-4" />
           </Button>
         </div>

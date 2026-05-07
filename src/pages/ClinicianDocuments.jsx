@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { useFirebaseUser } from "@/lib/useFirebaseUser";
-import { Collections } from "@/lib/firestore";
 import { ArrowLeft, Upload, FileText, Trash2, Loader2, Sparkles, CheckCircle2, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +31,7 @@ function cleanTitle(fileName) {
 
 // Runs entirely in background — doesn't block UI
 async function scanDocumentInBackground(doc, clinicianId) {
-  await Collections.Document.update(doc.id, { scan_status: "scanning" }).catch(() => {});
+  await base44.entities.Document.update(doc.id, { scan_status: "scanning" }).catch(() => {});
 
   try {
     const result = await base44.integrations.Core.InvokeLLM({
@@ -84,12 +82,12 @@ Extract a primary intervention plan and all behavior plans mentioned. Be brief b
       }
     });
 
-    const existingPlans = await Collections.InterventionPlan.filter({
+    const existingPlans = await base44.entities.InterventionPlan.filter({
       source_document_id: doc.id
     }).catch(() => []);
 
     if (existingPlans.length === 0 && result.immediate_steps) {
-      await Collections.InterventionPlan.create({
+      await base44.entities.InterventionPlan.create({
         child_id: doc.child_id,
         clinician_id: clinicianId,
         title: result.title || doc.title,
@@ -107,13 +105,13 @@ Extract a primary intervention plan and all behavior plans mentioned. Be brief b
     }
 
     if (result.behavior_plans?.length > 0) {
-      const existingBP = await Collections.BehaviorPlan.filter({
+      const existingBP = await base44.entities.BehaviorPlan.filter({
         source_document_id: doc.id
       }).catch(() => []);
 
       if (existingBP.length === 0) {
         await Promise.all(result.behavior_plans.map(bp =>
-          Collections.BehaviorPlan.create({
+          base44.entities.BehaviorPlan.create({
             child_id: doc.child_id,
             behavior_name: bp.behavior_name,
             behavior_description: bp.behavior_description || "",
@@ -132,22 +130,21 @@ Extract a primary intervention plan and all behavior plans mentioned. Be brief b
       }
     }
 
-    await Collections.Document.update(doc.id, { scan_status: "done" }).catch(() => {});
+    await base44.entities.Document.update(doc.id, { scan_status: "done" }).catch(() => {});
   } catch (e) {
-    await Collections.Document.update(doc.id, { scan_status: "error" }).catch(() => {});
+    await base44.entities.Document.update(doc.id, { scan_status: "error" }).catch(() => {});
     throw e;
   }
 }
 
 export default function ClinicianDocuments() {
   const navigate = useNavigate();
-  const { user } = useFirebaseUser();
+  const [clinicianId, setClinicianId] = useState("");
   const fileInputRef = useRef(null);
   const [children, setChildren] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const clinicianId = user?.id || "";
 
   const [queue, setQueue] = useState([]);
   const [childId, setChildId] = useState("");
@@ -155,20 +152,22 @@ export default function ClinicianDocuments() {
   const [scanStatus, setScanStatus] = useState({});
 
   useEffect(() => {
-    if (!user) return;
     const load = async () => {
-      const kids = await Collections.Child.filter({ clinician_id: user.id }).catch(() => []);
+      const me = await base44.auth.me().catch(() => null);
+      if (!me) { navigate("/"); return; }
+      setClinicianId(me.id);
+      const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
       setChildren(kids);
       if (kids.length > 0) {
         const results = await Promise.all(
-          kids.map(k => Collections.Document.filter({ child_id: k.id }).catch(() => []))
+          kids.map(k => base44.entities.Document.filter({ child_id: k.id }).catch(() => []))
         );
         setDocuments(results.flat());
       }
       setLoading(false);
     };
     load();
-  }, [user?.id]);
+  }, []);
 
   const addFiles = (fileList) => {
     const newItems = Array.from(fileList).map(f => ({
@@ -198,7 +197,7 @@ export default function ClinicianDocuments() {
       try {
         const { file_url } = await base44.integrations.Core.UploadFile({ file: item.file });
         const title = item.title.trim() || cleanTitle(item.file.name);
-        const doc = await Collections.Document.create({
+        const doc = await base44.entities.Document.create({
           child_id: childId,
           clinician_id: clinicianId,
           title,
@@ -233,7 +232,7 @@ export default function ClinicianDocuments() {
   };
 
   const handleDelete = async (docId) => {
-    await Collections.Document.delete(docId).catch(() => {});
+    await base44.entities.Document.delete(docId).catch(() => {});
     setDocuments(prev => prev.filter(d => d.id !== docId));
   };
 

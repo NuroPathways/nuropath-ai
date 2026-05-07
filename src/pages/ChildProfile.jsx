@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Collections } from "@/lib/firestore";
+import { base44 } from "@/api/base44Client";
 import { ArrowLeft, AlertCircle, FileText, Star, ClipboardList, MessageCircle, AlertTriangle, Stethoscope, Calendar, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -25,9 +25,9 @@ export default function ChildProfile() {
     if (!childId) { navigate("/ClientDashboard"); return; }
     const load = async () => {
       const [kids, ps, ips] = await Promise.all([
-        Collections.Child.filter({ id: childId }),
-        Collections.BehaviorPlan.filter({ child_id: childId }),
-        Collections.InterventionPlan.filter({ child_id: childId }),
+        base44.entities.Child.filter({ id: childId }),
+        base44.entities.BehaviorPlan.filter({ child_id: childId }),
+        base44.entities.InterventionPlan.filter({ child_id: childId }),
       ]);
       setChild(kids[0] || null);
       setPlans(ps);
