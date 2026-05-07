@@ -16,7 +16,7 @@ export default function Splash() {
   useEffect(() => {
     base44.auth.me().then((user) => {
       if (user?.app_role === "clinician") navigate("/ClinicianDashboard");
-      else if (user?.app_role === "parent") navigate("/ClientDashboard");
+      else if (user?.app_role === "parent") navigate("/ParentDashboard");
       else if (user) navigate("/RoleSetup");
     }).catch(() => {});
   }, [navigate]);
@@ -51,7 +51,6 @@ export default function Splash() {
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-6 pt-12 pb-20 text-center">
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-          {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm border border-primary/20 rounded-full px-4 py-1.5 mb-8 shadow-sm">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             <span className="text-xs font-semibold text-primary uppercase tracking-wide">Behavioral Health Platform</span>
@@ -65,7 +64,6 @@ export default function Splash() {
             Helping clinicians, parents, and clients access personalized behavioral support anytime — powered by AI and your clinical plans.
           </p>
 
-          {/* Trust badges */}
           <div className="flex flex-wrap items-center justify-center gap-4 mb-14 text-sm text-muted-foreground">
             {[
               { icon: Shield, text: "HIPAA-Conscious Design" },
@@ -141,7 +139,6 @@ export default function Splash() {
         </motion.div>
       </section>
 
-      {/* Footer */}
       <footer className="border-t border-border/40 py-6 text-center text-xs text-muted-foreground">
         <div className="flex items-center justify-center gap-2 mb-1">
           <Brain className="w-3.5 h-3.5 text-primary" />
