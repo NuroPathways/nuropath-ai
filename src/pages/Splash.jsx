@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { useFirebaseUser } from "@/lib/useFirebaseUser";
 import { Brain, ArrowRight, CheckCircle2, Shield, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -12,14 +12,14 @@ const HOW_IT_WORKS = [
 
 export default function Splash() {
   const navigate = useNavigate();
+  const { user } = useFirebaseUser();
 
   useEffect(() => {
-    base44.auth.me().then((user) => {
-      if (user?.app_role === "clinician") navigate("/ClinicianDashboard");
-      else if (user?.app_role === "parent") navigate("/ParentDashboard");
-      else if (user) navigate("/RoleSetup");
-    }).catch(() => {});
-  }, [navigate]);
+    if (!user) return;
+    if (user.app_role === "clinician") navigate("/ClinicianDashboard");
+    else if (user.app_role === "parent") navigate("/ParentDashboard");
+    else navigate("/RoleSetup");
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen font-inter overflow-x-hidden" style={{ background: "linear-gradient(135deg, #f0f7ff 0%, #e8f5f0 50%, #f5f0ff 100%)" }}>

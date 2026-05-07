@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { doc, setDoc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { Collections } from "@/lib/firestore";
 import { Brain, Stethoscope, Users, Loader2, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -13,31 +15,29 @@ export default function RoleSetup() {
   const inviteToken = new URLSearchParams(window.location.search).get("invite");
 
   useEffect(() => {
-    const init = async () => {
-      let me;
-      try {
-        me = await base44.auth.me();
-      } catch {
-        navigate("/");
-        return;
-      }
-      setUser(me);
+    const unsub = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (!firebaseUser) { navigate("/"); return; }
 
-      if (me?.app_role === "clinician") { navigate("/ClinicianDashboard"); return; }
-      if (me?.app_role === "parent") { navigate("/ParentDashboard"); return; }
+      const userDoc = await getDoc(doc(db, "User", firebaseUser.uid));
+      const profile = userDoc.exists() ? userDoc.data() : {};
+      const fullUser = { id: firebaseUser.uid, email: firebaseUser.email, full_name: firebaseUser.displayName || "", ...profile };
+      setUser(fullUser);
+
+      if (profile.app_role === "clinician") { navigate("/ClinicianDashboard"); return; }
+      if (profile.app_role === "parent") { navigate("/ParentDashboard"); return; }
 
       if (inviteToken) {
-        const families = await base44.entities.Family.filter({ invite_token: inviteToken }).catch(() => []);
+        const families = await Collections.Family.filter({ invite_token: inviteToken }).catch(() => []);
         if (families[0]) setInviteFamily(families[0]);
       }
-    };
-    init();
+    });
+    return unsub;
   }, [navigate, inviteToken]);
 
   const setupClinician = async () => {
     setSaving(true);
     try {
-      await base44.auth.updateMe({ app_role: "clinician" });
+      await setDoc(doc(db, "User", user.id), { app_role: "clinician" }, { merge: true });
       navigate("/ClinicianDashboard");
     } catch {
       setSaving(false);
@@ -54,15 +54,14 @@ export default function RoleSetup() {
         updates.linked_clinician_id = inviteFamily.clinician_id;
         updates.invite_token = inviteToken;
 
-        const kids = await base44.entities.Child.filter({ family_id: inviteFamily.id }).catch(() => []);
+        const kids = await Collections.Child.filter({ family_id: inviteFamily.id }).catch(() => []);
         for (const kid of kids) {
-          await base44.entities.Child.update(kid.id, { parent_id: user.id, parent_email: user.email });
+          await Collections.Child.update(kid.id, { parent_id: user.id, parent_email: user.email });
         }
-
-        await base44.entities.Family.update(inviteFamily.id, { invite_status: "accepted" });
+        await Collections.Family.update(inviteFamily.id, { invite_status: "accepted" });
       }
 
-      await base44.auth.updateMe(updates);
+      await setDoc(doc(db, "User", user.id), updates, { merge: true });
       navigate("/ParentDashboard");
     } catch {
       setSaving(false);
@@ -128,11 +127,7 @@ export default function RoleSetup() {
           <p className="text-muted-foreground mb-8">Please select your role to continue.</p>
 
           <div className="grid md:grid-cols-2 gap-4">
-            <button
-              disabled={saving}
-              onClick={setupParent}
-              className="bg-card border-2 border-border hover:border-primary rounded-2xl p-8 transition-all group text-left"
-            >
+            <button disabled={saving} onClick={setupParent} className="bg-card border-2 border-border hover:border-primary rounded-2xl p-8 transition-all group text-left">
               <div className="w-14 h-14 rounded-xl bg-accent/10 flex items-center justify-center mb-3 group-hover:bg-accent/20 transition-colors">
                 <Users className="w-7 h-7 text-accent" />
               </div>
@@ -140,11 +135,7 @@ export default function RoleSetup() {
               <p className="text-sm text-muted-foreground">Access AI guidance and support for my child</p>
             </button>
 
-            <button
-              disabled={saving}
-              onClick={setupClinician}
-              className="bg-card border-2 border-border hover:border-primary rounded-2xl p-8 transition-all group text-left"
-            >
+            <button disabled={saving} onClick={setupClinician} className="bg-card border-2 border-border hover:border-primary rounded-2xl p-8 transition-all group text-left">
               <div className="w-14 h-14 rounded-xl bg-secondary/10 flex items-center justify-center mb-3 group-hover:bg-secondary/20 transition-colors">
                 <Stethoscope className="w-7 h-7 text-secondary" />
               </div>

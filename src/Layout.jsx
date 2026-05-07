@@ -1,30 +1,28 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/utils";
-import { base44 } from "@/api/base44Client";
+import { useFirebaseUser } from "@/lib/useFirebaseUser";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { Collections } from "@/lib/firestore";
 import { Brain, Users, MessageSquare, LogOut, Menu, X, ChevronRight, FileText, Settings, Baby, AlertCircle, BarChart2, Upload, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const noLayoutPages = ["Splash", "Login", "RoleSelection", "ClinicianLogin", "ParentLogin", "ClientLogin", "RoleSetup", "HelpNow"];
 
 export default function Layout({ children, currentPageName }) {
-  const [user, setUser] = useState(null);
+  const { user, loading: loadingUser } = useFirebaseUser();
   const [children_list, setChildrenList] = useState([]);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [loadingUser, setLoadingUser] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    setLoadingUser(true);
-    base44.auth.me().then((me) => {
-      setUser(me);
-      if (me?.app_role === "clinician") {
-        base44.entities.Child.filter({ clinician_id: me.id }).then(setChildrenList).catch(() => {});
-      } else if (me?.app_role === "parent") {
-        base44.entities.Child.filter({ parent_id: me.id }).then(setChildrenList).catch(() => {});
-      }
-    }).catch(() => {}).finally(() => setLoadingUser(false));
-  }, [currentPageName]);
+    if (!user) return;
+    if (user.app_role === "clinician") {
+      Collections.Child.filter({ clinician_id: user.id }).then(setChildrenList).catch(() => {});
+    } else if (user.app_role === "parent") {
+      Collections.Child.filter({ parent_id: user.id }).then(setChildrenList).catch(() => {});
+    }
+  }, [user?.id, currentPageName]);
 
   if (noLayoutPages.includes(currentPageName)) {
     return <>{children}</>;
@@ -42,8 +40,9 @@ export default function Layout({ children, currentPageName }) {
 
   const role = user.app_role || user.role;
 
-  const handleLogout = () => {
-    base44.auth.logout(window.location.origin + "/Splash");
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate("/Splash");
   };
 
   // Parent dashboard link — support both ParentDashboard and ClientDashboard as active
