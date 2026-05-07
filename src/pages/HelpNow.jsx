@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useFirebaseUser } from "@/lib/useFirebaseUser";
+import { Collections } from "@/lib/firestore";
 import { base44 } from "@/api/base44Client";
 import { ArrowLeft, AlertTriangle, ChevronRight, CheckCircle2, ShieldAlert, Loader2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -58,15 +60,16 @@ export default function HelpNow() {
 
   const childId = new URLSearchParams(window.location.search).get("child_id");
 
+  const { user } = useFirebaseUser();
+
   useEffect(() => {
+    if (!user) return;
     const load = async () => {
       setLoading(true);
-      const me = await base44.auth.me().catch(() => null);
-      if (!me) { setLoading(false); return; }
 
       const [byId, byEmail] = await Promise.all([
-        base44.entities.Child.filter({ parent_id: me.id }),
-        base44.entities.Child.filter({ parent_email: me.email }),
+        Collections.Child.filter({ parent_id: user.id }),
+        Collections.Child.filter({ parent_email: user.email }),
       ]);
       const seen = new Set();
       const allChildren = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
@@ -75,9 +78,9 @@ export default function HelpNow() {
       if (!child) { setLoading(false); return; }
 
       const [docs, interventionPlans, behaviorPlans] = await Promise.all([
-        base44.entities.Document.filter({ child_id: child.id }).catch(() => []),
-        base44.entities.InterventionPlan.filter({ child_id: child.id }).catch(() => []),
-        base44.entities.BehaviorPlan.filter({ child_id: child.id }).catch(() => []),
+        Collections.Document.filter({ child_id: child.id }).catch(() => []),
+        Collections.InterventionPlan.filter({ child_id: child.id }).catch(() => []),
+        Collections.BehaviorPlan.filter({ child_id: child.id }).catch(() => []),
       ]);
 
       setChildData({ child, documents: docs, interventionPlans, behaviorPlans });
@@ -146,7 +149,7 @@ export default function HelpNow() {
       setLoading(false);
     };
     load();
-  }, [childId]);
+  }, [childId, user?.id]);
 
   const handleSelectCategory = async (cat) => {
     setSelectedCategory(cat);
@@ -166,7 +169,7 @@ export default function HelpNow() {
         setStep("show_plan");
         setSearching(false);
         if (child) {
-          base44.entities.BehaviorLog.create({
+          Collections.BehaviorLog.create({
             child_id: child.id,
             behavior_type: cat.label,
             context: "Parent requested help via Help Now",
@@ -180,7 +183,6 @@ export default function HelpNow() {
     if (cat.type === "behavior_plan") {
       const bp = behaviorPlans.find(p => p.id === cat.key);
       if (bp) {
-        // Synthesize a plan-like object from behavior plan data
         const synth = {
           title: bp.behavior_name,
           description: bp.behavior_description,
@@ -196,7 +198,7 @@ export default function HelpNow() {
         setStep("show_plan");
         setSearching(false);
         if (child) {
-          base44.entities.BehaviorLog.create({
+          Collections.BehaviorLog.create({
             child_id: child.id,
             behavior_type: cat.label,
             context: "Parent requested help via Help Now (behavior plan)",
@@ -246,12 +248,12 @@ RULES:
       }).catch(() => null);
 
       if (result?.has_relevant_guidance && result?.immediate_steps) {
-        setAiGuidance(result);
-        setPlan(null);
-        setStep("show_doc_guidance");
-        setSearching(false);
-        if (child) {
-          base44.entities.BehaviorLog.create({
+      setAiGuidance(result);
+      setPlan(null);
+      setStep("show_doc_guidance");
+      setSearching(false);
+      if (child) {
+        Collections.BehaviorLog.create({
             child_id: child.id,
             behavior_type: cat.label,
             context: "Parent requested help via Help Now (document-based)",

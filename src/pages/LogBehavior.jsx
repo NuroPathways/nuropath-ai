@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { useFirebaseUser } from "@/lib/useFirebaseUser";
+import { Collections } from "@/lib/firestore";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,12 +31,14 @@ export default function LogBehavior() {
     notes: "",
   });
 
+  const { user } = useFirebaseUser();
+
   useEffect(() => {
+    if (!user) return;
     const load = async () => {
-      const me = await base44.auth.me();
       const [byId, byEmail] = await Promise.all([
-        base44.entities.Child.filter({ parent_id: me.id }),
-        base44.entities.Child.filter({ parent_email: me.email }),
+        Collections.Child.filter({ parent_id: user.id }),
+        Collections.Child.filter({ parent_email: user.email }),
       ]);
       const seen = new Set();
       const merged = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
@@ -43,14 +46,14 @@ export default function LogBehavior() {
       if (!form.child_id && merged[0]) setForm(f => ({ ...f, child_id: merged[0].id }));
     };
     load();
-  }, []);
+  }, [user?.id]);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
   const handleSave = async () => {
     if (!form.child_id || !form.behavior_type) return;
     setSaving(true);
-    await base44.entities.BehaviorLog.create({
+    await Collections.BehaviorLog.create({
       child_id: form.child_id,
       behavior_type: form.behavior_type,
       context: form.trigger,

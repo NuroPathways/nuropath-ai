@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
+import { useFirebaseUser } from "@/lib/useFirebaseUser";
+import { Collections } from "@/lib/firestore";
 import { Send, Brain, Sparkles, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,11 +22,11 @@ const SUGGESTED = [
 
 async function buildContext(childId, childName) {
   const [plans, documents, interventions, sessions, logs] = await Promise.all([
-    base44.entities.BehaviorPlan.filter({ child_id: childId }).catch(() => []),
-    base44.entities.Document.filter({ child_id: childId }).catch(() => []),
-    base44.entities.InterventionPlan.filter({ child_id: childId }).catch(() => []),
-    base44.entities.AIConversation.filter({ child_id: childId }).catch(() => []),
-    base44.entities.BehaviorLog.filter({ child_id: childId }).catch(() => []),
+    Collections.BehaviorPlan.filter({ child_id: childId }).catch(() => []),
+    Collections.Document.filter({ child_id: childId }).catch(() => []),
+    Collections.InterventionPlan.filter({ child_id: childId }).catch(() => []),
+    Collections.AIConversation.filter({ child_id: childId }).catch(() => []),
+    Collections.BehaviorLog.filter({ child_id: childId }).catch(() => []),
   ]);
 
   let context = `== CHILD: ${childName} ==\n\n`;
@@ -148,7 +150,7 @@ RESPONSE STYLE:
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function AIChat() {
-  const [user, setUser] = useState(null);
+  const { user } = useFirebaseUser();
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState("");
   const [clinicianContext, setClinicianContext] = useState({ context: "", hasPlans: false, hasDocuments: false });
@@ -159,12 +161,11 @@ export default function AIChat() {
   const bottomRef = useRef(null);
 
   useEffect(() => {
+    if (!user) return;
     const load = async () => {
-      const me = await base44.auth.me();
-      setUser(me);
       const [byId, byEmail] = await Promise.all([
-        base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
-        base44.entities.Child.filter({ parent_email: me.email }).catch(() => []),
+        Collections.Child.filter({ parent_id: user.id }).catch(() => []),
+        Collections.Child.filter({ parent_email: user.email }).catch(() => []),
       ]);
       const seen = new Set();
       const merged = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
@@ -172,7 +173,7 @@ export default function AIChat() {
       if (merged.length > 0) setSelectedChildId(merged[0].id);
     };
     load();
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!selectedChildId) return;
@@ -207,7 +208,7 @@ export default function AIChat() {
 
     // Log conversation
     if (user && selectedChildId) {
-      base44.entities.AIConversation.create({
+      Collections.AIConversation.create({
         parent_id: user.id,
         child_id: selectedChildId,
         child_name: child?.child_name || "",

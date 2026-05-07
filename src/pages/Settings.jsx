@@ -1,16 +1,16 @@
 import { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { useFirebaseUser } from "@/lib/useFirebaseUser";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useNavigate } from "react-router-dom";
 import { Moon, Sun, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
 export default function Settings() {
-  const [user, setUser] = useState(null);
+  const { user } = useFirebaseUser();
+  const navigate = useNavigate();
   const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains("dark"));
-
-  useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => {});
-  }, []);
 
   const toggleDarkMode = () => {
     const next = !darkMode;
@@ -24,8 +24,9 @@ export default function Settings() {
     }
   };
 
-  const handleLogout = () => {
-    base44.auth.logout(window.location.origin + "/Splash");
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate("/Splash");
   };
 
   return (

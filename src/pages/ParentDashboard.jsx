@@ -1,30 +1,23 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { useFirebaseUser } from "@/lib/useFirebaseUser";
+import { Collections } from "@/lib/firestore";
 import { MessageSquare, Sparkles, Baby, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
 export default function ParentDashboard() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user } = useFirebaseUser();
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user) return;
     const load = async () => {
-      let me;
-      try {
-        me = await base44.auth.me();
-      } catch {
-        navigate("/");
-        return;
-      }
-      setUser(me);
-      // Check both parent_id and parent_email to catch all linked children
       const [byId, byEmail] = await Promise.all([
-        base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
-        base44.entities.Child.filter({ parent_email: me.email }).catch(() => []),
+        Collections.Child.filter({ parent_id: user.id }).catch(() => []),
+        Collections.Child.filter({ parent_email: user.email }).catch(() => []),
       ]);
       const seen = new Set();
       const merged = [...byId, ...byEmail].filter(c => {
@@ -36,7 +29,7 @@ export default function ParentDashboard() {
       setLoading(false);
     };
     load();
-  }, []);
+  }, [user?.id]);
 
   return (
     <div className="p-6 md:p-8 max-w-3xl mx-auto font-inter">

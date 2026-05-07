@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { useFirebaseUser } from "@/lib/useFirebaseUser";
+import { Collections } from "@/lib/firestore";
 import { Users, FileText, Plus, TrendingUp, MessageCircle, BarChart2, Upload, Stethoscope, ShieldAlert, Database, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -10,7 +12,7 @@ import AddChildToFamilyModal from "../components/clinician/AddChildToFamilyModal
 
 export default function ClinicianDashboard() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user } = useFirebaseUser();
   const [children, setChildren] = useState([]);
   const [plans, setPlans] = useState([]);
   const [showAddFamily, setShowAddFamily] = useState(false);
@@ -20,33 +22,24 @@ export default function ClinicianDashboard() {
   const [migrateResult, setMigrateResult] = useState(null);
 
   useEffect(() => {
+    if (!user) return;
     const load = async () => {
-      let me;
-      try {
-        me = await base44.auth.me();
-      } catch {
-        setLoading(false);
-        return;
-      }
-      setUser(me);
-      const kids = await base44.entities.Child.filter({ clinician_id: me.id });
+      const kids = await Collections.Child.filter({ clinician_id: user.id });
       setChildren(kids);
-      // Count all plans for all this clinician's children
       let allPlans = [];
       if (kids.length > 0) {
-        const planPromises = kids.map(k => base44.entities.BehaviorPlan.filter({ child_id: k.id }));
-        const results = await Promise.all(planPromises);
+        const results = await Promise.all(kids.map(k => Collections.BehaviorPlan.filter({ child_id: k.id })));
         allPlans = results.flat();
       }
       setPlans(allPlans);
       setLoading(false);
     };
     load();
-  }, []);
+  }, [user?.id]);
 
   const refresh = async () => {
     if (!user) return;
-    const kids = await base44.entities.Child.filter({ clinician_id: user.id });
+    const kids = await Collections.Child.filter({ clinician_id: user.id });
     setChildren(kids);
   };
 

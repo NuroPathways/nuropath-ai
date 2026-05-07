@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { useFirebaseUser } from "@/lib/useFirebaseUser";
+import { Collections } from "@/lib/firestore";
 import { ArrowLeft, Send, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +11,6 @@ import { format } from "date-fns";
 
 export default function Messages() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState("");
   const [messages, setMessages] = useState([]);
@@ -20,25 +20,19 @@ export default function Messages() {
   const bottomRef = useRef(null);
   const pollingRef = useRef(null);
 
-  useEffect(() => {
-    const load = async () => {
-      let me;
-      try {
-        me = await base44.auth.me();
-      } catch {
-        navigate("/");
-        return;
-      }
-      setUser(me);
+  const { user } = useFirebaseUser();
 
-      if (me.app_role === "clinician") {
-        const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      if (user.app_role === "clinician") {
+        const kids = await Collections.Child.filter({ clinician_id: user.id }).catch(() => []);
         setChildren(kids);
         if (kids[0]) setSelectedChildId(kids[0].id);
       } else {
         const [byId, byEmail] = await Promise.all([
-          base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
-          base44.entities.Child.filter({ parent_email: me.email }).catch(() => []),
+          Collections.Child.filter({ parent_id: user.id }).catch(() => []),
+          Collections.Child.filter({ parent_email: user.email }).catch(() => []),
         ]);
         const seen = new Set();
         const merged = [...byId, ...byEmail].filter(c => {
@@ -55,11 +49,11 @@ export default function Messages() {
     };
     load();
     return () => clearInterval(pollingRef.current);
-  }, []);
+  }, [user?.id]);
 
   const fetchMessages = (childId) => {
     if (!childId) return;
-    base44.entities.Message.filter({ child_id: childId }).then(msgs => {
+    Collections.Message.filter({ child_id: childId }).then(msgs => {
       setMessages(msgs.sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
     }).catch(() => {});
   };
@@ -100,7 +94,7 @@ export default function Messages() {
     if (!recipientId && user?.app_role !== "clinician") return;
     setSending(true);
     try {
-      const msg = await base44.entities.Message.create({
+      const msg = await Collections.Message.create({
         from_user_id: user.id,
         to_user_id: recipientId || null,
         child_id: selectedChildId,
