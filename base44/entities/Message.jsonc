@@ -33,11 +33,7 @@
   ],
   "rls": {
     "create": {
-      "$or": [
-        {
-          "data.from_user_id": "{{user.id}}"
-        }
-      ]
+      "data.from_user_id": "{{user.id}}"
     },
     "read": {
       "$or": [
@@ -46,14 +42,37 @@
         },
         {
           "data.to_user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
         }
       ]
     },
     "update": {
-      "data.to_user_id": "{{user.id}}"
+      "$or": [
+        {
+          "data.to_user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "delete": {
-      "data.to_user_id": "{{user.id}}"
+      "$or": [
+        {
+          "data.from_user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     }
   }
 }
