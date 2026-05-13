@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, Users, Trash2, Edit2, Save, X, MessageCircle, FileText, ClipboardList } from "lucide-react";
+import { ArrowLeft, Users, Trash2, Edit2, Save, X, MessageCircle, FileText, ClipboardList, RefreshCw, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +18,9 @@ export default function FamilyDetail() {
   const [editName, setEditName] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+  const [reconnectMsg, setReconnectMsg] = useState("");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!familyId) { navigate(-1); return; }
@@ -60,6 +63,44 @@ export default function FamilyDetail() {
     setFamily(prev => ({ ...prev, family_name: editName, notes: editNotes }));
     setEditing(false);
     setSaving(false);
+  };
+
+  const handleReconnect = async () => {
+    if (!family?.invite_email && !family?.invite_token) {
+      setReconnectMsg("No invite email on record. Please edit the family and add one.");
+      return;
+    }
+    setReconnecting(true);
+    setReconnectMsg("");
+    try {
+      // Generate a new token
+      const newToken = Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
+      await base44.entities.Family.update(familyId, { invite_token: newToken, invite_status: "pending" });
+      setFamily(prev => ({ ...prev, invite_token: newToken, invite_status: "pending" }));
+
+      if (family.invite_email) {
+        await base44.functions.invoke("sendInviteEmail", {
+          to: family.invite_email,
+          familyName: family.family_name,
+          inviteToken: newToken,
+        });
+        setReconnectMsg(`Invite resent to ${family.invite_email}`);
+      } else {
+        setReconnectMsg("New invite link generated. Copy it below.");
+      }
+    } catch {
+      setReconnectMsg("Failed to resend invite. Try copying the link manually.");
+    }
+    setReconnecting(false);
+  };
+
+  const handleCopyLink = () => {
+    const token = family?.invite_token;
+    if (!token) return;
+    const link = `${window.location.origin}/RoleSetup?invite=${token}`;
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDelete = async () => {
@@ -110,8 +151,45 @@ export default function FamilyDetail() {
               <div><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Notes</p><Textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} className="rounded-xl" rows={3} /></div>
             </div>
           ) : (
-            family.notes && <p className="text-sm text-muted-foreground">{family.notes}</p>
+            family.notes && <p className="text-sm text-muted-foreground mb-4">{family.notes}</p>
           )}
+
+          {/* Reconnect section */}
+          <div className="mt-4 pt-4 border-t border-border">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Parent Connection</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`text-xs px-2 py-1 rounded-full font-medium ${family.invite_status === "accepted" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                {family.invite_status === "accepted" ? "Connected" : "Pending"}
+              </span>
+              {family.invite_email && (
+                <span className="text-xs text-muted-foreground">{family.invite_email}</span>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-xl h-7 text-xs ml-auto gap-1.5"
+                onClick={handleReconnect}
+                disabled={reconnecting}
+              >
+                <RefreshCw className={`w-3 h-3 ${reconnecting ? "animate-spin" : ""}`} />
+                {reconnecting ? "Sending..." : "Resend Invite"}
+              </Button>
+              {family.invite_token && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="rounded-xl h-7 text-xs gap-1.5"
+                  onClick={handleCopyLink}
+                >
+                  {copied ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
+                  {copied ? "Copied!" : "Copy Link"}
+                </Button>
+              )}
+            </div>
+            {reconnectMsg && (
+              <p className="text-xs mt-2 text-muted-foreground">{reconnectMsg}</p>
+            )}
+          </div>
         </motion.div>
 
         <div className="grid grid-cols-4 gap-3">
