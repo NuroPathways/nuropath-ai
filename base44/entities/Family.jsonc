@@ -24,7 +24,10 @@
     },
     "invite_status": {
       "type": "string",
-      "enum": ["pending", "accepted"],
+      "enum": [
+        "pending",
+        "accepted"
+      ],
       "default": "pending",
       "description": "Status of the parent invitation"
     },
@@ -33,10 +36,14 @@
       "description": "Primary guardian name"
     }
   },
-  "required": ["family_name"],
+  "required": [
+    "family_name"
+  ],
   "rls": {
     "create": {
-      "data.clinician_id": "{{user.id}}"
+      "user_condition": {
+        "app_role": "clinician"
+      }
     },
     "read": {
       "$or": [
@@ -44,9 +51,7 @@
           "data.clinician_id": "{{user.id}}"
         },
         {
-          "user_condition": {
-            "app_role": "parent"
-          }
+          "id": "{{user.linked_family_id}}"
         },
         {
           "user_condition": {
@@ -56,10 +61,28 @@
       ]
     },
     "update": {
-      "data.clinician_id": "{{user.id}}"
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "delete": {
-      "data.clinician_id": "{{user.id}}"
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     }
   }
 }
