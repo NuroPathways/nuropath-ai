@@ -3,16 +3,10 @@
   "type": "object",
   "properties": {
     "child_id": {
-      "type": "string",
-      "description": "ID of the child this document belongs to"
+      "type": "string"
     },
     "clinician_id": {
-      "type": "string",
-      "description": "ID of the clinician who uploaded this document"
-    },
-    "parent_id": {
-      "type": "string",
-      "description": "ID of the parent linked to this child — enables targeted parent read access"
+      "type": "string"
     },
     "title": {
       "type": "string"
@@ -37,18 +31,7 @@
       "type": "string"
     },
     "notes": {
-      "type": "string",
-      "description": "Extracted text content or manual notes from the document"
-    },
-    "scan_status": {
-      "type": "string",
-      "enum": ["pending", "scanning", "done", "error"],
-      "default": "pending",
-      "description": "Status of AI document extraction"
-    },
-    "source_document_id": {
-      "type": "string",
-      "description": "If this intervention/plan was extracted from a document, reference back to it"
+      "type": "string"
     }
   },
   "required": [
@@ -58,15 +41,14 @@
   ],
   "rls": {
     "create": {
-      "data.clinician_id": "{{user.id}}"
+      "user_condition": {
+        "app_role": "clinician"
+      }
     },
     "read": {
       "$or": [
         {
           "data.clinician_id": "{{user.id}}"
-        },
-        {
-          "data.parent_id": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -76,10 +58,28 @@
       ]
     },
     "update": {
-      "data.clinician_id": "{{user.id}}"
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "delete": {
-      "data.clinician_id": "{{user.id}}"
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     }
   }
 }
