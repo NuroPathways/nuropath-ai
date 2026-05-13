@@ -49,12 +49,7 @@ export default function DocumentCenter() {
   useEffect(() => {
     const load = async () => {
       const me = await base44.auth.me();
-      const [byId, byEmail] = await Promise.all([
-        base44.entities.Child.filter({ parent_id: me.id }),
-        base44.entities.Child.filter({ parent_email: me.email }),
-      ]);
-      const seen = new Set();
-      const merged = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+      const merged = await base44.entities.Child.filter({ parent_id: me.id }).catch(() => []);
       setChildren(merged);
 
       if (merged.length > 0) {

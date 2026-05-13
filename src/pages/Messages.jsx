@@ -23,23 +23,14 @@ export default function Messages() {
   useEffect(() => {
     const load = async () => {
       const me = await base44.auth.me().catch(() => null);
-      if (!me) { navigate("/"); return; }
+      if (!me) return;
       setUser(me);
       if (me.app_role === "clinician") {
         const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
         setChildren(kids);
         if (kids[0]) setSelectedChildId(kids[0].id);
       } else {
-        const [byId, byEmail] = await Promise.all([
-          base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
-          base44.entities.Child.filter({ parent_email: me.email }).catch(() => []),
-        ]);
-        const seen = new Set();
-        const merged = [...byId, ...byEmail].filter(c => {
-          if (seen.has(c.id)) return false;
-          seen.add(c.id);
-          return true;
-        });
+        const merged = await base44.entities.Child.filter({ parent_id: me.id }).catch(() => []);
         setChildren(merged);
         if (merged[0]) {
           setSelectedChildId(merged[0].id);

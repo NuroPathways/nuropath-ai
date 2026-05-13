@@ -17,8 +17,11 @@ export default function ProgressReports() {
   useEffect(() => {
     const load = async () => {
       const me = await base44.auth.me().catch(() => null);
-      if (!me) { navigate("/"); return; }
-      const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
+      if (!me) return;
+      const isParent = me.app_role === "parent";
+      const kids = isParent
+        ? await base44.entities.Child.filter({ parent_id: me.id }).catch(() => [])
+        : await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
       setChildren(kids);
       if (kids.length > 0) {
         setSelectedChildId(kids[0].id);
