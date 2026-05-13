@@ -27,7 +27,7 @@ export default function ParentDashboard() {
   useEffect(() => {
     const load = async () => {
       const me = await base44.auth.me().catch(() => null);
-      if (!me) return;
+      if (!me) { setLoading(false); return; }
       setUser(me);
 
       const [kidsByParentId, kidsByEmail, msgs] = await Promise.all([
