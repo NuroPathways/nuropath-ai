@@ -53,9 +53,6 @@
     "update": {
       "$or": [
         {
-          "data.from_user_id": "{{user.id}}"
-        },
-        {
           "data.to_user_id": "{{user.id}}"
         },
         {
