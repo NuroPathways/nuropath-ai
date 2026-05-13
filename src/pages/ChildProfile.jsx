@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, AlertCircle, FileText, Star, ClipboardList, MessageCircle, AlertTriangle, Stethoscope, Calendar, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowLeft, AlertCircle, FileText, Star, ClipboardList, MessageCircle, AlertTriangle, Stethoscope, Calendar, ChevronRight, ShieldAlert, Brain } from "lucide-react";
 import { motion } from "framer-motion";
 
 const SEVERITY_STYLES = {
@@ -10,6 +9,12 @@ const SEVERITY_STYLES = {
   moderate: "bg-yellow-100 text-yellow-700",
   high: "bg-orange-100 text-orange-700",
   crisis: "bg-red-100 text-red-700",
+};
+
+const CATEGORY_EMOJIS = {
+  tantrum_meltdown: "🌊", aggression: "⚡", anxiety_episode: "😰",
+  task_refusal: "🚫", bedtime_refusal: "🌙", school_refusal: "🏫",
+  transition_difficulty: "🔄", emotional_dysregulation: "💭", other: "📋",
 };
 
 export default function ChildProfile() {
@@ -22,7 +27,7 @@ export default function ChildProfile() {
   const childId = new URLSearchParams(window.location.search).get("child_id");
 
   useEffect(() => {
-    if (!childId) { navigate("/ClientDashboard"); return; }
+    if (!childId) { navigate("/ParentDashboard"); return; }
     const load = async () => {
       const [kids, ps, ips] = await Promise.all([
         base44.entities.Child.filter({ id: childId }),
@@ -50,121 +55,155 @@ export default function ChildProfile() {
   );
 
   return (
-    <div className="p-5 md:p-8 max-w-2xl mx-auto font-inter">
-      <button onClick={() => navigate("/ClientDashboard")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-5">
-        <ArrowLeft className="w-4 h-4" /> Dashboard
-      </button>
-
-      {/* Profile */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl p-5 mb-5">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <span className="text-primary text-2xl font-bold">{child.child_name?.[0]?.toUpperCase() || "?"}</span>
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">{child.child_name}</h1>
-            <div className="flex flex-wrap gap-3 mt-1">
-              {child.age && <p className="text-muted-foreground text-xs flex items-center gap-1"><Calendar className="w-3 h-3" /> Age {child.age}</p>}
-              {child.diagnosis && <p className="text-muted-foreground text-xs flex items-center gap-1"><Stethoscope className="w-3 h-3" /> {child.diagnosis}</p>}
-            </div>
-          </div>
+    <div className="min-h-screen bg-background font-inter">
+      {/* Hero */}
+      <div className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, hsl(216,38%,47%) 0%, hsl(180,29%,55%) 100%)" }}>
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-2 right-8 w-28 h-28 rounded-full bg-white" />
+          <div className="absolute -bottom-4 left-10 w-40 h-40 rounded-full bg-white" />
         </div>
-        {child.triggers && (
-          <div className="mt-4 bg-background border border-border rounded-xl p-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <AlertTriangle className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Known Triggers</span>
+        <div className="relative px-5 pt-5 pb-8 max-w-2xl mx-auto">
+          <button onClick={() => navigate("/ParentDashboard")} className="flex items-center gap-2 text-white/70 hover:text-white text-sm mb-6 transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Dashboard
+          </button>
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-2xl font-bold">{child.child_name?.[0]?.toUpperCase() || "?"}</span>
             </div>
-            <p className="text-sm text-foreground">{child.triggers}</p>
-          </div>
-        )}
-      </motion.div>
-
-      {/* Help Now */}
-      <motion.button
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        whileTap={{ scale: 0.98 }}
-        onClick={() => navigate(`/HelpNow?child_id=${childId}`)}
-        className="w-full bg-red-600 hover:bg-red-700 rounded-2xl p-5 mb-5 flex items-center justify-between text-left transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <AlertCircle className="w-7 h-7 text-white" />
-          <div>
-            <p className="text-white font-bold">I Need Help Now</p>
-            <p className="text-white/70 text-xs">Get step-by-step intervention guidance</p>
-          </div>
-        </div>
-        <ChevronRight className="w-5 h-5 text-white/70" />
-      </motion.button>
-
-      {/* Quick Actions */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-3 gap-3 mb-5">
-        <ActionBtn icon={ClipboardList} label="Log" color="text-purple-600 bg-purple-50" onClick={() => navigate(`/LogBehavior?child_id=${childId}`)} />
-        <ActionBtn icon={Star} label="Rewards" color="text-yellow-600 bg-yellow-50" onClick={() => navigate(`/RewardTracker?child_id=${childId}`)} />
-        <ActionBtn icon={MessageCircle} label="Message" color="text-green-600 bg-green-50" onClick={() => navigate("/Messages")} />
-      </motion.div>
-
-      {/* Intervention Plans */}
-      {interventionPlans.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-card border border-border rounded-2xl p-5 mb-5">
-          <h2 className="font-semibold text-foreground flex items-center gap-2 mb-3 text-sm">
-            <AlertCircle className="w-4 h-4 text-primary" /> Intervention Plans ({interventionPlans.length})
-          </h2>
-          <div className="space-y-2">
-            {interventionPlans.map(ip => (
-              <button key={ip.id} onClick={() => navigate(`/HelpNow?child_id=${childId}`)} className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/40 transition-all text-left">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">{ip.title}</p>
-                  <p className="text-xs text-muted-foreground">{ip.behavior_category?.replace(/_/g, " ")}</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-              </button>
-            ))}
-          </div>
-        </motion.div>
-      )}
-
-      {/* Behavior Plans (legacy docs) */}
-      {plans.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-card border border-border rounded-2xl p-5">
-          <h2 className="font-semibold text-foreground flex items-center gap-2 mb-3 text-sm">
-            <FileText className="w-4 h-4 text-primary" /> Clinical Documents ({plans.length})
-          </h2>
-          <div className="space-y-2">
-            {plans.map(plan => (
-              <div key={plan.id} className="flex items-center justify-between p-3 bg-background border border-border rounded-xl">
-                <div className="flex items-center gap-3 min-w-0">
-                  <FileText className="w-4 h-4 text-primary flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{plan.behavior_name}</p>
-                    {plan.severity_level && (
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${SEVERITY_STYLES[plan.severity_level] || SEVERITY_STYLES.moderate}`}>
-                        {plan.severity_level}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {plan.file_url && (
-                  <a href={plan.file_url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline ml-2 flex-shrink-0">View</a>
-                )}
+            <div>
+              <h1 className="text-2xl font-bold text-white">{child.child_name}</h1>
+              <div className="flex flex-wrap gap-3 mt-1">
+                {child.age && <p className="text-white/70 text-xs flex items-center gap-1"><Calendar className="w-3 h-3" /> Age {child.age}</p>}
+                {child.diagnosis && <p className="text-white/70 text-xs flex items-center gap-1"><Stethoscope className="w-3 h-3" /> {child.diagnosis}</p>}
               </div>
-            ))}
+            </div>
           </div>
-        </motion.div>
-      )}
-    </div>
-  );
-}
-
-function ActionBtn({ icon: Icon, label, color, onClick }) {
-  return (
-    <button onClick={onClick} className={`border border-border rounded-2xl p-4 flex flex-col items-center gap-1.5 bg-card hover:border-primary/40 transition-all`}>
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color}`}>
-        <Icon className="w-4.5 h-4.5" />
+        </div>
       </div>
-      <span className="text-xs font-medium text-foreground">{label}</span>
-    </button>
+
+      <div className="px-5 max-w-2xl mx-auto -mt-4 space-y-4 pb-8">
+
+        {/* Help Now */}
+        <motion.button
+          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => navigate(`/HelpNow?child_id=${childId}`)}
+          className="w-full bg-red-600 hover:bg-red-700 rounded-2xl p-5 flex items-center justify-between text-left transition-colors shadow-lg shadow-red-200"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-white font-bold">I Need Help Now</p>
+              <p className="text-white/70 text-xs">Get step-by-step intervention guidance</p>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-white/70" />
+        </motion.button>
+
+        {/* Quick Actions */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+          className="grid grid-cols-3 gap-3">
+          {[
+            { icon: ClipboardList, label: "Log Behavior", color: "bg-purple-50 text-purple-600", onClick: () => navigate(`/LogBehavior?child_id=${childId}`) },
+            { icon: Star, label: "Rewards", color: "bg-yellow-50 text-yellow-600", onClick: () => navigate(`/RewardTracker?child_id=${childId}`) },
+            { icon: MessageCircle, label: "Message", color: "bg-green-50 text-green-600", onClick: () => navigate("/Messages") },
+          ].map((item, i) => (
+            <button key={item.label} onClick={item.onClick}
+              className="bg-card border border-border rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-primary/30 hover:shadow-sm transition-all">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.color}`}>
+                <item.icon className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-semibold text-foreground text-center leading-tight">{item.label}</span>
+            </button>
+          ))}
+        </motion.div>
+
+        {/* Known Triggers */}
+        {child.triggers && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-1.5">
+              <AlertTriangle className="w-4 h-4 text-amber-600" />
+              <span className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Known Triggers</span>
+            </div>
+            <p className="text-sm text-amber-800">{child.triggers}</p>
+          </motion.div>
+        )}
+
+        {/* Intervention Plans */}
+        {interventionPlans.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+            className="bg-card border border-border rounded-2xl p-5">
+            <h2 className="font-semibold text-foreground flex items-center gap-2 mb-3 text-sm">
+              <ShieldAlert className="w-4 h-4 text-primary" /> Intervention Plans ({interventionPlans.length})
+            </h2>
+            <div className="space-y-2">
+              {interventionPlans.map(ip => (
+                <button key={ip.id} onClick={() => navigate(`/HelpNow?child_id=${childId}`)}
+                  className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/40 transition-all text-left">
+                  <span className="text-xl flex-shrink-0">{CATEGORY_EMOJIS[ip.behavior_category] || "📋"}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{ip.title}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{ip.behavior_category?.replace(/_/g, " ")}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Aspire AI */}
+        <motion.button
+          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          onClick={() => navigate("/AIChat")}
+          className="w-full bg-gradient-to-br from-primary/5 to-accent/10 border border-primary/20 rounded-2xl p-5 flex items-center justify-between text-left hover:border-primary/40 transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Brain className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground text-sm">Ask Aspire AI</p>
+              <p className="text-xs text-muted-foreground">Questions about {child.child_name}'s plan</p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+        </motion.button>
+
+        {/* Behavior Plans */}
+        {plans.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+            className="bg-card border border-border rounded-2xl p-5">
+            <h2 className="font-semibold text-foreground flex items-center gap-2 mb-3 text-sm">
+              <FileText className="w-4 h-4 text-primary" /> Clinical Plans ({plans.length})
+            </h2>
+            <div className="space-y-2">
+              {plans.map(plan => (
+                <div key={plan.id} className="flex items-center justify-between p-3 bg-background border border-border rounded-xl">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{plan.behavior_name}</p>
+                      {plan.severity_level && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${SEVERITY_STYLES[plan.severity_level] || SEVERITY_STYLES.moderate}`}>
+                          {plan.severity_level}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {plan.file_url && (
+                    <a href={plan.file_url} target="_blank" rel="noreferrer"
+                      className="text-xs text-primary hover:underline ml-2 flex-shrink-0">View</a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </div>
+    </div>
   );
 }

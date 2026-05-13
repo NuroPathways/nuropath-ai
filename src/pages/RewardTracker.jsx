@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, Star, Plus, Trophy, Target } from "lucide-react";
+import { ArrowLeft, Star, Plus, Trophy, Target, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -46,7 +46,7 @@ export default function RewardTracker() {
   const handleAdd = async () => {
     if (!selectedChildId) return;
     setSaving(true);
-    await base44.entities.RewardToken.create({ ...form, child_id: selectedChildId, tokens_earned: Number(form.tokens_earned), tokens_goal: Number(form.tokens_goal) });
+    await base44.entities.RewardToken.create({ ...form, child_id: selectedChildId, parent_id: user?.id, tokens_earned: Number(form.tokens_earned), tokens_goal: Number(form.tokens_goal) });
     const updated = await base44.entities.RewardToken.filter({ child_id: selectedChildId });
     setTokens(updated);
     setShowForm(false);
@@ -55,6 +55,7 @@ export default function RewardTracker() {
   };
 
   const addToken = async (tokenRecord) => {
+    if (tokenRecord.tokens_earned >= tokenRecord.tokens_goal) return;
     const newEarned = tokenRecord.tokens_earned + 1;
     await base44.entities.RewardToken.update(tokenRecord.id, { tokens_earned: newEarned });
     setTokens(prev => prev.map(t => t.id === tokenRecord.id ? { ...t, tokens_earned: newEarned } : t));
@@ -64,53 +65,69 @@ export default function RewardTracker() {
 
   return (
     <div className="min-h-screen bg-background font-inter">
-      <div className="sticky top-0 z-10 bg-card border-b border-border px-4 py-4 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <h1 className="font-bold text-foreground flex-1">Reward Tracker</h1>
-        <Button size="sm" className="rounded-xl gap-1.5 h-8 text-xs" onClick={() => setShowForm(true)}>
-          <Plus className="w-3.5 h-3.5" /> New Reward
-        </Button>
+      {/* Hero Header */}
+      <div className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, hsl(43,96%,56%) 0%, hsl(36,100%,60%) 100%)" }}>
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-2 right-8 w-28 h-28 rounded-full bg-white" />
+          <div className="absolute -bottom-4 left-10 w-36 h-36 rounded-full bg-white" />
+        </div>
+        <div className="relative px-5 pt-5 pb-8 max-w-xl mx-auto">
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-white/70 hover:text-white text-sm mb-5 transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/25 flex items-center justify-center">
+                <Trophy className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">Reward Tracker</h1>
+                <p className="text-white/70 text-xs">{selectedChild ? `${selectedChild.child_name}'s progress` : "Track token goals"}</p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              className="bg-white/20 hover:bg-white/30 text-white border-0 rounded-xl gap-1.5"
+              onClick={() => setShowForm(true)}
+            >
+              <Plus className="w-3.5 h-3.5" /> New Goal
+            </Button>
+          </div>
+        </div>
       </div>
 
-      <div className="p-5 max-w-xl mx-auto">
+      <div className="px-5 py-5 max-w-xl mx-auto space-y-4">
         {children.length > 1 && (
           <Select value={selectedChildId} onValueChange={setSelectedChildId}>
-            <SelectTrigger className="rounded-xl mb-5"><SelectValue placeholder="Select child" /></SelectTrigger>
+            <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select child" /></SelectTrigger>
             <SelectContent>{children.map(c => <SelectItem key={c.id} value={c.id}>{c.child_name}</SelectItem>)}</SelectContent>
           </Select>
         )}
 
-        {selectedChild && (
-          <div className="flex items-center gap-3 mb-5 p-3 bg-card border border-border rounded-xl">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <span className="text-primary font-bold text-lg">{selectedChild.child_name[0]}</span>
-            </div>
-            <p className="font-semibold text-foreground">{selectedChild.child_name}'s Rewards</p>
-          </div>
-        )}
-
+        {/* Add Form */}
         <AnimatePresence>
           {showForm && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-card border border-border rounded-2xl p-5 mb-5 space-y-3">
-              <h3 className="font-semibold text-foreground">New Reward Goal</h3>
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+              className="bg-card border border-border rounded-2xl p-5 space-y-3">
+              <h3 className="font-semibold text-foreground flex items-center gap-2">
+                <Gift className="w-4 h-4 text-primary" /> New Reward Goal
+              </h3>
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Token Name</p>
                 <Input value={form.token_name} onChange={e => setForm(f => ({ ...f, token_name: e.target.value }))} placeholder="e.g. Star, Point" className="rounded-xl" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Starting Tokens</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Starting</p>
                   <Input type="number" value={form.tokens_earned} onChange={e => setForm(f => ({ ...f, tokens_earned: e.target.value }))} className="rounded-xl" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Goal (total)</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Goal</p>
                   <Input type="number" value={form.tokens_goal} onChange={e => setForm(f => ({ ...f, tokens_goal: e.target.value }))} className="rounded-xl" />
                 </div>
               </div>
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Reward Description</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Reward</p>
                 <Input value={form.reward_description} onChange={e => setForm(f => ({ ...f, reward_description: e.target.value }))} placeholder="e.g. 30 mins extra screen time" className="rounded-xl" />
               </div>
               <div className="flex gap-2">
@@ -122,12 +139,13 @@ export default function RewardTracker() {
         </AnimatePresence>
 
         {loading ? (
-          <div className="space-y-3">{[1, 2].map(i => <div key={i} className="h-28 bg-muted rounded-2xl animate-pulse" />)}</div>
+          <div className="space-y-3">{[1, 2].map(i => <div key={i} className="h-36 bg-muted rounded-2xl animate-pulse" />)}</div>
         ) : tokens.length === 0 ? (
           <div className="text-center py-14 border-2 border-dashed border-border rounded-2xl">
             <Trophy className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="font-medium text-foreground mb-1">No reward goals yet</p>
-            <p className="text-sm text-muted-foreground">Create a reward goal to start tracking progress.</p>
+            <p className="text-sm text-muted-foreground mb-4">Create a reward goal to start celebrating progress!</p>
+            <Button className="rounded-xl gap-2" onClick={() => setShowForm(true)}><Plus className="w-4 h-4" /> Create First Goal</Button>
           </div>
         ) : (
           <div className="space-y-4">
@@ -135,29 +153,52 @@ export default function RewardTracker() {
               const pct = Math.min(100, Math.round((t.tokens_earned / (t.tokens_goal || 1)) * 100));
               const achieved = t.tokens_earned >= t.tokens_goal;
               return (
-                <motion.div key={t.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }} className={`bg-card border rounded-2xl p-5 ${achieved ? "border-yellow-400" : "border-border"}`}>
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      {achieved ? <Trophy className="w-5 h-5 text-yellow-500" /> : <Target className="w-5 h-5 text-primary" />}
-                      <p className="font-semibold text-foreground">{t.reward_description || `${t.token_name} Reward`}</p>
+                <motion.div key={t.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
+                  className={`bg-card border-2 rounded-2xl p-5 transition-all ${achieved ? "border-yellow-400 bg-yellow-50/30" : "border-border"}`}>
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        {achieved ? <Trophy className="w-5 h-5 text-yellow-500" /> : <Target className="w-5 h-5 text-primary" />}
+                        <p className="font-bold text-foreground">{t.reward_description || `${t.token_name} Reward`}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground ml-7">{t.tokens_earned} of {t.tokens_goal} {t.token_name}s earned</p>
                     </div>
-                    <button onClick={() => addToken(t)} disabled={achieved} className="w-9 h-9 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                      <Plus className="w-4 h-4 text-primary" />
-                    </button>
+                    {!achieved && (
+                      <button onClick={() => addToken(t)}
+                        className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors shadow-md shadow-primary/20">
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${pct}%` }} />
+
+                  {/* Progress bar */}
+                  <div className="mb-3">
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+                      <span>{pct}% complete</span>
+                      <span>{t.tokens_goal - t.tokens_earned > 0 ? `${t.tokens_goal - t.tokens_earned} to go` : "🎉 Done!"}</span>
                     </div>
-                    <span className="text-xs font-semibold text-foreground">{t.tokens_earned}/{t.tokens_goal}</span>
+                    <div className="h-3 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${achieved ? "bg-yellow-400" : "bg-primary"}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
+
+                  {/* Star tokens */}
+                  <div className="flex flex-wrap gap-1">
                     {[...Array(Math.min(t.tokens_goal, 20))].map((_, idx) => (
-                      <Star key={idx} className={`w-4 h-4 ${idx < t.tokens_earned ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30"}`} />
+                      <Star key={idx} className={`w-4 h-4 transition-colors ${idx < t.tokens_earned ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30"}`} />
                     ))}
-                    {t.tokens_goal > 20 && <span className="text-xs text-muted-foreground">...</span>}
+                    {t.tokens_goal > 20 && <span className="text-xs text-muted-foreground self-center">+{t.tokens_goal - 20} more</span>}
                   </div>
-                  {achieved && <p className="text-xs font-semibold text-yellow-600 mt-2">🎉 Goal achieved!</p>}
+
+                  {achieved && (
+                    <div className="mt-3 flex items-center gap-2 text-yellow-700 bg-yellow-100 rounded-xl px-3 py-2">
+                      <Trophy className="w-4 h-4 text-yellow-500" />
+                      <p className="text-xs font-semibold">Goal achieved! Time to celebrate 🎉</p>
+                    </div>
+                  )}
                 </motion.div>
               );
             })}
