@@ -19,15 +19,37 @@ export default function RoleSetup() {
       setUser(me);
 
       if (me.app_role === "clinician") { navigate("/ClinicianDashboard"); return; }
-      if (me.app_role === "parent") { navigate("/ParentDashboard"); return; }
 
       if (inviteToken) {
         const families = await base44.entities.Family.filter({ invite_token: inviteToken }).catch(() => []);
-        if (families[0]) setInviteFamily(families[0]);
+        if (families[0]) {
+          setInviteFamily(families[0]);
+          // If already a parent, auto-accept and link without showing role selection
+          if (me.app_role === "parent") {
+            await acceptInvite(me, families[0]);
+            return;
+          }
+        } else {
+          // Invalid token — if already a parent just go to dashboard
+          if (me.app_role === "parent") { navigate("/ParentDashboard"); return; }
+        }
+      } else {
+        if (me.app_role === "parent") { navigate("/ParentDashboard"); return; }
       }
     };
     init();
   }, [inviteToken]);
+
+  const acceptInvite = async (me, family) => {
+    setSaving(true);
+    const kids = await base44.entities.Child.filter({ family_id: family.id }).catch(() => []);
+    for (const kid of kids) {
+      await base44.entities.Child.update(kid.id, { parent_id: me.id, parent_email: me.email });
+    }
+    await base44.entities.Family.update(family.id, { invite_status: "accepted" });
+    await base44.auth.updateMe({ linked_family_id: family.id, linked_clinician_id: family.clinician_id });
+    navigate("/ParentDashboard");
+  };
 
   const setupClinician = async () => {
     setSaving(true);
@@ -42,8 +64,6 @@ export default function RoleSetup() {
     if (inviteFamily) {
       updates.linked_family_id = inviteFamily.id;
       updates.linked_clinician_id = inviteFamily.clinician_id;
-      updates.invite_token = inviteToken;
-
       const kids = await base44.entities.Child.filter({ family_id: inviteFamily.id }).catch(() => []);
       for (const kid of kids) {
         await base44.entities.Child.update(kid.id, { parent_id: user.id, parent_email: user.email });
