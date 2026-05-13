@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useFirebaseUser } from "@/lib/useFirebaseUser";
-import { Collections } from "@/lib/firestore";
+import { base44 } from "@/api/base44Client";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
