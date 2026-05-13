@@ -29,14 +29,28 @@ export default function ParentDashboard() {
       if (!me) return;
       setUser(me);
 
-      const [kids, msgs] = await Promise.all([
+      const [kidsByParentId, kidsByEmail, msgs] = await Promise.all([
         base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
+        me.email ? base44.entities.Child.filter({ parent_email: me.email }).catch(() => []) : Promise.resolve([]),
         base44.entities.Message.filter({ to_user_id: me.id }).catch(() => []),
       ]);
-      setChildren(kids);
+
+      // Merge and deduplicate; prefer records already linked by parent_id
+      const allKidsMap = new Map();
+      for (const k of [...kidsByParentId, ...kidsByEmail]) allKidsMap.set(k.id, k);
+      const allKids = Array.from(allKidsMap.values());
+
+      // Back-fill parent_id on any children found only by email (so next login uses parent_id directly)
+      for (const k of allKids) {
+        if (!k.parent_id && me.id) {
+          base44.entities.Child.update(k.id, { parent_id: me.id }).catch(() => {});
+        }
+      }
+
+      setChildren(allKids);
       setUnreadMessages(msgs.filter(m => !m.is_read).length);
 
-      if (kids.length > 0) {
+      if (allKids.length > 0) {
         const logs = await base44.entities.BehaviorLog.filter({ parent_id: me.id }, "-created_date", 5).catch(() => []);
         setRecentLogs(logs);
       }

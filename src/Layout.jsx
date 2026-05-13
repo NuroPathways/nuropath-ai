@@ -25,7 +25,14 @@ export default function Layout({ children, currentPageName }) {
     if (user.app_role === "clinician") {
       base44.entities.Child.filter({ clinician_id: user.id }).then(setChildrenList).catch(() => {});
     } else if (user.app_role === "parent") {
-      base44.entities.Child.filter({ parent_id: user.id }).then(setChildrenList).catch(() => {});
+      Promise.all([
+        base44.entities.Child.filter({ parent_id: user.id }).catch(() => []),
+        user.email ? base44.entities.Child.filter({ parent_email: user.email }).catch(() => []) : Promise.resolve([]),
+      ]).then(([byId, byEmail]) => {
+        const map = new Map();
+        for (const k of [...byId, ...byEmail]) map.set(k.id, k);
+        setChildrenList(Array.from(map.values()));
+      });
     }
   }, [user?.id, currentPageName]);
 
