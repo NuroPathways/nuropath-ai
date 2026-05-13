@@ -22,6 +22,7 @@ export default function ParentDashboard() {
   const [recentLogs, setRecentLogs] = useState([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [isIndividual, setIsIndividual] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -49,6 +50,17 @@ export default function ParentDashboard() {
 
       setChildren(allKids);
       setUnreadMessages(msgs.filter(m => !m.is_read).length);
+
+      // Detect individual client type via family record
+      if (me.linked_family_id) {
+        base44.entities.Family.filter({ id: me.linked_family_id }).catch(() => []).then(fams => {
+          if (fams[0]?.account_type === "individual") setIsIndividual(true);
+        });
+      } else if (allKids.length === 1 && allKids[0].family_id) {
+        base44.entities.Family.filter({ id: allKids[0].family_id }).catch(() => []).then(fams => {
+          if (fams[0]?.account_type === "individual") setIsIndividual(true);
+        });
+      }
 
       if (allKids.length > 0) {
         const logs = await base44.entities.BehaviorLog.filter({ parent_id: me.id }, "-created_date", 5).catch(() => []);
@@ -85,7 +97,7 @@ export default function ParentDashboard() {
               <h1 className="text-2xl md:text-3xl font-bold text-white mt-0.5 mb-1">
                 {loading ? "..." : firstName} 👋
               </h1>
-              <p className="text-white/60 text-sm">Your family's behavioral support hub</p>
+              <p className="text-white/60 text-sm">{isIndividual ? "Your personal behavioral support hub" : "Your family's behavioral support hub"}</p>
             </div>
             {unreadMessages > 0 && (
               <button
@@ -101,7 +113,7 @@ export default function ParentDashboard() {
           {/* Stat pills */}
           <div className="grid grid-cols-3 gap-3 mt-8">
             {[
-              { label: "Children", value: loading ? "—" : totalChildren, icon: Baby },
+              { label: isIndividual ? "Profiles" : "Children", value: loading ? "—" : totalChildren, icon: Baby },
               { label: "Logs This Week", value: loading ? "—" : recentLogs.length, icon: Activity },
               { label: "Messages", value: loading ? "—" : unreadMessages, icon: MessageSquare },
             ].map((s, i) => (
@@ -144,7 +156,7 @@ export default function ParentDashboard() {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-foreground flex items-center gap-2">
-              <Baby className="w-4 h-4 text-primary" /> My Children
+              <Baby className="w-4 h-4 text-primary" /> {isIndividual ? "My Profile" : "My Children"}
             </h2>
           </div>
 
@@ -155,7 +167,7 @@ export default function ParentDashboard() {
           ) : children.length === 0 ? (
             <div className="bg-card rounded-2xl border-2 border-dashed border-border p-10 text-center">
               <Baby className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm font-medium text-foreground mb-1">No children linked yet</p>
+              <p className="text-sm font-medium text-foreground mb-1">{isIndividual ? "No profile linked yet" : "No children linked yet"}</p>
               <p className="text-xs text-muted-foreground">Ask your clinician to connect your account.</p>
             </div>
           ) : (

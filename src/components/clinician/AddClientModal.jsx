@@ -95,6 +95,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
         invite_email: holder.email || undefined,
         invite_status: "pending",
         parent_name: holder.name || undefined,
+        account_type: accountType,
       });
 
       // Create children linked to family
@@ -122,6 +123,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
         invite_email: holder.email || undefined,
         invite_status: "pending",
         parent_name: holder.name || undefined,
+        account_type: "individual",
       });
 
       await base44.entities.Child.create({

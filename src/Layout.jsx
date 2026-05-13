@@ -10,6 +10,7 @@ export default function Layout({ children, currentPageName }) {
   const [user, setUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [children_list, setChildrenList] = useState([]);
+  const [isIndividualClient, setIsIndividualClient] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -31,7 +32,16 @@ export default function Layout({ children, currentPageName }) {
       ]).then(([byId, byEmail]) => {
         const map = new Map();
         for (const k of [...byId, ...byEmail]) map.set(k.id, k);
-        setChildrenList(Array.from(map.values()));
+        const kids = Array.from(map.values());
+        setChildrenList(kids);
+
+        // Check if individual client via family record
+        const familyId = user.linked_family_id || (kids[0]?.family_id);
+        if (familyId) {
+          base44.entities.Family.filter({ id: familyId }).catch(() => []).then(fams => {
+            if (fams[0]?.account_type === "individual") setIsIndividualClient(true);
+          });
+        }
       });
     }
   }, [user?.id]);
@@ -115,7 +125,7 @@ export default function Layout({ children, currentPageName }) {
 
               {children_list.length > 0 && (
                 <div className="mt-2">
-                  <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Children</p>
+                  <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{isIndividualClient ? "My Profile" : "Children"}</p>
                   {children_list.map((child) => {
                     const isActive = currentPageName === "ChildProfile" && new URLSearchParams(window.location.search).get("child_id") === child.id;
                     return (
@@ -200,7 +210,7 @@ export default function Layout({ children, currentPageName }) {
               <Link to="/ParentDashboard" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${parentDashboardActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}><Users className="w-4 h-4" /> Dashboard</Link>
               {children_list.length > 0 && (
                 <div className="mt-2">
-                  <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Children</p>
+                  <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{isIndividualClient ? "My Profile" : "Children"}</p>
                   {children_list.map((child) => {
                     const isActive = currentPageName === "ChildProfile" && new URLSearchParams(window.location.search).get("child_id") === child.id;
                     return (

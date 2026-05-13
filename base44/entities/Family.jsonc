@@ -34,53 +34,18 @@
     "parent_name": {
       "type": "string",
       "description": "Primary guardian name"
+    },
+    "account_type": {
+      "type": "string",
+      "enum": [
+        "parent_family",
+        "individual",
+        "caregiver"
+      ],
+      "description": "Type of client account"
     }
   },
   "required": [
     "family_name"
-  ],
-  "rls": {
-    "create": {
-      "data.clinician_id": "{{user.id}}"
-    },
-    "read": {
-      "$or": [
-        {
-          "data.clinician_id": "{{user.id}}"
-        },
-        {
-          "data.invite_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
-    "update": {
-      "$or": [
-        {
-          "data.clinician_id": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
-    "delete": {
-      "$or": [
-        {
-          "data.clinician_id": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    }
-  }
+  ]
 }
