@@ -16,6 +16,25 @@ const SUGGESTED = [
   "Show me a morning routine based on the plan",
 ];
 
+const SUGGESTED_INDIVIDUAL = [
+  "Summarize my treatment plan in simple terms",
+  "I'm feeling overwhelmed right now — what should I do?",
+  "What are my main triggers and how do I manage them?",
+  "Help me build a calming routine for today",
+  "What coping strategies has my clinician recommended?",
+  "Walk me through what to do when I feel anxious",
+];
+
+async function detectIndividualClient(childId) {
+  try {
+    const children = await base44.entities.Child.filter({ id: childId }).catch(() => []);
+    const child = children[0];
+    if (!child?.family_id) return false;
+    const fams = await base44.entities.Family.filter({ id: child.family_id }).catch(() => []);
+    return fams[0]?.account_type === "individual";
+  } catch { return false; }
+}
+
 async function buildContext(childId, childName) {
   const [plans, documents, interventions, sessions, logs] = await Promise.all([
     base44.entities.BehaviorPlan.filter({ child_id: childId }).catch(() => []),
@@ -95,14 +114,18 @@ async function buildContext(childId, childName) {
   return { context, hasPlans: plans.length + interventions.length > 0, hasDocuments: documents.length > 0 };
 }
 
-async function generateResponse(userMessage, child, clinicianContext, conversationHistory) {
+async function generateResponse(userMessage, child, clinicianContext, conversationHistory, isIndividualClient) {
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-  const historyText = conversationHistory.slice(-8).map(m => `${m.role === "user" ? "Parent" : "Aspire AI"}: ${m.content}`).join("\n\n");
+  const historyText = conversationHistory.slice(-8).map(m => `${m.role === "user" ? (isIndividualClient ? "Client" : "Parent") : "Aspire AI"}: ${m.content}`).join("\n\n");
 
-  const systemPrompt = `You are Aspire AI — an intelligent, warm behavioral support assistant for parents. You have all of the clinician's documented plans, documents, session history, and behavior logs for this child. Respond with precision and warmth based on the actual data provided.
+  const voiceInstruction = isIndividualClient
+    ? `You are speaking DIRECTLY to the client themselves — they are the person the treatment plan is written about. NEVER use third-person language like "allow them to", "let the client", or refer to them by name as if they are absent. Instead, speak directly using "you" and "yourself". Say things like: "Try moving to a quieter space", "You might feel better if you take a few slow breaths", "When you notice yourself getting overwhelmed, you can step away." Make all guidance feel personal, empowering, and actionable for the person reading it.`
+    : `You are speaking to a parent or caregiver. Use caregiver-directed language — refer to the child by name or as "they/them". It's appropriate to say things like "Allow ${child?.child_name || "them"} to retreat to a quiet space" or "Pause verbal demands until ${child?.child_name || "they"} is regulated."`;
+
+  const systemPrompt = `You are Aspire AI — an intelligent, warm behavioral support assistant. ${voiceInstruction}
 
 TODAY'S DATE: ${today}
-CHILD: ${child?.child_name || "Unknown"}, Age: ${child?.age || "N/A"}, Diagnosis: ${child?.diagnosis || "N/A"}
+${isIndividualClient ? `CLIENT: ${child?.child_name || "Unknown"}, Age: ${child?.age || "N/A"}, Diagnosis: ${child?.diagnosis || "N/A"}` : `CHILD: ${child?.child_name || "Unknown"}, Age: ${child?.age || "N/A"}, Diagnosis: ${child?.diagnosis || "N/A"}`}
 
 === ALL CLINICIAN DATA & CONTEXT ===
 ${clinicianContext.context || "No data loaded yet."}
@@ -124,6 +147,7 @@ export default function AIChat() {
   const [user, setUser] = useState(null);
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState("");
+  const [isIndividualClient, setIsIndividualClient] = useState(false);
   const [clinicianContext, setClinicianContext] = useState({ context: "", hasPlans: false, hasDocuments: false });
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -152,8 +176,12 @@ export default function AIChat() {
     if (!selectedChildId) return;
     const child = children.find(c => c.id === selectedChildId);
     setLoadingContext(true);
-    buildContext(selectedChildId, child?.child_name || "").then(ctx => {
+    Promise.all([
+      buildContext(selectedChildId, child?.child_name || ""),
+      detectIndividualClient(selectedChildId),
+    ]).then(([ctx, isInd]) => {
       setClinicianContext(ctx);
+      setIsIndividualClient(isInd);
       setLoadingContext(false);
     });
   }, [selectedChildId, children]);
@@ -173,7 +201,7 @@ export default function AIChat() {
 
     const child = children.find(c => c.id === selectedChildId);
     const updatedHistory = [...messages, userMsg];
-    const response = await generateResponse(msg, child, clinicianContext, updatedHistory);
+    const response = await generateResponse(msg, child, clinicianContext, updatedHistory, isIndividualClient);
 
     setMessages(prev => [...prev, { role: "assistant", content: response }]);
     setIsLoading(false);
@@ -229,9 +257,13 @@ export default function AIChat() {
                 <Sparkles className="w-8 h-8 text-primary" />
               </div>
               <h2 className="font-semibold text-foreground mb-1">How can I help today?</h2>
-              <p className="text-sm text-muted-foreground mb-6">I can summarize your child's treatment plan, build daily schedules, answer questions about specific sessions, and more.</p>
+              <p className="text-sm text-muted-foreground mb-6">
+                {isIndividualClient
+                  ? "I'm here to support you directly. Ask me anything about your treatment plan, coping strategies, how to manage a difficult moment, or what to do right now."
+                  : "I can summarize your child's treatment plan, build daily schedules, answer questions about specific sessions, and more."}
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {SUGGESTED.map(s => (
+                {(isIndividualClient ? SUGGESTED_INDIVIDUAL : SUGGESTED).map(s => (
                   <button key={s} onClick={() => sendMessage(s)} className="text-left px-4 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:bg-muted/50 text-sm text-foreground transition-all">
                     {s}
                   </button>
@@ -303,7 +335,7 @@ export default function AIChat() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask anything — schedules, document summaries, session history, behavior help..."
+            placeholder={isIndividualClient ? "Ask anything — what to do right now, coping strategies, your treatment plan..." : "Ask anything — schedules, document summaries, session history, behavior help..."}
             rows={1}
             disabled={isLoading}
             className="flex-1 resize-none rounded-xl border-border text-sm max-h-32 min-h-[44px]"
@@ -313,7 +345,9 @@ export default function AIChat() {
           </Button>
         </div>
         <p className="text-center text-xs text-muted-foreground mt-2 max-w-2xl mx-auto">
-          Aspire AI reads all your clinician's documents, plans, and session history to give you personalized answers.
+          {isIndividualClient
+            ? "Aspire AI reads your clinician's documents and your treatment plan to give you guidance you can use right now."
+            : "Aspire AI reads all your clinician's documents, plans, and session history to give you personalized answers."}
         </p>
       </div>
     </div>

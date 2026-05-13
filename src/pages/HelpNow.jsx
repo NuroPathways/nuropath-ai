@@ -55,6 +55,7 @@ export default function HelpNow() {
   const [step, setStep] = useState("select_behavior");
 
   const childId = new URLSearchParams(window.location.search).get("child_id");
+  const [isIndividualClient, setIsIndividualClient] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -72,6 +73,13 @@ export default function HelpNow() {
 
       let child = childId ? allChildren.find(c => c.id === childId) : allChildren[0];
       if (!child) { setLoading(false); return; }
+
+      // Check if this is an individual/self client
+      const familyId = child.family_id;
+      if (familyId) {
+        const fams = await base44.entities.Family.filter({ id: familyId }).catch(() => []);
+        if (fams[0]?.account_type === "individual") setIsIndividualClient(true);
+      }
 
       const [docs, interventionPlans, behaviorPlans] = await Promise.all([
         base44.entities.Document.filter({ child_id: child.id }).catch(() => []),
@@ -137,8 +145,12 @@ export default function HelpNow() {
 
     if (relevantDocs.length > 0) {
       const behaviorQuery = cat.type === "doc_search" ? "any behavioral crisis, regulation challenge, or emotional difficulty" : cat.label;
+      const { isIndividualClient: isInd } = { isIndividualClient };
+      const promptVoice = isIndividualClient
+        ? `You are a compassionate self-help support assistant. The person reading this IS the client themselves — they are going through "${behaviorQuery}" right now. Speak directly to THEM in first person ("you", "yourself"). Do NOT use third-person language like "allow them" or "let the child". Instead say things like "Try moving to a quieter space", "Take a slow breath in", "You can pause what you're doing right now". Make every step actionable for the person themselves.`
+        : `You are a clinical support assistant. A parent/caregiver needs help right now. Their child/client is having: "${behaviorQuery}". Child: ${child?.child_name || "the child"}. Speak to the caregiver — third-person references to the child are appropriate (e.g. "Allow ${child?.child_name || "them"} to retreat to a quiet space").`;
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `You are a clinical support assistant. A parent needs help right now with their child who is having: "${behaviorQuery}". Child: ${child?.child_name || "the child"}. ${child?.diagnosis ? `Diagnosis: ${child.diagnosis}` : ""} ${child?.triggers ? `Known triggers: ${child.triggers}` : ""}\n\nRead the clinician's uploaded documents and extract ONLY clinician-approved guidance. If not relevant, set has_relevant_guidance to false.`,
+        prompt: `${promptVoice} ${child?.diagnosis ? `Diagnosis: ${child.diagnosis}.` : ""} ${child?.triggers ? `Known triggers: ${child.triggers}.` : ""}\n\nRead the clinician's uploaded documents and extract ONLY clinician-approved guidance. Rewrite every step in the appropriate voice (self-directed if individual client, caregiver-directed if parent). If not relevant, set has_relevant_guidance to false.`,
         file_urls: relevantDocs.slice(0, 3).map(d => d.file_url),
         response_json_schema: {
           type: "object",
