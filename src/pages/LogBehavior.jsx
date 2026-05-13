@@ -37,14 +37,9 @@ export default function LogBehavior() {
       const me = await base44.auth.me().catch(() => null);
       if (!me) return;
       setUser(me);
-      const [byId, byEmail] = await Promise.all([
-        base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
-        base44.entities.Child.filter({ parent_email: me.email }).catch(() => []),
-      ]);
-      const seen = new Set();
-      const merged = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
-      setChildren(merged);
-      if (!form.child_id && merged[0]) setForm(f => ({ ...f, child_id: merged[0].id }));
+      const kids = await base44.entities.Child.filter({ parent_id: me.id }).catch(() => []);
+      setChildren(kids);
+      if (!form.child_id && kids[0]) setForm(f => ({ ...f, child_id: kids[0].id }));
     };
     load();
   }, []);

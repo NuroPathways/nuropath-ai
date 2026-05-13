@@ -16,17 +16,8 @@ export default function ParentDashboard() {
       const me = await base44.auth.me().catch(() => null);
       if (!me) { navigate("/"); return; }
       setUser(me);
-      const [byId, byEmail] = await Promise.all([
-        base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
-        base44.entities.Child.filter({ parent_email: me.email }).catch(() => []),
-      ]);
-      const seen = new Set();
-      const merged = [...byId, ...byEmail].filter(c => {
-        if (seen.has(c.id)) return false;
-        seen.add(c.id);
-        return true;
-      });
-      setChildren(merged);
+      const kids = await base44.entities.Child.filter({ parent_id: me.id }).catch(() => []);
+      setChildren(kids);
       setLoading(false);
     };
     load();
