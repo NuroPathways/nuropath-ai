@@ -34,13 +34,15 @@ export default function ProgressReports() {
 
   const childLogs = logs.filter(l => l.child_id === selectedChildId);
 
+  const intensityToNum = (v) => v === "high" ? 3 : v === "moderate" ? 2 : v === "low" ? 1 : 0;
+
   const chartData = childLogs.slice(-14).map((log, i) => ({
     day: log.created_date ? format(new Date(log.created_date), "MMM d") : `Day ${i + 1}`,
-    intensity: Number(log.intensity) || 0,
+    intensity: intensityToNum(log.intensity),
   }));
 
   const avgIntensity = childLogs.length
-    ? (childLogs.reduce((a, b) => a + (Number(b.intensity) || 0), 0) / childLogs.length).toFixed(1)
+    ? (childLogs.reduce((a, b) => a + intensityToNum(b.intensity), 0) / childLogs.length).toFixed(1)
     : 0;
 
   const strategyBreakdown = childLogs.reduce((acc, log) => {
@@ -93,7 +95,7 @@ export default function ProgressReports() {
                 <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={chartData}>
                     <XAxis dataKey="day" tick={{ fontSize: 10 }} />
-                    <YAxis domain={[0, 10]} tick={{ fontSize: 10 }} />
+                    <YAxis domain={[0, 3]} ticks={[1, 2, 3]} tickFormatter={v => v === 3 ? "High" : v === 2 ? "Med" : v === 1 ? "Low" : ""} tick={{ fontSize: 10 }} />
                     <Tooltip />
                     <Bar dataKey="intensity" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   </BarChart>

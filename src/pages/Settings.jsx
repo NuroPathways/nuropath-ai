@@ -6,7 +6,15 @@ import { motion } from "framer-motion";
 
 export default function Settings() {
   const [user, setUser] = useState(null);
-  const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains("dark"));
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved) {
+      if (saved === "dark") document.documentElement.classList.add("dark");
+      else document.documentElement.classList.remove("dark");
+      return saved === "dark";
+    }
+    return document.documentElement.classList.contains("dark");
+  });
 
   useEffect(() => {
     base44.auth.me().then(setUser).catch(() => {});

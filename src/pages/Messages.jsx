@@ -18,7 +18,7 @@ export default function Messages() {
   const [sending, setSending] = useState(false);
   const [recipientId, setRecipientId] = useState("");
   const bottomRef = useRef(null);
-  const pollingRef = useRef(null);
+  const unsubscribeRef = useRef(null);
 
   useEffect(() => {
     const load = async () => {
@@ -48,19 +48,13 @@ export default function Messages() {
       }
     };
     load();
-    return () => clearInterval(pollingRef.current);
+    return () => { if (unsubscribeRef.current) unsubscribeRef.current(); };
   }, []);
-
-  const fetchMessages = (childId) => {
-    if (!childId) return;
-    base44.entities.Message.filter({ child_id: childId }).then(msgs => {
-      setMessages(msgs.sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
-    }).catch(() => {});
-  };
 
   useEffect(() => {
     if (!user || !selectedChildId) return;
-    fetchMessages(selectedChildId);
+
+    // Set recipient
     if (user.app_role === "clinician") {
       const child = children.find(c => c.id === selectedChildId);
       setRecipientId(child?.parent_id || "");
@@ -68,9 +62,25 @@ export default function Messages() {
       const child = children.find(c => c.id === selectedChildId);
       if (child?.clinician_id) setRecipientId(child.clinician_id);
     }
-    clearInterval(pollingRef.current);
-    pollingRef.current = setInterval(() => fetchMessages(selectedChildId), 10000);
-    return () => clearInterval(pollingRef.current);
+
+    // Initial load
+    base44.entities.Message.filter({ child_id: selectedChildId }).then(msgs => {
+      setMessages(msgs.sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
+    }).catch(() => {});
+
+    // Real-time subscription
+    if (unsubscribeRef.current) unsubscribeRef.current();
+    unsubscribeRef.current = base44.entities.Message.subscribe((event) => {
+      if (event.data?.child_id !== selectedChildId) return;
+      if (event.type === "create") {
+        setMessages(prev => {
+          if (prev.find(m => m.id === event.id)) return prev;
+          return [...prev, event.data].sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
+        });
+      }
+    });
+
+    return () => { if (unsubscribeRef.current) unsubscribeRef.current(); };
   }, [selectedChildId, user, children]);
 
   useEffect(() => {
