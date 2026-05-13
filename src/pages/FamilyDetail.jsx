@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, Users, Trash2, Edit2, Save, X, MessageCircle, FileText, ClipboardList, RefreshCw, Copy, Check } from "lucide-react";
+import { ArrowLeft, Users, Trash2, Edit2, Save, X, MessageCircle, FileText, ClipboardList, RefreshCw, Copy, Check, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
+import AddChildToExistingFamilyModal from "@/components/clinician/AddChildToExistingFamilyModal";
 
 export default function FamilyDetail() {
   const navigate = useNavigate();
@@ -21,11 +22,15 @@ export default function FamilyDetail() {
   const [reconnecting, setReconnecting] = useState(false);
   const [reconnectMsg, setReconnectMsg] = useState("");
   const [copied, setCopied] = useState(false);
+  const [showAddChild, setShowAddChild] = useState(false);
+  const [clinicianId, setClinicianId] = useState("");
 
   useEffect(() => {
     if (!familyId) { navigate(-1); return; }
 
     const load = async () => {
+      const me = await base44.auth.me().catch(() => null);
+      if (me) setClinicianId(me.id);
       const [familyArr, familyChildren] = await Promise.all([
         base44.entities.Family.filter({ id: familyId }).catch(() => []),
         base44.entities.Child.filter({ family_id: familyId }).catch(() => []),
@@ -208,7 +213,12 @@ export default function FamilyDetail() {
         </div>
 
         <div>
-          <h2 className="font-semibold text-foreground text-sm mb-3 px-1">Children ({children.length})</h2>
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="font-semibold text-foreground text-sm">Children ({children.length})</h2>
+            <Button size="sm" variant="outline" className="rounded-xl h-7 text-xs gap-1.5" onClick={() => setShowAddChild(true)}>
+              <UserPlus className="w-3 h-3" /> Add Child
+            </Button>
+          </div>
           {children.length === 0 ? (
             <div className="text-center py-10 border-2 border-dashed border-border rounded-2xl">
               <Users className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
@@ -234,6 +244,17 @@ export default function FamilyDetail() {
           )}
         </div>
       </div>
+
+      <AddChildToExistingFamilyModal
+        open={showAddChild}
+        onClose={() => setShowAddChild(false)}
+        onSuccess={() => {
+          // Reload children
+          base44.entities.Child.filter({ family_id: familyId }).then(setChildren).catch(() => {});
+        }}
+        family={family}
+        clinicianId={clinicianId}
+      />
     </div>
   );
 }
