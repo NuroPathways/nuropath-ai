@@ -8,11 +8,7 @@
     },
     "parent_id": {
       "type": "string",
-      "description": "Reference to the parent who logged this"
-    },
-    "clinician_id": {
-      "type": "string",
-      "description": "Clinician linked to this child — for scoped read access"
+      "description": "Reference to the parent"
     },
     "conversation_id": {
       "type": "string",
@@ -20,20 +16,20 @@
     },
     "behavior_type": {
       "type": "string",
-      "description": "Type/name of the behavior"
+      "description": "Interpreted behavior type from Module 1"
     },
     "intensity": {
       "type": "string",
-      "enum": ["low", "moderate", "high"],
-      "description": "Behavior intensity/severity"
-    },
-    "duration": {
-      "type": "string",
-      "description": "How long the behavior lasted (e.g. 10 mins)"
+      "enum": [
+        "low",
+        "moderate",
+        "high"
+      ],
+      "description": "Behavior intensity"
     },
     "context": {
       "type": "string",
-      "description": "Context/trigger of the behavior"
+      "description": "Context/setting of the behavior"
     },
     "possible_function": {
       "type": "string",
@@ -41,24 +37,21 @@
     },
     "strategy_used": {
       "type": "string",
-      "description": "Intervention strategy that was used"
-    },
-    "outcome": {
-      "type": "string",
-      "enum": ["resolved", "partially", "escalated", "ongoing"],
-      "description": "How the situation resolved"
-    },
-    "notes": {
-      "type": "string",
-      "description": "Additional notes from the parent"
+      "description": "Primary strategy that was recommended"
     },
     "parent_feedback": {
       "type": "string",
-      "enum": ["yes", "partially", "no"],
+      "enum": [
+        "yes",
+        "partially",
+        "no"
+      ],
       "description": "Parent feedback on strategy effectiveness"
     }
   },
-  "required": ["child_id"],
+  "required": [
+    "child_id"
+  ],
   "rls": {
     "create": {
       "data.parent_id": "{{user.id}}"
@@ -67,9 +60,6 @@
       "$or": [
         {
           "data.parent_id": "{{user.id}}"
-        },
-        {
-          "data.clinician_id": "{{user.id}}"
         },
         {
           "user_condition": {
