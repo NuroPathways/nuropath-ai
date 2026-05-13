@@ -48,18 +48,9 @@
   ],
   "rls": {
     "create": {
-      "$or": [
-        {
-          "user_condition": {
-            "app_role": "clinician"
-          }
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "app_role": "clinician"
+      }
     },
     "read": {
       "$or": [
@@ -88,9 +79,6 @@
           "data.parent_id": "{{user.id}}"
         },
         {
-          "data.parent_email": "{{user.email}}"
-        },
-        {
           "user_condition": {
             "role": "admin"
           }
@@ -98,16 +86,10 @@
       ]
     },
     "delete": {
-      "$or": [
-        {
-          "data.clinician_id": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "data.clinician_id": "{{user.id}}",
+      "user_condition": {
+        "app_role": "clinician"
+      }
     }
   }
 }
