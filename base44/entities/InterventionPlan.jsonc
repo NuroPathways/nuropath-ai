@@ -4,11 +4,11 @@
   "properties": {
     "child_id": {
       "type": "string",
-      "description": "Reference to the child"
+      "description": "ID of the child this plan is for"
     },
     "clinician_id": {
       "type": "string",
-      "description": "ID of the clinician — used for RLS and attribution"
+      "description": "ID of the clinician who created it"
     },
     "behavior_category": {
       "type": "string",
@@ -22,55 +22,61 @@
         "transition_difficulty",
         "emotional_dysregulation",
         "other"
-      ]
+      ],
+      "description": "The behavior category this plan addresses"
     },
     "title": {
-      "type": "string"
+      "type": "string",
+      "description": "Plan title"
     },
     "description": {
-      "type": "string"
+      "type": "string",
+      "description": "Overview of the behavior and context"
     },
     "immediate_steps": {
-      "type": "string"
+      "type": "string",
+      "description": "What to do right now - step by step"
     },
     "deescalation_steps": {
-      "type": "string"
+      "type": "string",
+      "description": "Steps if behavior escalates"
     },
     "reinforcement_steps": {
-      "type": "string"
+      "type": "string",
+      "description": "Reinforcement and reward guidance"
     },
     "prevention_tips": {
-      "type": "string"
+      "type": "string",
+      "description": "How to prevent this behavior"
     },
     "things_to_avoid": {
-      "type": "string"
+      "type": "string",
+      "description": "What NOT to do"
     },
     "emergency_instructions": {
-      "type": "string"
+      "type": "string",
+      "description": "Emergency escalation instructions"
     },
     "is_active": {
       "type": "boolean",
       "default": true
-    },
-    "source_document_id": {
-      "type": "string",
-      "description": "Links to Document record this was AI-extracted from — prevents re-extraction duplicates"
     }
   },
-  "required": ["child_id", "behavior_category", "title"],
+  "required": [
+    "child_id",
+    "behavior_category",
+    "title"
+  ],
   "rls": {
     "create": {
-      "data.clinician_id": "{{user.id}}"
+      "user_condition": {
+        "app_role": "clinician"
+      }
     },
     "read": {
       "$or": [
         {
           "data.clinician_id": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "app_role": "parent"
-          }
         },
         {
           "user_condition": {
@@ -80,10 +86,28 @@
       ]
     },
     "update": {
-      "data.clinician_id": "{{user.id}}"
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "delete": {
-      "data.clinician_id": "{{user.id}}"
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     }
   }
 }
