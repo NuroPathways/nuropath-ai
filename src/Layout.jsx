@@ -1,25 +1,17 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Brain, Users, MessageSquare, LogOut, Menu, X, ChevronRight, FileText, Settings, Baby, AlertCircle, BarChart2, Upload, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const noLayoutPages = ["Splash", "Login", "RoleSelection", "ClinicianLogin", "ParentLogin", "ClientLogin", "RoleSetup", "HelpNow"];
 
 export default function Layout({ children, currentPageName }) {
-  const [user, setUser] = useState(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const { user, isLoadingAuth } = useAuth();
   const [children_list, setChildrenList] = useState([]);
   const [isIndividualClient, setIsIndividualClient] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    base44.auth.me().then(me => {
-      setUser(me);
-      setLoadingUser(false);
-    }).catch(() => setLoadingUser(false));
-  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -50,7 +42,7 @@ export default function Layout({ children, currentPageName }) {
     return <>{children}</>;
   }
 
-  if (loadingUser) {
+  if (isLoadingAuth) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-border border-t-primary rounded-full animate-spin" />

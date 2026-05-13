@@ -35,21 +35,19 @@ export default function ClinicianDashboard() {
       const me = await base44.auth.me().catch(() => null);
       if (!me) { setLoading(false); return; }
       setUser(me);
-      const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
+      const [kids, allPlans, allLogs, msgs] = await Promise.all([
+        base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []),
+        base44.entities.BehaviorPlan.filter({ created_by: me.id }).catch(() => []),
+        base44.entities.BehaviorLog.filter({}).catch(() => []),
+        base44.entities.Message.filter({ to_user_id: me.id }).catch(() => []),
+      ]);
       setChildren(kids);
-
-      if (kids.length > 0) {
-        const childIds = kids.map(k => k.id);
-        const [planResults, logResults] = await Promise.all([
-          Promise.all(kids.map(k => base44.entities.BehaviorPlan.filter({ child_id: k.id }).catch(() => []))),
-          Promise.all(kids.map(k => base44.entities.BehaviorLog.filter({ child_id: k.id }).catch(() => []))),
-        ]);
-        setPlans(planResults.flat());
-        setLogs(logResults.flat());
-      }
-
-      const msgs = await base44.entities.Message.filter({ to_user_id: me.id }).catch(() => []);
-      setMessages(msgs.filter(m => !m.is_read));
+      setPlans(allPlans);
+      // Filter logs to only children assigned to this clinician
+      const kidIds = new Set(kids.map(k => k.id));
+      setLogs(allLogs.filter(l => kidIds.has(l.child_id)));
+      const msgs2 = msgs;
+      setMessages(msgs2.filter(m => !m.is_read));
       setLoading(false);
     };
     load();

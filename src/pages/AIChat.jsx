@@ -134,7 +134,7 @@ export default function AIChat() {
   useEffect(() => {
     const load = async () => {
       const me = await base44.auth.me().catch(() => null);
-      if (!me) return;
+      if (!me) { base44.auth.redirectToLogin(window.location.href); return; }
       setUser(me);
       const [byId, byEmail] = await Promise.all([
         base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),

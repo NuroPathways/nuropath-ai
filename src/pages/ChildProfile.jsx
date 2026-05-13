@@ -29,14 +29,26 @@ export default function ChildProfile() {
   useEffect(() => {
     if (!childId) { navigate("/ParentDashboard"); return; }
     const load = async () => {
+      const me = await base44.auth.me().catch(() => null);
+      if (!me) { base44.auth.redirectToLogin(window.location.href); return; }
+
       const [kids, ps, ips] = await Promise.all([
         base44.entities.Child.filter({ id: childId }),
         base44.entities.BehaviorPlan.filter({ child_id: childId }),
         base44.entities.InterventionPlan.filter({ child_id: childId }),
       ]);
-      setChild(kids[0] || null);
-      setPlans(ps);
-      setInterventionPlans(ips);
+
+      const child = kids[0] || null;
+      // Security: ensure the logged-in user is the parent or the clinician for this child
+      const isAuthorized = child && (
+        child.parent_id === me.id ||
+        child.parent_email === me.email ||
+        child.clinician_id === me.id ||
+        me.role === "admin"
+      );
+      setChild(isAuthorized ? child : null);
+      setPlans(isAuthorized ? ps : []);
+      setInterventionPlans(isAuthorized ? ips : []);
       setLoading(false);
     };
     load();

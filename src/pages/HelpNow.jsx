@@ -62,10 +62,11 @@ export default function HelpNow() {
       const me = await base44.auth.me().catch(() => null);
       if (!me) { setLoading(false); return; }
 
-      const [byId, byEmail] = await Promise.all([
-        base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
-        base44.entities.Child.filter({ parent_email: me.email }).catch(() => []),
-      ]);
+      const byId = await base44.entities.Child.filter({ parent_id: me.id }).catch(() => []);
+      // Only fall back to email lookup if no records found by parent_id
+      const byEmail = byId.length === 0 && me.email
+        ? await base44.entities.Child.filter({ parent_email: me.email }).catch(() => [])
+        : [];
       const seen = new Set();
       const allChildren = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
 
