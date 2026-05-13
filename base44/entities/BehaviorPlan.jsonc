@@ -6,10 +6,6 @@
       "type": "string",
       "description": "Reference to the child"
     },
-    "clinician_id": {
-      "type": "string",
-      "description": "Clinician who created this plan — for RLS read access"
-    },
     "behavior_name": {
       "type": "string",
       "description": "Name of the behavior being addressed"
@@ -28,7 +24,12 @@
     },
     "severity_level": {
       "type": "string",
-      "enum": ["low", "moderate", "high", "crisis"],
+      "enum": [
+        "low",
+        "moderate",
+        "high",
+        "crisis"
+      ],
       "description": "Severity level of the behavior"
     },
     "created_by": {
@@ -60,28 +61,28 @@
       "type": "string"
     },
     "file_url": {
-      "type": "string"
+      "type": "string",
+      "description": "URL of the uploaded source document"
     },
     "file_name": {
-      "type": "string"
-    },
-    "source_document_id": {
       "type": "string",
-      "description": "Links to the Document record this was extracted from — prevents duplicate extraction"
+      "description": "Original file name of the uploaded document"
     }
   },
-  "required": ["child_id", "behavior_name"],
+  "required": [
+    "child_id",
+    "behavior_name"
+  ],
   "rls": {
     "create": {
-      "data.clinician_id": "{{user.id}}"
+      "user_condition": {
+        "app_role": "clinician"
+      }
     },
     "read": {
       "$or": [
         {
           "data.clinician_id": "{{user.id}}"
-        },
-        {
-          "data.created_by": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -96,7 +97,9 @@
           "data.clinician_id": "{{user.id}}"
         },
         {
-          "data.created_by": "{{user.id}}"
+          "user_condition": {
+            "role": "admin"
+          }
         }
       ]
     },
@@ -106,7 +109,9 @@
           "data.clinician_id": "{{user.id}}"
         },
         {
-          "data.created_by": "{{user.id}}"
+          "user_condition": {
+            "role": "admin"
+          }
         }
       ]
     }
