@@ -18,7 +18,7 @@ export default function Layout({ children, currentPageName }) {
       setUser(me);
       setLoadingUser(false);
     }).catch(() => setLoadingUser(false));
-  }, [currentPageName]);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -34,7 +34,7 @@ export default function Layout({ children, currentPageName }) {
         setChildrenList(Array.from(map.values()));
       });
     }
-  }, [user?.id, currentPageName]);
+  }, [user?.id]);
 
   if (noLayoutPages.includes(currentPageName)) {
     return <>{children}</>;
