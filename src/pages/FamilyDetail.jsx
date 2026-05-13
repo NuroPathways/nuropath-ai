@@ -23,10 +23,11 @@ export default function FamilyDetail() {
     if (!familyId) { navigate(-1); return; }
 
     const load = async () => {
-      const [familyData, familyChildren] = await Promise.all([
-        Collections.Family.get(familyId),
-        Collections.Child.filter({ family_id: familyId }),
+      const [familyArr, familyChildren] = await Promise.all([
+        base44.entities.Family.filter({ id: familyId }).catch(() => []),
+        base44.entities.Child.filter({ family_id: familyId }).catch(() => []),
       ]);
+      const familyData = familyArr[0] || null;
 
       setFamily(familyData);
       setEditName(familyData?.family_name || "");
@@ -36,10 +37,10 @@ export default function FamilyDetail() {
       if (familyChildren.length > 0) {
         const childIds = familyChildren.map(c => c.id);
         const [logsArr, messagesArr, docsArr, plansArr] = await Promise.all([
-          Promise.all(childIds.map(id => Collections.BehaviorLog.filter({ child_id: id }).catch(() => []))),
-          Promise.all(childIds.map(id => Collections.Message.filter({ child_id: id }).catch(() => []))),
-          Promise.all(childIds.map(id => Collections.Document.filter({ child_id: id }).catch(() => []))),
-          Promise.all(childIds.map(id => Collections.InterventionPlan.filter({ child_id: id }).catch(() => []))),
+          Promise.all(childIds.map(id => base44.entities.BehaviorLog.filter({ child_id: id }).catch(() => []))),
+          Promise.all(childIds.map(id => base44.entities.Message.filter({ child_id: id }).catch(() => []))),
+          Promise.all(childIds.map(id => base44.entities.Document.filter({ child_id: id }).catch(() => []))),
+          Promise.all(childIds.map(id => base44.entities.InterventionPlan.filter({ child_id: id }).catch(() => []))),
         ]);
         setStats({
           logs: logsArr.flat().length,
@@ -55,7 +56,7 @@ export default function FamilyDetail() {
 
   const handleSave = async () => {
     setSaving(true);
-    await Collections.Family.update(familyId, { family_name: editName, notes: editNotes });
+    await base44.entities.Family.update(familyId, { family_name: editName, notes: editNotes });
     setFamily(prev => ({ ...prev, family_name: editName, notes: editNotes }));
     setEditing(false);
     setSaving(false);
@@ -63,8 +64,8 @@ export default function FamilyDetail() {
 
   const handleDelete = async () => {
     if (!window.confirm("Delete this family and all associated data? This cannot be undone.")) return;
-    await Promise.all(children.map(child => Collections.Child.delete(child.id)));
-    await Collections.Family.delete(familyId);
+    await Promise.all(children.map(child => base44.entities.Child.delete(child.id)));
+    await base44.entities.Family.delete(familyId);
     navigate("/ClinicianDashboard");
   };
 

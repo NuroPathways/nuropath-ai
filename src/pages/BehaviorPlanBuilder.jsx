@@ -56,21 +56,23 @@ export default function BehaviorPlanBuilder() {
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
-    const firebaseUser = auth.currentUser;
-    if (!firebaseUser) { navigate("/"); return; }
-    setUser(firebaseUser);
-
-    Collections.Child.filter({ clinician_id: firebaseUser.uid }).then(setChildren).catch(() => setChildren([]));
+    const load = async () => {
+      const me = await base44.auth.me().catch(() => null);
+      if (!me) { navigate("/"); return; }
+      setUser(me);
+      base44.entities.Child.filter({ clinician_id: me.id }).then(setChildren).catch(() => setChildren([]));
+    };
+    load();
   }, []);
 
   const handleSave = async () => {
     if (!form.child_id || !form.behavior_name.trim()) return;
     setSaving(true);
     try {
-      await Collections.BehaviorPlan.create({
+      await base44.entities.BehaviorPlan.create({
         ...form,
-        created_by: user?.uid,
-        clinician_id: user?.uid,
+        created_by: user?.id,
+        clinician_id: user?.id,
       });
       setSaved(true);
       setTimeout(() => navigate("/ClinicianDashboard"), 1500);

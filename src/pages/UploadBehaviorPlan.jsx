@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Collections } from "@/lib/firestore";
-import { auth, storage } from "@/lib/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { base44 } from "@/api/base44Client";
 import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, ArrowLeft, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,13 +17,15 @@ export default function UploadBehaviorPlan() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const firebaseUser = auth.currentUser;
-    if (!firebaseUser) { navigate("/"); return; }
-    setUser(firebaseUser);
-
-    Collections.Child.filter({ clinician_id: firebaseUser.uid }).then(setChildren).catch(() => setChildren([]));
-    const urlChildId = new URLSearchParams(window.location.search).get("child_id");
-    if (urlChildId) setSelectedChildId(urlChildId);
+    const load = async () => {
+      const me = await base44.auth.me().catch(() => null);
+      if (!me) { navigate("/"); return; }
+      setUser(me);
+      base44.entities.Child.filter({ clinician_id: me.id }).then(setChildren).catch(() => setChildren([]));
+      const urlChildId = new URLSearchParams(window.location.search).get("child_id");
+      if (urlChildId) setSelectedChildId(urlChildId);
+    };
+    load();
   }, []);
 
   const handleFileChange = (e) => {
@@ -43,17 +43,13 @@ export default function UploadBehaviorPlan() {
     setStatus(null);
 
     try {
-      // Step 1: Upload file to Firebase Storage (HIPAA-compliant)
       setUploadStage("Uploading document to secure storage...");
-      const storageRef = ref(storage, `behavior-plans/${user.uid}/${selectedChildId}/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const file_url = await getDownloadURL(storageRef);
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
 
-      // Step 2: Save document record to Firestore
       setUploadStage("Saving document record...");
-      await Collections.Document.create({
+      await base44.entities.Document.create({
         child_id: selectedChildId,
-        clinician_id: user.uid,
+        clinician_id: user.id,
         title: file.name.replace(/\.[^/.]+$/, ""),
         category: "behavior_plan",
         file_url,
@@ -62,12 +58,11 @@ export default function UploadBehaviorPlan() {
         scan_status: "pending",
       });
 
-      // Step 3: Save a basic BehaviorPlan record referencing the document
       setUploadStage("Creating behavior plan record...");
-      await Collections.BehaviorPlan.create({
+      await base44.entities.BehaviorPlan.create({
         child_id: selectedChildId,
-        clinician_id: user.uid,
-        created_by: user.uid,
+        clinician_id: user.id,
+        created_by: user.id,
         file_url,
         file_name: file.name,
         behavior_name: file.name.replace(/\.[^/.]+$/, ""),
@@ -76,7 +71,7 @@ export default function UploadBehaviorPlan() {
         status: "draft",
       });
 
-      setStatus({ type: "success", message: "Behavior plan uploaded successfully to secure HIPAA-compliant storage." });
+      setStatus({ type: "success", message: "Behavior plan uploaded successfully." });
       setFile(null);
       setSelectedChildId("");
     } catch (error) {
@@ -104,12 +99,12 @@ export default function UploadBehaviorPlan() {
             </div>
             <div>
               <h1 className="text-2xl font-semibold text-foreground">Upload Behavior Plan</h1>
-              <p className="text-sm text-muted-foreground">Stored securely in HIPAA-compliant Firebase Storage</p>
+              <p className="text-sm text-muted-foreground">Stored securely in the cloud</p>
             </div>
           </div>
 
           <p className="text-sm text-muted-foreground bg-muted/50 rounded-xl p-3 mb-6">
-            Upload an existing behavior plan document (PDF, DOCX, or TXT). All files are stored in Firebase Storage under your BAA agreement with Google.
+            Upload an existing behavior plan document (PDF, DOCX, or TXT).
           </p>
 
           <div className="space-y-6">

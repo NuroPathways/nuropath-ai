@@ -20,13 +20,13 @@ export default function ClientDetail() {
 
   useEffect(() => {
     if (!childId) { navigate("/ClinicianDashboard"); return; }
-    const firebaseUser = auth.currentUser;
-    if (!firebaseUser) { navigate("/"); return; }
 
     const load = async () => {
+      const me = await base44.auth.me().catch(() => null);
+      if (!me) { navigate("/"); return; }
       const [childData, behaviorPlans] = await Promise.all([
-        Collections.Child.get(childId),
-        Collections.BehaviorPlan.filter({ child_id: childId }),
+        base44.entities.Child.filter({ id: childId }).then(r => r[0] || null).catch(() => null),
+        base44.entities.BehaviorPlan.filter({ child_id: childId }).catch(() => []),
       ]);
       setChild(childData);
       setEditForm(childData || {});
@@ -38,7 +38,7 @@ export default function ClientDetail() {
 
   const handleSave = async () => {
     setSaving(true);
-    await Collections.Child.update(childId, {
+    await base44.entities.Child.update(childId, {
       child_name: editForm.child_name,
       age: editForm.age,
       diagnosis: editForm.diagnosis,
@@ -53,7 +53,7 @@ export default function ClientDetail() {
   const handleDelete = async () => {
     if (!window.confirm("Delete this client? This cannot be undone.")) return;
     setDeleting(true);
-    await Collections.Child.delete(childId);
+    await base44.entities.Child.delete(childId);
     navigate("/ClinicianDashboard");
   };
 
