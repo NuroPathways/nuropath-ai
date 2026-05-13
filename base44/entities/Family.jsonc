@@ -49,7 +49,7 @@
           "data.clinician_id": "{{user.id}}"
         },
         {
-          "data.linked_parent_user_id": "{{user.id}}"
+          "data.invite_email": "{{user.email}}"
         },
         {
           "user_condition": {
@@ -59,10 +59,28 @@
       ]
     },
     "update": {
-      "data.clinician_id": "{{user.id}}"
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "delete": {
-      "data.clinician_id": "{{user.id}}"
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     }
   }
 }
