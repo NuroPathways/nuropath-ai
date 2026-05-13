@@ -75,14 +75,24 @@
   ],
   "rls": {
     "create": {
-      "user_condition": {
-        "app_role": "clinician"
-      }
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "read": {
       "$or": [
         {
           "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "data.parent_id": "{{user.id}}"
         },
         {
           "user_condition": {
