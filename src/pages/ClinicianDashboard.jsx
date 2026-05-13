@@ -33,7 +33,7 @@ export default function ClinicianDashboard() {
   useEffect(() => {
     const load = async () => {
       const me = await base44.auth.me().catch(() => null);
-      if (!me) { navigate("/"); return; }
+      if (!me) return;
       setUser(me);
       const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
       setChildren(kids);
