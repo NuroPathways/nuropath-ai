@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import {
   Users, FileText, Plus, BarChart2, MessageCircle,
   Upload, ShieldAlert, ChevronRight, Brain, TrendingUp,
@@ -21,7 +22,7 @@ function getGreeting() {
 
 export default function ClinicianDashboard() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const [children, setChildren] = useState([]);
   const [plans, setPlans] = useState([]);
   const [logs, setLogs] = useState([]);
@@ -31,10 +32,9 @@ export default function ClinicianDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user) return;
     const load = async () => {
-      const me = await base44.auth.me().catch(() => null);
-      if (!me) { setLoading(false); return; }
-      setUser(me);
+      const me = user;
       const [kids, allPlans, allLogs, msgs] = await Promise.all([
         base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []),
         base44.entities.BehaviorPlan.filter({ created_by: me.id }).catch(() => []),
@@ -46,17 +46,15 @@ export default function ClinicianDashboard() {
       // Filter logs to only children assigned to this clinician
       const kidIds = new Set(kids.map(k => k.id));
       setLogs(allLogs.filter(l => kidIds.has(l.child_id)));
-      const msgs2 = msgs;
-      setMessages(msgs2.filter(m => !m.is_read));
+      setMessages(msgs.filter(m => !m.is_read));
       setLoading(false);
     };
     load();
-  }, []);
+  }, [user]);
 
   const refresh = async () => {
-    const me = await base44.auth.me().catch(() => null);
-    if (!me) return;
-    const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
+    if (!user) return;
+    const kids = await base44.entities.Child.filter({ clinician_id: user.id }).catch(() => []);
     setChildren(kids);
   };
 
@@ -81,7 +79,7 @@ export default function ClinicianDashboard() {
               </div>
               <p className="text-white/70 text-sm mb-1">{getGreeting()},</p>
               <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">
-                {loading ? "..." : (user?.full_name || "Clinician")}
+                {user?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "there"} 👋
               </h1>
               <p className="text-white/60 text-sm">Here's your clinical overview for today</p>
             </div>

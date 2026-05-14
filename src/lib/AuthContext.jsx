@@ -80,6 +80,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Call this after updateMe() to sync the context user with latest data
+  const refreshUser = async () => {
+    const currentUser = await base44.auth.me().catch(() => null);
+    if (currentUser) setUser(currentUser);
+    return currentUser;
+  };
+
   const logout = (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
@@ -108,6 +115,7 @@ export const AuthProvider = ({ children }) => {
       navigateToLogin,
       checkAppState,
       checkUserAuth,
+      refreshUser,
     }}>
       {children}
     </AuthContext.Provider>

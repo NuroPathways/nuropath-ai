@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Brain, Stethoscope, Users, Loader2, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -9,6 +10,7 @@ export default function RoleSetup() {
   const [user, setUser] = useState(null);
   const [inviteFamily, setInviteFamily] = useState(null);
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
 
   const inviteToken = new URLSearchParams(window.location.search).get("invite");
 
@@ -53,12 +55,14 @@ export default function RoleSetup() {
       linked_clinician_id: family.clinician_id,
       account_type: family.account_type || "parent_family",
     });
+    await refreshUser();
     navigate("/ParentDashboard");
   };
 
   const setupClinician = async () => {
     setSaving(true);
     await base44.auth.updateMe({ app_role: "clinician" });
+    await refreshUser();
     navigate("/ClinicianDashboard");
   };
 
@@ -78,6 +82,7 @@ export default function RoleSetup() {
     }
 
     await base44.auth.updateMe(updates);
+    await refreshUser();
     navigate("/ParentDashboard");
   };
 

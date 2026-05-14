@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import {
   MessageSquare, Baby, ChevronRight, AlertCircle, FileText,
   Star, Brain, ClipboardList, TrendingUp, Bell, Activity,
@@ -400,7 +401,7 @@ function FamilyDashboard({ user, children, recentLogs, unreadMessages, loading }
                     <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${intensityColor}`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{log.behavior_type || "Behavior logged"}</p>
-                      <p className="text-xs text-muted-foreground">{child?.child_name || "Child"} · {log.intensity || "—"} intensity</p>
+                      <p className="text-xs text-muted-foreground">{child?.child_name || "Unknown"} · {log.intensity || "—"} intensity</p>
                     </div>
                     <span className="text-xs text-muted-foreground flex-shrink-0">
                       {new Date(log.created_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -433,26 +434,24 @@ function FamilyDashboard({ user, children, recentLogs, unreadMessages, loading }
 
 // ─── Main router component ────────────────────────────────────────────────────
 export default function ParentDashboard() {
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const [children, setChildren] = useState([]);
   const [recentLogs, setRecentLogs] = useState([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [accountType, setAccountType] = useState(null); // "individual" | "parent_family" | "caregiver" | null
+  const [accountType, setAccountType] = useState(null);
 
   useEffect(() => {
-    const load = async () => {
-      const me = await base44.auth.me().catch(() => null);
-      if (!me) { setLoading(false); return; }
-      setUser(me);
+    if (!user) return;
 
-      // Determine account type — prefer what's stored on the user, then fallback to family record
-      let resolvedType = me.account_type || null;
+    const load = async () => {
+      // Determine account type — prefer what's stored on the user record first
+      let resolvedType = user.account_type || null;
 
       const [kidsByParentId, kidsByEmail, msgs] = await Promise.all([
-        base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
-        me.email ? base44.entities.Child.filter({ parent_email: me.email }).catch(() => []) : Promise.resolve([]),
-        base44.entities.Message.filter({ to_user_id: me.id }).catch(() => []),
+        base44.entities.Child.filter({ parent_id: user.id }).catch(() => []),
+        user.email ? base44.entities.Child.filter({ parent_email: user.email }).catch(() => []) : Promise.resolve([]),
+        base44.entities.Message.filter({ to_user_id: user.id }).catch(() => []),
       ]);
 
       const allKidsMap = new Map();
@@ -461,8 +460,8 @@ export default function ParentDashboard() {
 
       // Back-fill parent_id on children found only by email
       for (const k of allKids) {
-        if (!k.parent_id && me.id) {
-          base44.entities.Child.update(k.id, { parent_id: me.id }).catch(() => {});
+        if (!k.parent_id && user.id) {
+          base44.entities.Child.update(k.id, { parent_id: user.id }).catch(() => {});
         }
       }
 
@@ -471,28 +470,30 @@ export default function ParentDashboard() {
 
       // If account_type not on user record yet, look it up from family
       if (!resolvedType) {
-        const familyId = me.linked_family_id || allKids[0]?.family_id;
+        const familyId = user.linked_family_id || allKids[0]?.family_id;
         if (familyId) {
           const fams = await base44.entities.Family.filter({ id: familyId }).catch(() => []);
           resolvedType = fams[0]?.account_type || "parent_family";
-          // Back-fill on user for future logins
           if (resolvedType) {
             base44.auth.updateMe({ account_type: resolvedType }).catch(() => {});
           }
+        } else {
+          // No family found — default to parent_family to avoid permanent spinner
+          resolvedType = "parent_family";
         }
       }
 
       setAccountType(resolvedType);
 
       if (allKids.length > 0) {
-        const logs = await base44.entities.BehaviorLog.filter({ parent_id: me.id }, "-created_date", 5).catch(() => []);
+        const logs = await base44.entities.BehaviorLog.filter({ parent_id: user.id }, "-created_date", 5).catch(() => []);
         setRecentLogs(logs);
       }
 
       setLoading(false);
     };
     load();
-  }, []);
+  }, [user]);
 
   // Show loading spinner while resolving account type
   if (loading || accountType === null) {
@@ -506,7 +507,6 @@ export default function ParentDashboard() {
   const isIndividual = accountType === "individual";
 
   if (isIndividual) {
-    // For individual accounts: first child record IS the client's own profile
     const profile = children[0] || null;
     return <SelfClientDashboard user={user} profile={profile} unreadMessages={unreadMessages} loading={false} />;
   }

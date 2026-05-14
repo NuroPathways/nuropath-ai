@@ -18,6 +18,11 @@ export default function Layout({ children, currentPageName }) {
     if (user.app_role === "clinician") {
       base44.entities.Child.filter({ clinician_id: user.id }).then(setChildrenList).catch(() => {});
     } else if (user.app_role === "parent") {
+      // Set account type immediately from user record (no async needed)
+      if (user.account_type) {
+        setIsIndividualClient(user.account_type === "individual");
+      }
+
       Promise.all([
         base44.entities.Child.filter({ parent_id: user.id }).catch(() => []),
         user.email ? base44.entities.Child.filter({ parent_email: user.email }).catch(() => []) : Promise.resolve([]),
@@ -27,11 +32,9 @@ export default function Layout({ children, currentPageName }) {
         const kids = Array.from(map.values());
         setChildrenList(kids);
 
-        // Check account type — prefer stored value on user, fallback to family record
-        if (user.account_type) {
-          setIsIndividualClient(user.account_type === "individual");
-        } else {
-          const familyId = user.linked_family_id || (kids[0]?.family_id);
+        // Only do family lookup if account_type not already known
+        if (!user.account_type) {
+          const familyId = user.linked_family_id || kids[0]?.family_id;
           if (familyId) {
             base44.entities.Family.filter({ id: familyId }).catch(() => []).then(fams => {
               if (fams[0]?.account_type === "individual") setIsIndividualClient(true);
