@@ -138,7 +138,7 @@ export default function Layout({ children, currentPageName }) {
               )}
 
               <Link to="/AIChat" className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${currentPageName === "AIChat" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}>
-                <MessageSquare className="w-4 h-4" /> Aspire AI
+                <MessageSquare className="w-4 h-4" /> NeuroPath AI
                 {currentPageName === "AIChat" && <ChevronRight className="w-3 h-3 ml-auto" />}
               </Link>
               <Link to="/HelpNow" className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${currentPageName === "HelpNow" ? "bg-red-600 text-white" : "text-red-600 hover:text-red-700 hover:bg-red-50"}`}>
@@ -183,7 +183,7 @@ export default function Layout({ children, currentPageName }) {
           <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
             <Brain className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-semibold text-foreground text-sm">Aspire AI</span>
+          <span className="font-semibold text-foreground text-sm">NuroPathways</span>
         </div>
         <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -220,7 +220,7 @@ export default function Layout({ children, currentPageName }) {
                   })}
                 </div>
               )}
-              <Link to="/AIChat" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${currentPageName === "AIChat" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}><MessageSquare className="w-4 h-4" /> Aspire AI</Link>
+              <Link to="/AIChat" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${currentPageName === "AIChat" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}><MessageSquare className="w-4 h-4" /> NeuroPath AI</Link>
               <Link to="/HelpNow" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${currentPageName === "HelpNow" ? "bg-red-600 text-white" : "text-red-600 hover:text-red-700 hover:bg-red-50"}`}><AlertCircle className="w-4 h-4" /> Help Now</Link>
               <Link to="/DocumentCenter" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${currentPageName === "DocumentCenter" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}><FileText className="w-4 h-4" /> Documents</Link>
               <Link to="/Messages" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${currentPageName === "Messages" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}><MessageSquare className="w-4 h-4" /> Messages</Link>

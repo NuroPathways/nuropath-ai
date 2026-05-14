@@ -119,18 +119,18 @@ async function buildContext(childId, childName) {
 
 async function generateResponse(userMessage, child, clinicianContext, conversationHistory, isIndividualClient) {
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-  const historyText = conversationHistory.slice(-8).map(m => `${m.role === "user" ? (isIndividualClient ? "Client" : "Parent") : "Aspire AI"}: ${m.content}`).join("\n\n");
+  const historyText = conversationHistory.slice(-8).map(m => `${m.role === "user" ? (isIndividualClient ? "Client" : "Parent") : "NeuroPath AI"}: ${m.content}`).join("\n\n");
 
   const voiceInstruction = isIndividualClient
     ? `You are speaking DIRECTLY to the client themselves — they are the person the treatment plan is written about. NEVER use third-person language like "allow them to", "let the client", or refer to them by name as if they are absent. Instead, speak directly using "you" and "yourself". Say things like: "Try moving to a quieter space", "You might feel better if you take a few slow breaths", "When you notice yourself getting overwhelmed, you can step away." Make all guidance feel personal, empowering, and actionable for the person reading it.`
     : `You are speaking to a parent or caregiver. Use caregiver-directed language — refer to the child by name or as "they/them". It's appropriate to say things like "Allow ${child?.child_name || "them"} to retreat to a quiet space" or "Pause verbal demands until ${child?.child_name || "they"} is regulated."`;
 
-  const systemPrompt = `You are Aspire AI — an intelligent, warm behavioral support assistant. ${voiceInstruction}
+  const systemPrompt = `You are NeuroPath AI — a warm, practical behavioral support assistant for families and individual clients. ${voiceInstruction}
 
 TODAY'S DATE: ${today}
 ${isIndividualClient ? `CLIENT: ${child?.child_name || "Unknown"}, Age: ${child?.age || "N/A"}, Diagnosis: ${child?.diagnosis || "N/A"}` : `CHILD: ${child?.child_name || "Unknown"}, Age: ${child?.age || "N/A"}, Diagnosis: ${child?.diagnosis || "N/A"}`}
 
-=== ALL CLINICIAN DATA & CONTEXT ===
+=== CLINICIAN DATA & CONTEXT ===
 ${clinicianContext.context || "No data loaded yet."}
 === END CONTEXT ===
 
@@ -138,7 +138,22 @@ ${clinicianContext.context || "No data loaded yet."}
 ${historyText || "No prior messages."}
 === END CONVERSATION ===
 
-Respond to ANY of: document summaries, daily schedules, homework planning, date-specific session queries, behavior guidance, progress summaries, trigger identification. Be warm, specific, and reference actual clinical data when relevant. Use markdown for structure.`;
+IMPORTANT RESPONSE RULES:
+1. TRANSLATE clinical jargon into plain, everyday language. Preserve the clinical meaning but remove technical wording that families won't understand.
+   - Instead of "antecedent modification techniques" → say "removing things that usually set off the behavior before it starts"
+   - Instead of "differential reinforcement" → say "praising the behavior you want to see more of"
+   - Instead of "emotional dysregulation" → say "feeling overwhelmed or out of control"
+   - Instead of "maladaptive behaviors" → say "challenging behaviors"
+   - Instead of "extinction procedure" → say "consistently ignoring the behavior to help it fade"
+2. Format responses with clear sections using markdown headers when answering guidance questions:
+   ### What may be happening
+   ### What to do right now
+   ### What to avoid
+   ### When to contact your clinician (only if relevant)
+3. Be warm, specific, and practical. Write like a knowledgeable friend, not a clinical report.
+4. NEVER invent strategies or advice not supported by the clinician's data above.
+5. Keep crisis/safety guidance (aggression, self-harm, emergency instructions) clear and precise — do NOT water down safety steps.
+6. Use the clinician's actual data — reference specific plan names, strategies, and steps when relevant.`;
 
   return await base44.integrations.Core.InvokeLLM({
     model: "claude_sonnet_4_6",
@@ -233,7 +248,7 @@ export default function AIChat() {
               <Brain className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <p className="font-semibold text-foreground text-sm">Aspire AI</p>
+              <p className="font-semibold text-foreground text-sm">NeuroPath AI</p>
               <p className="text-xs text-muted-foreground">
                 {loadingContext ? "Loading your data..." : clinicianContext.hasPlans || clinicianContext.hasDocuments ? "Data loaded ✓" : "Connected"}
               </p>
@@ -349,8 +364,8 @@ export default function AIChat() {
         </div>
         <p className="text-center text-xs text-muted-foreground mt-2 max-w-2xl mx-auto">
           {isIndividualClient
-            ? "Aspire AI reads your clinician's documents and your treatment plan to give you guidance you can use right now."
-            : "Aspire AI reads all your clinician's documents, plans, and session history to give you personalized answers."}
+            ? "NeuroPath AI reads your clinician's documents and support plan to give you guidance you can use right now."
+            : "NeuroPath AI reads your clinician's documents, support plans, and session history to give you personalized answers."}
         </p>
       </div>
     </div>

@@ -22,7 +22,7 @@ function SelfClientDashboard({ user, profile, unreadMessages, loading }) {
   const firstName = user?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
 
   const tools = [
-    { label: "Aspire AI", sub: "Get support right now", icon: Brain, color: "bg-primary/10", iconColor: "text-primary", path: "/AIChat" },
+    { label: "NeuroPath AI", sub: "Get support right now", icon: Brain, color: "bg-primary/10", iconColor: "text-primary", path: "/AIChat" },
     { label: "My Documents", sub: "Treatment plans & materials", icon: FileText, color: "bg-blue-50", iconColor: "text-blue-600", path: "/DocumentCenter" },
     { label: "My Progress", sub: "Trends & behavior history", icon: TrendingUp, color: "bg-purple-50", iconColor: "text-purple-600", path: "/ProgressReports" },
     { label: "Messages", sub: "Chat with your clinician", icon: MessageSquare, color: "bg-green-50", iconColor: "text-green-600", path: "/Messages" },
@@ -197,7 +197,7 @@ function SelfClientDashboard({ user, profile, unreadMessages, loading }) {
           <div>
             <p className="text-sm font-semibold text-foreground mb-1">You're doing great</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Your progress matters. Use Aspire AI anytime you need support, and reach out to your clinician through Messages whenever you need to talk.
+              Your progress matters. Use NeuroPath AI anytime you need support, and reach out to your clinician through Messages whenever you need to talk.
             </p>
           </div>
         </motion.div>
@@ -212,7 +212,7 @@ function FamilyDashboard({ user, children, recentLogs, unreadMessages, loading }
   const firstName = user?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
 
   const tools = [
-    { label: "Aspire AI", sub: "Ask about your child's plan", icon: Brain, color: "bg-primary/10", iconColor: "text-primary", path: "/AIChat" },
+    { label: "NeuroPath AI", sub: "Ask about your child's plan", icon: Brain, color: "bg-primary/10", iconColor: "text-primary", path: "/AIChat" },
     { label: "Documents", sub: "View care plans & materials", icon: FileText, color: "bg-blue-50", iconColor: "text-blue-600", path: "/DocumentCenter" },
     { label: "Reward Tracker", sub: "Track milestones & tokens", icon: Star, color: "bg-yellow-50", iconColor: "text-yellow-600", path: "/RewardTracker" },
     { label: "Messages", sub: "Chat with your clinician", icon: MessageSquare, color: "bg-green-50", iconColor: "text-green-600", path: "/Messages" },

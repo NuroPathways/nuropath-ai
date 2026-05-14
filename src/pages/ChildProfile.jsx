@@ -149,7 +149,7 @@ export default function ChildProfile() {
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
             className="bg-card border border-border rounded-2xl p-5">
             <h2 className="font-semibold text-foreground flex items-center gap-2 mb-3 text-sm">
-              <ShieldAlert className="w-4 h-4 text-primary" /> Intervention Plans ({interventionPlans.length})
+              <ShieldAlert className="w-4 h-4 text-primary" /> Support Plans ({interventionPlans.length})
             </h2>
             <div className="space-y-2">
               {interventionPlans.map(ip => (
@@ -178,8 +178,8 @@ export default function ChildProfile() {
               <Brain className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="font-semibold text-foreground text-sm">Ask Aspire AI</p>
-              <p className="text-xs text-muted-foreground">Questions about {child.child_name}'s plan</p>
+              <p className="font-semibold text-foreground text-sm">Ask NeuroPath AI</p>
+              <p className="text-xs text-muted-foreground">Questions about {child.child_name}'s support plan</p>
             </div>
           </div>
           <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -190,7 +190,7 @@ export default function ChildProfile() {
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
             className="bg-card border border-border rounded-2xl p-5">
             <h2 className="font-semibold text-foreground flex items-center gap-2 mb-3 text-sm">
-              <FileText className="w-4 h-4 text-primary" /> Clinical Plans ({plans.length})
+              <FileText className="w-4 h-4 text-primary" /> Care Plans ({plans.length})
             </h2>
             <div className="space-y-2">
               {plans.map(plan => (
