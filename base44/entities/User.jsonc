@@ -20,19 +20,20 @@
     },
     "account_type": {
       "type": "string",
-      "description": "self or with_child"
-    },
-    "invite_token": {
-      "type": "string",
-      "description": "Invite token used during signup to link to a family"
+      "enum": [
+        "parent_family",
+        "individual",
+        "caregiver"
+      ],
+      "description": "Type of client account \u2014 mirrors the Family.account_type value. 'individual' = self-managed client."
     },
     "linked_family_id": {
       "type": "string",
-      "description": "Family ID this parent is linked to"
+      "description": "Family ID this parent/client is linked to"
     },
     "linked_clinician_id": {
       "type": "string",
-      "description": "Clinician ID this parent is linked to"
+      "description": "Clinician ID this parent/client is linked to"
     }
   }
 }

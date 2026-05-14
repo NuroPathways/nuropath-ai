@@ -25,10 +25,13 @@ const SUGGESTED_INDIVIDUAL = [
   "Walk me through what to do when I feel anxious",
 ];
 
-async function detectIndividualClient(childId) {
+async function detectIndividualClient(childId, user) {
+  // Prefer account_type stored directly on user (set during RoleSetup)
+  if (user?.account_type) return user.account_type === "individual";
+  // Fallback: look up from family record
   try {
-    const children = await base44.entities.Child.filter({ id: childId }).catch(() => []);
-    const child = children[0];
+    const kids = await base44.entities.Child.filter({ id: childId }).catch(() => []);
+    const child = kids[0];
     if (!child?.family_id) return false;
     const fams = await base44.entities.Family.filter({ id: child.family_id }).catch(() => []);
     return fams[0]?.account_type === "individual";
@@ -178,7 +181,7 @@ export default function AIChat() {
     setLoadingContext(true);
     Promise.all([
       buildContext(selectedChildId, child?.child_name || ""),
-      detectIndividualClient(selectedChildId),
+      detectIndividualClient(selectedChildId, user),
     ]).then(([ctx, isInd]) => {
       setClinicianContext(ctx);
       setIsIndividualClient(isInd);
@@ -232,11 +235,11 @@ export default function AIChat() {
             <div>
               <p className="font-semibold text-foreground text-sm">Aspire AI</p>
               <p className="text-xs text-muted-foreground">
-                {loadingContext ? "Loading your data..." : clinicianContext.hasPlans || clinicianContext.hasDocuments ? "Clinician data loaded ✓" : "Connected"}
+                {loadingContext ? "Loading your data..." : clinicianContext.hasPlans || clinicianContext.hasDocuments ? "Data loaded ✓" : "Connected"}
               </p>
             </div>
           </div>
-          {children.length > 0 && (
+          {children.length > 1 && !isIndividualClient && (
             <Select value={selectedChildId} onValueChange={setSelectedChildId}>
               <SelectTrigger className="w-36 h-8 text-xs rounded-lg border-border">
                 <SelectValue placeholder="Select child" />

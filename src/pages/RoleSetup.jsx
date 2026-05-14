@@ -42,12 +42,17 @@ export default function RoleSetup() {
 
   const acceptInvite = async (me, family) => {
     setSaving(true);
+    const isIndividual = family.account_type === "individual";
     const kids = await base44.entities.Child.filter({ family_id: family.id }).catch(() => []);
     for (const kid of kids) {
       await base44.entities.Child.update(kid.id, { parent_id: me.id, parent_email: me.email });
     }
     await base44.entities.Family.update(family.id, { invite_status: "accepted" });
-    await base44.auth.updateMe({ linked_family_id: family.id, linked_clinician_id: family.clinician_id });
+    await base44.auth.updateMe({
+      linked_family_id: family.id,
+      linked_clinician_id: family.clinician_id,
+      account_type: family.account_type || "parent_family",
+    });
     navigate("/ParentDashboard");
   };
 
@@ -64,6 +69,7 @@ export default function RoleSetup() {
     if (inviteFamily) {
       updates.linked_family_id = inviteFamily.id;
       updates.linked_clinician_id = inviteFamily.clinician_id;
+      updates.account_type = inviteFamily.account_type || "parent_family";
       const kids = await base44.entities.Child.filter({ family_id: inviteFamily.id }).catch(() => []);
       for (const kid of kids) {
         await base44.entities.Child.update(kid.id, { parent_id: user.id, parent_email: user.email });
@@ -92,12 +98,21 @@ export default function RoleSetup() {
 
           {inviteFamily ? (
             <>
-              <p className="text-muted-foreground mb-2">You've been invited to join the <strong>{inviteFamily.family_name}</strong> family profile.</p>
-              <p className="text-sm text-muted-foreground mb-8">Your clinician has already set up your child's plans and documents.</p>
+              {inviteFamily.account_type === "individual" ? (
+                <>
+                  <p className="text-muted-foreground mb-2">Your clinician has set up a personal care account for <strong>{inviteFamily.family_name}</strong>.</p>
+                  <p className="text-sm text-muted-foreground mb-8">Your treatment plans, documents, and AI support are ready for you.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-muted-foreground mb-2">You've been invited to join the <strong>{inviteFamily.family_name}</strong> family profile.</p>
+                  <p className="text-sm text-muted-foreground mb-8">Your clinician has already set up your child's plans and documents.</p>
+                </>
+              )}
               <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 mb-6 text-left">
                 <div className="flex items-center gap-3 mb-2">
                   <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
-                  <p className="text-sm font-medium text-foreground">Family profile ready</p>
+                  <p className="text-sm font-medium text-foreground">{inviteFamily.account_type === "individual" ? "Personal profile ready" : "Family profile ready"}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />

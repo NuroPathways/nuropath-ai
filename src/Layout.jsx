@@ -27,12 +27,16 @@ export default function Layout({ children, currentPageName }) {
         const kids = Array.from(map.values());
         setChildrenList(kids);
 
-        // Check if individual client via family record
-        const familyId = user.linked_family_id || (kids[0]?.family_id);
-        if (familyId) {
-          base44.entities.Family.filter({ id: familyId }).catch(() => []).then(fams => {
-            if (fams[0]?.account_type === "individual") setIsIndividualClient(true);
-          });
+        // Check account type — prefer stored value on user, fallback to family record
+        if (user.account_type) {
+          setIsIndividualClient(user.account_type === "individual");
+        } else {
+          const familyId = user.linked_family_id || (kids[0]?.family_id);
+          if (familyId) {
+            base44.entities.Family.filter({ id: familyId }).catch(() => []).then(fams => {
+              if (fams[0]?.account_type === "individual") setIsIndividualClient(true);
+            });
+          }
         }
       });
     }

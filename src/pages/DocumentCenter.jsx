@@ -49,13 +49,20 @@ export default function DocumentCenter() {
   useEffect(() => {
     const load = async () => {
       const me = await base44.auth.me();
-      const merged = await base44.entities.Child.filter({ parent_id: me.id }).catch(() => []);
+
+      // Fetch children by both parent_id and parent_email to ensure all are found
+      const [byId, byEmail] = await Promise.all([
+        base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
+        me.email ? base44.entities.Child.filter({ parent_email: me.email }).catch(() => []) : Promise.resolve([]),
+      ]);
+      const seen = new Set();
+      const merged = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
       setChildren(merged);
 
       if (merged.length > 0) {
         const [docResults, planResults] = await Promise.all([
-          Promise.all(merged.map(c => base44.entities.Document.filter({ child_id: c.id }))),
-          Promise.all(merged.map(c => base44.entities.BehaviorPlan.filter({ child_id: c.id }))),
+          Promise.all(merged.map(c => base44.entities.Document.filter({ child_id: c.id }).catch(() => []))),
+          Promise.all(merged.map(c => base44.entities.BehaviorPlan.filter({ child_id: c.id }).catch(() => []))),
         ]);
         const docs = docResults.flat();
         const planDocs = planResults.flat().filter(p => p.file_url).map(p => ({
