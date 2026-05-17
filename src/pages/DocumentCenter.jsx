@@ -45,10 +45,15 @@ export default function DocumentCenter() {
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [children, setChildren] = useState([]);
+  const [isIndividual, setIsIndividual] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       const me = await base44.auth.me();
+
+      // Detect individual client account type
+      const acctType = me.account_type || null;
+      if (acctType === "individual") setIsIndividual(true);
 
       // Fetch children by both parent_id and parent_email to ensure all are found
       const [byId, byEmail] = await Promise.all([
@@ -57,6 +62,18 @@ export default function DocumentCenter() {
       ]);
       const seen = new Set();
       const merged = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+
+      // For individual clients, detect from family if not already set
+      if (!acctType && merged.length > 0) {
+        const familyId = me.linked_family_id || merged[0]?.family_id;
+        if (familyId) {
+          const fams = await base44.entities.Family.filter({ id: familyId }).catch(() => []);
+          if (fams[0]?.account_type === "individual") setIsIndividual(true);
+        } else if (merged.length === 1 && merged[0]?.is_patient) {
+          setIsIndividual(true);
+        }
+      }
+
       setChildren(merged);
 
       if (merged.length > 0) {
@@ -86,6 +103,7 @@ export default function DocumentCenter() {
   }, []);
 
   const childMap = Object.fromEntries(children.map(c => [c.id, c.child_name]));
+
   const filtered = documents.filter(doc => {
     const matchSearch = search === "" || doc.title?.toLowerCase().includes(search.toLowerCase());
     const matchCat = filterCat === "all" || doc.category === filterCat;
@@ -173,7 +191,7 @@ export default function DocumentCenter() {
                         {CATEGORY_LABELS[doc.category] || doc.category}
                       </span>
                     )}
-                    {doc.child_id && childMap[doc.child_id] && (
+                    {!isIndividual && doc.child_id && childMap[doc.child_id] && (
                       <span className="text-xs text-muted-foreground">{childMap[doc.child_id]}</span>
                     )}
                   </div>

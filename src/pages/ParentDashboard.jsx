@@ -19,7 +19,8 @@ function getGreeting() {
 // ─── Individual / Self-managed client dashboard ───────────────────────────────
 function SelfClientDashboard({ user, profile, unreadMessages, documents, loading }) {
   const navigate = useNavigate();
-  const firstName = user?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
+  // Use the user's own full name for greeting, not the child record name
+  const firstName = user?.full_name?.split(" ")[0] || "there";
 
   const tools = [
     { label: "NeuroPath AI", sub: "Get support right now", icon: Brain, color: "bg-primary/10", iconColor: "text-primary", path: "/AIChat" },
@@ -49,7 +50,7 @@ function SelfClientDashboard({ user, profile, unreadMessages, documents, loading
               </div>
               <p className="text-white/70 text-sm">{getGreeting()},</p>
               <h1 className="text-2xl md:text-3xl font-bold text-white mt-0.5 mb-1">
-                {loading ? "..." : firstName} 👋
+                {user?.full_name || firstName} 👋
               </h1>
               <p className="text-white/60 text-sm">Your personal behavioral support hub</p>
             </div>
@@ -478,6 +479,10 @@ export default function ParentDashboard() {
           if (resolvedType) {
             base44.auth.updateMe({ account_type: resolvedType }).catch(() => {});
           }
+        } else if (allKids.length === 1 && allKids[0]?.is_patient) {
+          // Single linked record marked as the identified patient → individual client
+          resolvedType = "individual";
+          base44.auth.updateMe({ account_type: "individual" }).catch(() => {});
         } else {
           // No family found — default to parent_family to avoid permanent spinner
           resolvedType = "parent_family";
