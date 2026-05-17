@@ -32,34 +32,21 @@
     },
     "notes": {
       "type": "string"
+    },
+    "scan_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "scanning",
+        "done",
+        "error"
+      ],
+      "default": "pending"
     }
   },
   "required": [
     "child_id",
     "title",
     "file_url"
-  ],
-  "rls": {
-    "create": {
-      "data.clinician_id": "{{user.id}}"
-    },
-    "read": {
-      "$or": [
-        {
-          "data.clinician_id": "{{user.id}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
-    "update": {
-      "data.clinician_id": "{{user.id}}"
-    },
-    "delete": {
-      "data.clinician_id": "{{user.id}}"
-    }
-  }
+  ]
 }

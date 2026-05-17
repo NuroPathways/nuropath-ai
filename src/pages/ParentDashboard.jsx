@@ -17,7 +17,7 @@ function getGreeting() {
 }
 
 // ─── Individual / Self-managed client dashboard ───────────────────────────────
-function SelfClientDashboard({ user, profile, unreadMessages, loading }) {
+function SelfClientDashboard({ user, profile, unreadMessages, documents, loading }) {
   const navigate = useNavigate();
   const firstName = user?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
 
@@ -67,8 +67,8 @@ function SelfClientDashboard({ user, profile, unreadMessages, loading }) {
           <div className="grid grid-cols-3 gap-3 mt-8">
             {[
               { label: "My Plans", value: profile ? "Active" : "—", icon: BookOpen },
+              { label: "Documents", value: loading ? "—" : (documents?.length || 0), icon: FileText },
               { label: "Messages", value: loading ? "—" : unreadMessages, icon: MessageSquare },
-              { label: "My Profile", value: profile ? "Linked" : "—", icon: User },
             ].map((s, i) => (
               <motion.div
                 key={s.label}
@@ -438,6 +438,7 @@ export default function ParentDashboard() {
   const [children, setChildren] = useState([]);
   const [recentLogs, setRecentLogs] = useState([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [accountType, setAccountType] = useState(null);
 
@@ -486,8 +487,12 @@ export default function ParentDashboard() {
       setAccountType(resolvedType);
 
       if (allKids.length > 0) {
-        const logs = await base44.entities.BehaviorLog.filter({ parent_id: user.id }, "-created_date", 5).catch(() => []);
+        const [logs, docResults] = await Promise.all([
+          base44.entities.BehaviorLog.filter({ parent_id: user.id }, "-created_date", 5).catch(() => []),
+          Promise.all(allKids.map(k => base44.entities.Document.filter({ child_id: k.id }).catch(() => []))),
+        ]);
         setRecentLogs(logs);
+        setDocuments(docResults.flat());
       }
 
       setLoading(false);
@@ -508,7 +513,7 @@ export default function ParentDashboard() {
 
   if (isIndividual) {
     const profile = children[0] || null;
-    return <SelfClientDashboard user={user} profile={profile} unreadMessages={unreadMessages} loading={false} />;
+    return <SelfClientDashboard user={user} profile={profile} unreadMessages={unreadMessages} documents={documents} loading={false} />;
   }
 
   return <FamilyDashboard user={user} children={children} recentLogs={recentLogs} unreadMessages={unreadMessages} loading={false} />;

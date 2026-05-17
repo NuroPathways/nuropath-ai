@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, AlertCircle, FileText, Star, ClipboardList, MessageCircle, AlertTriangle, Stethoscope, Calendar, ChevronRight, ShieldAlert, Brain } from "lucide-react";
+import { ArrowLeft, AlertCircle, FileText, Star, ClipboardList, MessageCircle, AlertTriangle, Stethoscope, Calendar, ChevronRight, ShieldAlert, Brain, Download } from "lucide-react";
 import { motion } from "framer-motion";
 
 const SEVERITY_STYLES = {
@@ -22,6 +22,7 @@ export default function ChildProfile() {
   const [child, setChild] = useState(null);
   const [plans, setPlans] = useState([]);
   const [interventionPlans, setInterventionPlans] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const childId = new URLSearchParams(window.location.search).get("child_id");
@@ -32,10 +33,11 @@ export default function ChildProfile() {
       const me = await base44.auth.me().catch(() => null);
       if (!me) { base44.auth.redirectToLogin(window.location.href); return; }
 
-      const [kids, ps, ips] = await Promise.all([
+      const [kids, ps, ips, docs] = await Promise.all([
         base44.entities.Child.filter({ id: childId }),
         base44.entities.BehaviorPlan.filter({ child_id: childId }),
         base44.entities.InterventionPlan.filter({ child_id: childId }),
+        base44.entities.Document.filter({ child_id: childId }).catch(() => []),
       ]);
 
       const child = kids[0] || null;
@@ -49,6 +51,7 @@ export default function ChildProfile() {
       setChild(isAuthorized ? child : null);
       setPlans(isAuthorized ? ps : []);
       setInterventionPlans(isAuthorized ? ips : []);
+      setDocuments(isAuthorized ? docs : []);
       setLoading(false);
     };
     load();
@@ -211,6 +214,29 @@ export default function ChildProfile() {
                       className="text-xs text-primary hover:underline ml-2 flex-shrink-0">View</a>
                   )}
                 </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Documents from clinician */}
+        {documents.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+            className="bg-card border border-border rounded-2xl p-5">
+            <h2 className="font-semibold text-foreground flex items-center gap-2 mb-3 text-sm">
+              <Download className="w-4 h-4 text-primary" /> Documents ({documents.length})
+            </h2>
+            <div className="space-y-2">
+              {documents.map(doc => (
+                <a key={doc.id} href={doc.file_url} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/40 transition-all group">
+                  <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{doc.title}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{doc.category?.replace(/_/g, " ")}</p>
+                  </div>
+                  <Download className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+                </a>
               ))}
             </div>
           </motion.div>

@@ -60,11 +60,13 @@ export default function DocumentCenter() {
       setChildren(merged);
 
       if (merged.length > 0) {
+        // Fetch all docs and behavior plans for each child
         const [docResults, planResults] = await Promise.all([
           Promise.all(merged.map(c => base44.entities.Document.filter({ child_id: c.id }).catch(() => []))),
           Promise.all(merged.map(c => base44.entities.BehaviorPlan.filter({ child_id: c.id }).catch(() => []))),
         ]);
         const docs = docResults.flat();
+        // Also include behavior plans that have an uploaded file_url
         const planDocs = planResults.flat().filter(p => p.file_url).map(p => ({
           id: `plan_${p.id}`,
           title: p.behavior_name,
@@ -73,7 +75,10 @@ export default function DocumentCenter() {
           file_name: p.file_name || `${p.behavior_name}.pdf`,
           child_id: p.child_id,
         }));
-        setDocuments([...docs, ...planDocs]);
+        // Deduplicate by id
+        const allDocs = [...docs, ...planDocs];
+        const seenIds = new Set();
+        setDocuments(allDocs.filter(d => { if (seenIds.has(d.id)) return false; seenIds.add(d.id); return true; }));
       }
       setLoading(false);
     };
