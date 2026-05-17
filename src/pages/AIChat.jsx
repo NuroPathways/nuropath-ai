@@ -26,12 +26,13 @@ const SUGGESTED_INDIVIDUAL = [
 ];
 
 async function detectIndividualClient(childId, user) {
-  // Prefer account_type stored directly on user (set during RoleSetup)
+  // Always trust account_type stored on the user record first
   if (user?.account_type) return user.account_type === "individual";
   // Fallback: look up from family record
   try {
     const kids = await base44.entities.Child.filter({ id: childId }).catch(() => []);
     const child = kids[0];
+    if (child?.is_patient && !child?.family_id) return true;
     if (!child?.family_id) return false;
     const fams = await base44.entities.Family.filter({ id: child.family_id }).catch(() => []);
     return fams[0]?.account_type === "individual";
@@ -178,6 +179,8 @@ export default function AIChat() {
       const me = await base44.auth.me().catch(() => null);
       if (!me) { base44.auth.redirectToLogin(window.location.href); return; }
       setUser(me);
+      // Set account type immediately from user record — no async needed
+      if (me.account_type === "individual") setIsIndividualClient(true);
       const [byId, byEmail] = await Promise.all([
         base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
         base44.entities.Child.filter({ parent_email: me.email }).catch(() => []),

@@ -30,9 +30,20 @@ export default function Messages() {
       if (me.app_role === "clinician") {
         kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
       } else {
-        kids = await base44.entities.Child.filter({ parent_id: me.id }).catch(() => []);
+        const [byId, byEmail] = await Promise.all([
+          base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
+          base44.entities.Child.filter({ parent_email: me.email }).catch(() => []),
+        ]);
+        const map = new Map();
+        for (const k of [...byId, ...byEmail]) map.set(k.id, k);
+        kids = Array.from(map.values());
       }
       setChildren(kids);
+
+      // Individual clients go straight into their conversation
+      if (me.account_type === "individual" && kids.length > 0) {
+        setSelectedChild(kids[0]);
+      }
 
       // Load last message per child for preview
       const previews = {};
@@ -116,9 +127,11 @@ export default function Messages() {
             <span className="text-primary font-bold text-sm">{selectedChild.child_name?.[0]}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-foreground text-sm">{selectedChild.child_name}</p>
+            <p className="font-semibold text-foreground text-sm">
+              {user?.account_type === "individual" ? "My Clinician" : selectedChild.child_name}
+            </p>
             <p className="text-xs text-muted-foreground">
-              {user?.app_role === "clinician" ? "Parent conversation" : "Clinician conversation"}
+              {user?.app_role === "clinician" ? "Client conversation" : "Clinician conversation"}
             </p>
           </div>
         </div>
@@ -127,7 +140,9 @@ export default function Messages() {
           {messages.length === 0 ? (
             <div className="text-center py-16">
               <MessageCircle className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">No messages yet for {selectedChild.child_name}.</p>
+              <p className="text-sm text-muted-foreground">
+                {user?.account_type === "individual" ? "No messages yet. Send a message to your clinician." : `No messages yet for ${selectedChild.child_name}.`}
+              </p>
             </div>
           ) : (
             <div className="space-y-3 max-w-xl mx-auto">
@@ -151,7 +166,7 @@ export default function Messages() {
 
         {!recipientId && user?.app_role !== "clinician" && (
           <div className="px-4 py-3 bg-yellow-50 border-t border-yellow-200 text-xs text-yellow-700 text-center flex-shrink-0">
-            No clinician linked to this child yet.
+            No clinician linked yet. Ask your clinician to connect your account.
           </div>
         )}
 
@@ -187,7 +202,7 @@ export default function Messages() {
         ) : (
           <div className="space-y-3">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-4">
-              {user?.app_role === "clinician" ? "Clients" : "My Children"}
+              {user?.app_role === "clinician" ? "Clients" : user?.account_type === "individual" ? "My Conversations" : "My Children"}
             </p>
             {children.map((child, i) => {
               const last = lastMessages[child.id];

@@ -476,15 +476,14 @@ export default function ParentDashboard() {
         if (familyId) {
           const fams = await base44.entities.Family.filter({ id: familyId }).catch(() => []);
           resolvedType = fams[0]?.account_type || "parent_family";
-          if (resolvedType) {
-            base44.auth.updateMe({ account_type: resolvedType }).catch(() => {});
-          }
+          base44.auth.updateMe({ account_type: resolvedType }).catch(() => {});
         } else if (allKids.length === 1 && allKids[0]?.is_patient) {
-          // Single linked record marked as the identified patient → individual client
           resolvedType = "individual";
           base44.auth.updateMe({ account_type: "individual" }).catch(() => {});
+        } else if (allKids.length > 0) {
+          resolvedType = "parent_family";
         } else {
-          // No family found — default to parent_family to avoid permanent spinner
+          // No kids found yet — wait, don't default
           resolvedType = "parent_family";
         }
       }
