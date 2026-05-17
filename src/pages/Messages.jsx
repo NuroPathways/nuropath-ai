@@ -66,7 +66,8 @@ export default function Messages() {
       if (event.data?.child_id !== selectedChild.id) return;
       if (event.type === "create") {
         setMessages(prev => {
-          if (prev.find(m => m.id === event.id)) return prev;
+          const msgId = event.data?.id || event.id;
+          if (prev.find(m => m.id === msgId)) return prev;
           return [...prev, event.data].sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
         });
       }
@@ -80,19 +81,20 @@ export default function Messages() {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!newMsg.trim()) return;
+    if (!newMsg.trim() || sending) return;
     setSending(true);
+    const body = newMsg.trim();
+    setNewMsg("");
     const msg = await base44.entities.Message.create({
       from_user_id: user.id,
       to_user_id: recipientId || null,
       child_id: selectedChild.id,
-      body: newMsg.trim(),
+      body,
       sender_role: user.app_role === "clinician" ? "clinician" : "parent",
       is_read: false,
     });
-    setMessages(prev => [...prev, msg]);
+    // Update last message preview; subscription handles adding to thread
     setLastMessages(prev => ({ ...prev, [selectedChild.id]: msg }));
-    setNewMsg("");
     setSending(false);
   };
 
