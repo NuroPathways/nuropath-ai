@@ -17,6 +17,7 @@ export default function Messages() {
   const [sending, setSending] = useState(false);
   const [recipientId, setRecipientId] = useState("");
   const [lastMessages, setLastMessages] = useState({});
+  const [isIndividual, setIsIndividual] = useState(false);
   const bottomRef = useRef(null);
   const unsubscribeRef = useRef(null);
 
@@ -41,7 +42,9 @@ export default function Messages() {
       setChildren(kids);
 
       // Individual clients go straight into their conversation
-      if (me.account_type === "individual" && kids.length > 0) {
+      const individual = me.account_type === "individual";
+      setIsIndividual(individual);
+      if (individual && kids.length > 0) {
         setSelectedChild(kids[0]);
       }
 
@@ -120,7 +123,7 @@ export default function Messages() {
     return (
       <div className="flex flex-col h-screen bg-background font-inter">
         <div className="bg-card border-b border-border px-4 py-4 flex items-center gap-3 flex-shrink-0">
-          <button onClick={() => setSelectedChild(null)} className="text-muted-foreground hover:text-foreground">
+          <button onClick={() => isIndividual ? navigate("/ParentDashboard") : setSelectedChild(null)} className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -131,7 +134,7 @@ export default function Messages() {
               {user?.account_type === "individual" ? "My Clinician" : selectedChild.child_name}
             </p>
             <p className="text-xs text-muted-foreground">
-              {user?.app_role === "clinician" ? "Client conversation" : "Clinician conversation"}
+              {user?.app_role === "clinician" ? "Client conversation" : isIndividual ? "Your clinician" : "Clinician conversation"}
             </p>
           </div>
         </div>
