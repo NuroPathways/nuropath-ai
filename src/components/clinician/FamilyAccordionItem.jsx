@@ -20,11 +20,14 @@ export default function FamilyAccordionItem({ family, children, parentUsers }) {
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">{family.family_name} Family</p>
-          <p className="text-xs text-muted-foreground">
-            {childCount} child{childCount !== 1 ? "ren" : ""}
-            {parentCount > 0 ? ` · ${parentCount} guardian${parentCount !== 1 ? "s" : ""}` : ""}
-          </p>
+          <p className="text-sm font-semibold text-foreground">
+              {family.account_type === "individual" ? family.family_name : `${family.family_name} Family`}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {family.account_type === "individual"
+                ? `Individual client${childCount > 0 ? " · profile linked" : ""}`
+                : `${childCount} child${childCount !== 1 ? "ren" : ""}${parentCount > 0 ? ` · ${parentCount} guardian${parentCount !== 1 ? "s" : ""}` : ""}`}
+            </p>
         </div>
         <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
       </button>

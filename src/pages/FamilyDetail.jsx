@@ -161,7 +161,9 @@ export default function FamilyDetail() {
 
           {/* Reconnect section */}
           <div className="mt-4 pt-4 border-t border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Parent Connection</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              {family.account_type === "individual" ? "Client Connection" : "Parent Connection"}
+            </p>
             <div className="flex items-center gap-2 flex-wrap">
               <span className={`text-xs px-2 py-1 rounded-full font-medium ${family.invite_status === "accepted" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
                 {family.invite_status === "accepted" ? "Connected" : "Pending"}
@@ -214,15 +216,21 @@ export default function FamilyDetail() {
 
         <div>
           <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="font-semibold text-foreground text-sm">Children ({children.length})</h2>
-            <Button size="sm" variant="outline" className="rounded-xl h-7 text-xs gap-1.5" onClick={() => setShowAddChild(true)}>
-              <UserPlus className="w-3 h-3" /> Add Child
-            </Button>
+            <h2 className="font-semibold text-foreground text-sm">
+              {family.account_type === "individual" ? "Client Profile" : `Children (${children.length})`}
+            </h2>
+            {family.account_type !== "individual" && (
+              <Button size="sm" variant="outline" className="rounded-xl h-7 text-xs gap-1.5" onClick={() => setShowAddChild(true)}>
+                <UserPlus className="w-3 h-3" /> Add Child
+              </Button>
+            )}
           </div>
           {children.length === 0 ? (
             <div className="text-center py-10 border-2 border-dashed border-border rounded-2xl">
               <Users className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">No children linked to this family.</p>
+              <p className="text-sm text-muted-foreground">
+                {family.account_type === "individual" ? "No client profile linked yet." : "No children linked to this family."}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, User, FileText, Trash2, Edit2, Save, X } from "lucide-react";
+import { ArrowLeft, User, FileText, Trash2, Edit2, Save, X, Upload, Download, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +17,8 @@ export default function ClientDetail() {
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [documents, setDocuments] = useState([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!childId) { navigate("/ClinicianDashboard"); return; }
@@ -24,13 +26,15 @@ export default function ClientDetail() {
     const load = async () => {
       const me = await base44.auth.me().catch(() => null);
       if (!me) { navigate("/"); return; }
-      const [childData, behaviorPlans] = await Promise.all([
+      const [childData, behaviorPlans, docs] = await Promise.all([
         base44.entities.Child.filter({ id: childId }).then(r => r[0] || null).catch(() => null),
         base44.entities.BehaviorPlan.filter({ child_id: childId }).catch(() => []),
+        base44.entities.Document.filter({ child_id: childId }).catch(() => []),
       ]);
       setChild(childData);
       setEditForm(childData || {});
       setPlans(behaviorPlans);
+      setDocuments(docs);
       setLoading(false);
     };
     load();
@@ -48,6 +52,28 @@ export default function ClientDetail() {
     setChild(prev => ({ ...prev, ...editForm }));
     setEditing(false);
     setSaving(false);
+  };
+
+  const handleUploadDocument = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    const doc = await base44.entities.Document.create({
+      child_id: childId,
+      title: file.name.replace(/\.[^/.]+$/, ""),
+      file_url,
+      file_name: file.name,
+      category: "other",
+    });
+    setDocuments(prev => [...prev, doc]);
+    setUploading(false);
+    e.target.value = "";
+  };
+
+  const handleDeleteDoc = async (docId) => {
+    await base44.entities.Document.delete(docId);
+    setDocuments(prev => prev.filter(d => d.id !== docId));
   };
 
   const handleDelete = async () => {
@@ -110,6 +136,46 @@ export default function ClientDetail() {
             </div>
           )}
         </motion.div>
+
+        {/* Documents */}
+        <div>
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="font-semibold text-foreground text-sm">Documents ({documents.length})</h2>
+            <label className="cursor-pointer">
+              <input type="file" className="hidden" onChange={handleUploadDocument} disabled={uploading} />
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors">
+                {uploading ? <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                {uploading ? "Uploading..." : "Upload"}
+              </span>
+            </label>
+          </div>
+          {documents.length === 0 ? (
+            <div className="text-center py-8 border-2 border-dashed border-border rounded-2xl">
+              <FileText className="w-7 h-7 text-muted-foreground mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground">No documents yet.</p>
+              <label className="cursor-pointer mt-3 inline-block">
+                <input type="file" className="hidden" onChange={handleUploadDocument} disabled={uploading} />
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors">
+                  <Upload className="w-3.5 h-3.5" /> Upload Document
+                </span>
+              </label>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {documents.map((doc) => (
+                <div key={doc.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
+                  <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{doc.title}</p>
+                    {doc.file_name && <p className="text-xs text-muted-foreground truncate">{doc.file_name}</p>}
+                  </div>
+                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors"><Download className="w-4 h-4" /></a>
+                  <button onClick={() => handleDeleteDoc(doc.id)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div>
           <h2 className="font-semibold text-foreground text-sm mb-3 px-1">Behavior Plans ({plans.length})</h2>
