@@ -44,6 +44,11 @@
           "data.to_user_id": "{{user.id}}"
         },
         {
+          "data.child_id": {
+            "$in": "{{user.accessible_child_ids}}"
+          }
+        },
+        {
           "user_condition": {
             "role": "admin"
           }
@@ -52,6 +57,9 @@
     },
     "update": {
       "$or": [
+        {
+          "data.from_user_id": "{{user.id}}"
+        },
         {
           "data.to_user_id": "{{user.id}}"
         },
@@ -63,9 +71,12 @@
       ]
     },
     "delete": {
+      "data.from_user_id": "{{user.id}}",
       "$or": [
         {
-          "data.from_user_id": "{{user.id}}"
+          "user_condition": {
+            "app_role": "clinician"
+          }
         },
         {
           "user_condition": {
