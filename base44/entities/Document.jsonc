@@ -48,5 +48,36 @@
     "child_id",
     "title",
     "file_url"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.clinician_id": "{{user.id}}",
+      "user_condition": {
+        "app_role": "clinician"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
+          "data.child_id": {
+            "$in": "{{user.accessible_child_ids}}"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "data.clinician_id": "{{user.id}}"
+    },
+    "delete": {
+      "data.clinician_id": "{{user.id}}"
+    }
+  }
 }
