@@ -10,7 +10,9 @@ const noLayoutPages = ["Splash", "Login", "RoleSelection", "ClinicianLogin", "Pa
 export default function Layout({ children, currentPageName }) {
   const { user, isLoadingAuth } = useAuth();
   const [children_list, setChildrenList] = useState([]);
-  const [isIndividualClient, setIsIndividualClient] = useState(false);
+  const [isIndividualFallback, setIsIndividualFallback] = useState(false);
+  // Compute directly from user.account_type for instant rendering; fall back to async lookup
+  const isIndividualClient = user?.account_type === "individual" || isIndividualFallback;
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -19,10 +21,6 @@ export default function Layout({ children, currentPageName }) {
       base44.entities.Child.filter({ clinician_id: user.id }).then(setChildrenList).catch(() => {});
     } else if (user.app_role === "parent") {
       // Set account type immediately from user record (no async needed)
-      if (user.account_type) {
-        setIsIndividualClient(user.account_type === "individual");
-      }
-
       Promise.all([
         base44.entities.Child.filter({ parent_id: user.id }).catch(() => []),
         user.email ? base44.entities.Child.filter({ parent_email: user.email }).catch(() => []) : Promise.resolve([]),
@@ -32,12 +30,12 @@ export default function Layout({ children, currentPageName }) {
         const kids = Array.from(map.values());
         setChildrenList(kids);
 
-        // Only do family lookup if account_type not already known
+        // Fallback: if account_type not on user record, look up from family
         if (!user.account_type) {
           const familyId = user.linked_family_id || kids[0]?.family_id;
           if (familyId) {
             base44.entities.Family.filter({ id: familyId }).catch(() => []).then(fams => {
-              if (fams[0]?.account_type === "individual") setIsIndividualClient(true);
+              if (fams[0]?.account_type === "individual") setIsIndividualFallback(true);
             });
           }
         }
