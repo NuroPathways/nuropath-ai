@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, Users, Trash2, Edit2, Save, X, MessageCircle, FileText, ClipboardList, RefreshCw, Copy, Check, UserPlus } from "lucide-react";
+import { ArrowLeft, Users, Trash2, Edit2, Save, X, MessageCircle, FileText, ClipboardList, RefreshCw, Copy, Check, UserPlus, Upload, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +24,11 @@ export default function FamilyDetail() {
   const [copied, setCopied] = useState(false);
   const [showAddChild, setShowAddChild] = useState(false);
   const [clinicianId, setClinicianId] = useState("");
+  const [documents, setDocuments] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadTitle, setUploadTitle] = useState("");
+  const [uploadChildId, setUploadChildId] = useState("");
+  const [showUpload, setShowUpload] = useState(false);
 
   useEffect(() => {
     if (!familyId) { navigate(-1); return; }
@@ -41,6 +46,11 @@ export default function FamilyDetail() {
       setEditName(familyData?.family_name || "");
       setEditNotes(familyData?.notes || "");
       setChildren(familyChildren);
+      if (familyChildren.length > 0) {
+        const docs = await Promise.all(familyChildren.map(c => base44.entities.Document.filter({ child_id: c.id }).catch(() => [])));
+        setDocuments(docs.flat());
+        setUploadChildId(familyChildren[0].id);
+      }
 
       if (familyChildren.length > 0) {
         const childIds = familyChildren.map(c => c.id);
@@ -108,6 +118,18 @@ export default function FamilyDetail() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadTitle.trim() || !uploadChildId) return;
+    setUploading(true);
+    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    const doc = await base44.entities.Document.create({ child_id: uploadChildId, title: uploadTitle, file_url, file_name: file.name, clinician_id: clinicianId });
+    setDocuments(prev => [...prev, doc]);
+    setUploadTitle("");
+    setShowUpload(false);
+    setUploading(false);
+  };
+
   const handleDelete = async () => {
     if (!window.confirm("Delete this family and all associated data? This cannot be undone.")) return;
     await Promise.all(children.map(child => base44.entities.Child.delete(child.id)));
@@ -161,9 +183,7 @@ export default function FamilyDetail() {
 
           {/* Reconnect section */}
           <div className="mt-4 pt-4 border-t border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-              {family.account_type === "individual" ? "Client Connection" : "Parent Connection"}
-            </p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Parent Connection</p>
             <div className="flex items-center gap-2 flex-wrap">
               <span className={`text-xs px-2 py-1 rounded-full font-medium ${family.invite_status === "accepted" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
                 {family.invite_status === "accepted" ? "Connected" : "Pending"}
@@ -228,9 +248,7 @@ export default function FamilyDetail() {
           {children.length === 0 ? (
             <div className="text-center py-10 border-2 border-dashed border-border rounded-2xl">
               <Users className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">
-                {family.account_type === "individual" ? "No client profile linked yet." : "No children linked to this family."}
-              </p>
+              <p className="text-sm text-muted-foreground">No children linked to this family.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -247,6 +265,59 @@ export default function FamilyDetail() {
                   </div>
                   <ArrowLeft className="w-4 h-4 text-muted-foreground rotate-180" />
                 </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Documents Section */}
+        <div>
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="font-semibold text-foreground text-sm">Documents ({documents.length})</h2>
+            <Button size="sm" variant="outline" className="rounded-xl h-7 text-xs gap-1.5" onClick={() => setShowUpload(!showUpload)}>
+              <Plus className="w-3 h-3" /> Upload
+            </Button>
+          </div>
+
+          {showUpload && (
+            <div className="bg-card border border-border rounded-2xl p-4 mb-3 space-y-3">
+              <input
+                type="text"
+                placeholder="Document title"
+                value={uploadTitle}
+                onChange={e => setUploadTitle(e.target.value)}
+                className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              {children.length > 1 && (
+                <select value={uploadChildId} onChange={e => setUploadChildId(e.target.value)} className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm">
+                  {children.map(c => <option key={c.id} value={c.id}>{c.child_name}</option>)}
+                </select>
+              )}
+              <label className={`flex items-center gap-2 justify-center w-full py-2.5 rounded-xl border-2 border-dashed border-border cursor-pointer hover:border-primary/40 transition-colors ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+                <Upload className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">{uploading ? "Uploading..." : "Choose file"}</span>
+                <input type="file" className="hidden" onChange={handleUpload} disabled={uploading || !uploadTitle.trim()} />
+              </label>
+            </div>
+          )}
+
+          {documents.length === 0 ? (
+            <div className="text-center py-8 border-2 border-dashed border-border rounded-2xl">
+              <FileText className="w-7 h-7 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No documents uploaded yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {documents.map((doc) => (
+                <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-3 bg-card border border-border rounded-xl p-3 hover:border-primary/40 transition-colors">
+                  <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{doc.title}</p>
+                    {doc.file_name && <p className="text-xs text-muted-foreground truncate">{doc.file_name}</p>}
+                  </div>
+                  <ArrowLeft className="w-4 h-4 text-muted-foreground rotate-180" />
+                </a>
               ))}
             </div>
           )}

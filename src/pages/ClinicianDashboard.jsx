@@ -24,7 +24,6 @@ export default function ClinicianDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [children, setChildren] = useState([]);
-  const [plans, setPlans] = useState([]);
   const [logs, setLogs] = useState([]);
   const [messages, setMessages] = useState([]);
   const [showAddFamily, setShowAddFamily] = useState(false);
@@ -35,14 +34,12 @@ export default function ClinicianDashboard() {
     if (!user) return;
     const load = async () => {
       const me = user;
-      const [kids, allPlans, allLogs, msgs] = await Promise.all([
+      const [kids, allLogs, msgs] = await Promise.all([
         base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []),
-        base44.entities.BehaviorPlan.filter({ created_by: me.id }).catch(() => []),
         base44.entities.BehaviorLog.filter({}).catch(() => []),
         base44.entities.Message.filter({ to_user_id: me.id }).catch(() => []),
       ]);
       setChildren(kids);
-      setPlans(allPlans);
       // Filter logs to only children assigned to this clinician
       const kidIds = new Set(kids.map(k => k.id));
       setLogs(allLogs.filter(l => kidIds.has(l.child_id)));
@@ -94,7 +91,6 @@ export default function ClinicianDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-8">
             {[
               { label: "Active Clients", value: loading ? "—" : children.length, icon: Users, sub: "enrolled" },
-              { label: "Behavior Plans", value: loading ? "—" : plans.length, icon: FileText, sub: "created" },
               { label: "Behavior Logs", value: loading ? "—" : logs.length, icon: Activity, sub: "recorded" },
               { label: "Unread Messages", value: loading ? "—" : messages.length, icon: MessageCircle, sub: "waiting", link: "/Messages" },
             ].map((s, i) => (
@@ -240,10 +236,7 @@ export default function ClinicianDashboard() {
                   <span className="text-muted-foreground">Total logs recorded</span>
                   <span className="font-semibold text-foreground">{loading ? "—" : logs.length}</span>
                 </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Behavior plans active</span>
-                  <span className="font-semibold text-foreground">{loading ? "—" : plans.length}</span>
-                </div>
+
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">Clients enrolled</span>
                   <span className="font-semibold text-foreground">{loading ? "—" : children.length}</span>
