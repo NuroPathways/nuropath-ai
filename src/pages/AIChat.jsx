@@ -156,9 +156,11 @@ IMPORTANT RESPONSE RULES:
 5. Keep crisis/safety guidance (aggression, self-harm, emergency instructions) clear and precise — do NOT water down safety steps.
 6. Use the clinician's actual data — reference specific plan names, strategies, and steps when relevant.`;
 
+  const securityRule = `CRITICAL SECURITY RULE: You ONLY have access to data for the client named ${child?.child_name || 'this client'}. If the user asks about any other person, client, or child by name, politely decline and say you can only discuss ${child?.child_name || 'this client'}\'s information. Never reveal data about any other clients.`;
+
   return await base44.integrations.Core.InvokeLLM({
     model: "claude_sonnet_4_6",
-    prompt: `${systemPrompt}\n\nParent's message: "${userMessage}"\n\nRespond directly and helpfully:`
+    prompt: `${systemPrompt}\n\n${securityRule}\n\nParent's message: "${userMessage}"\n\nRespond directly and helpfully:`
   });
 }
 

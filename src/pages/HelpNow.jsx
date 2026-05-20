@@ -104,7 +104,40 @@ export default function HelpNow() {
         displayCats.push({ type: "behavior_plan", key: p.id, planId: p.id, label: p.behavior_name, emoji: "📋", color: CATEGORY_COLORS[p.severity_level] || "bg-slate-50 border-slate-200 text-slate-700" });
       });
       if (displayCats.length === 0 && hasDocs) {
-        displayCats.push({ type: "doc_search", key: "doc_search", label: "Search my clinician's documents", emoji: "📂", color: "bg-blue-50 border-blue-200 text-blue-700" });
+        // Use AI to extract real situation categories from the uploaded documents
+        const relevantDocs = docs.filter(d => ["treatment_plan", "behavior_protocol", "reinforcement_plan", "coping_strategy", "other"].includes(d.category));
+        try {
+          const extracted = await base44.integrations.Core.InvokeLLM({
+            prompt: `Read these clinical documents and extract the specific behavioral situations, challenges, or scenarios that are covered. Return 3-8 distinct situation labels that a parent or client could select from when they need help right now. Each label should be short (2-5 words), plain-language, and actionable (e.g. "Meltdown or Tantrum", "Feeling Anxious", "Refusing Tasks", "Trouble Sleeping", "School Refusal", "Aggression or Hitting"). Only include situations clearly supported by the document content.`,
+            file_urls: relevantDocs.slice(0, 3).map(d => d.file_url),
+            response_json_schema: {
+              type: "object",
+              properties: {
+                situations: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      label: { type: "string" },
+                      emoji: { type: "string" }
+                    }
+                  }
+                }
+              },
+              required: ["situations"]
+            }
+          }).catch(() => null);
+
+          if (extracted?.situations?.length > 0) {
+            extracted.situations.forEach(sit => {
+              displayCats.push({ type: "doc_search", key: `doc_${sit.label}`, label: sit.label, emoji: sit.emoji || "📋", color: "bg-blue-50 border-blue-200 text-blue-700" });
+            });
+          } else {
+            displayCats.push({ type: "doc_search", key: "doc_search", label: "Search my clinician's documents", emoji: "📂", color: "bg-blue-50 border-blue-200 text-blue-700" });
+          }
+        } catch {
+          displayCats.push({ type: "doc_search", key: "doc_search", label: "Search my clinician's documents", emoji: "📂", color: "bg-blue-50 border-blue-200 text-blue-700" });
+        }
       }
 
       setAvailableCategories(displayCats);
