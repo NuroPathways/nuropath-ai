@@ -168,7 +168,11 @@ export default function FamilyDetail() {
             </div>
             <div>
               <p className="font-bold text-foreground">{family.family_name}</p>
-              {family.parent_name && <p className="text-xs text-muted-foreground">Parent: {family.parent_name}</p>}
+              {family.parent_name && (
+                <p className="text-xs text-muted-foreground">
+                  {family.account_type === "individual" ? "Client" : "Parent"}: {family.parent_name}
+                </p>
+              )}
             </div>
           </div>
 
@@ -183,7 +187,9 @@ export default function FamilyDetail() {
 
           {/* Reconnect section */}
           <div className="mt-4 pt-4 border-t border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Parent Connection</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              {family.account_type === "individual" ? "Client Connection" : "Parent Connection"}
+            </p>
             <div className="flex items-center gap-2 flex-wrap">
               <span className={`text-xs px-2 py-1 rounded-full font-medium ${family.invite_status === "accepted" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
                 {family.invite_status === "accepted" ? "Connected" : "Pending"}
@@ -248,7 +254,9 @@ export default function FamilyDetail() {
           {children.length === 0 ? (
             <div className="text-center py-10 border-2 border-dashed border-border rounded-2xl">
               <Users className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">No children linked to this family.</p>
+              <p className="text-sm text-muted-foreground">
+                {family.account_type === "individual" ? "No client profile linked yet." : "No children linked to this family."}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
