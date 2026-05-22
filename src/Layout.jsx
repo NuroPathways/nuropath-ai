@@ -75,7 +75,7 @@ export default function Layout({ children, currentPageName }) {
               <Brain className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <p className="font-semibold text-foreground text-sm">NuroPathways</p>
+              <p className="font-semibold text-foreground text-sm">NeuroPathways</p>
               <p className="text-xs text-muted-foreground">{role === "clinician" ? "Clinician Portal" : "Client Portal"}</p>
             </div>
           </div>
@@ -181,7 +181,7 @@ export default function Layout({ children, currentPageName }) {
           <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
             <Brain className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-semibold text-foreground text-sm">NuroPathways</span>
+          <span className="font-semibold text-foreground text-sm">NeuroPathways</span>
         </div>
         <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
