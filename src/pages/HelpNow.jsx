@@ -1,42 +1,32 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, AlertTriangle, ChevronRight, CheckCircle2, ShieldAlert, Loader2, MessageSquare } from "lucide-react";
+import { ArrowLeft, AlertTriangle, ChevronRight, CheckCircle2, ShieldAlert, Loader2, MessageSquare, Target, BookOpen, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
-const CATEGORY_COLORS = {
-  tantrum_meltdown: "bg-red-50 border-red-200 text-red-700",
-  aggression: "bg-orange-50 border-orange-200 text-orange-700",
-  anxiety_episode: "bg-yellow-50 border-yellow-200 text-yellow-700",
-  task_refusal: "bg-purple-50 border-purple-200 text-purple-700",
-  bedtime_refusal: "bg-indigo-50 border-indigo-200 text-indigo-700",
-  school_refusal: "bg-blue-50 border-blue-200 text-blue-700",
-  transition_difficulty: "bg-teal-50 border-teal-200 text-teal-700",
-  emotional_dysregulation: "bg-pink-50 border-pink-200 text-pink-700",
-  other: "bg-slate-50 border-slate-200 text-slate-700",
-};
-const CATEGORY_EMOJIS = {
-  tantrum_meltdown: "🌊", aggression: "⚡", anxiety_episode: "😰",
-  task_refusal: "🚫", bedtime_refusal: "🌙", school_refusal: "🏫",
-  transition_difficulty: "🔄", emotional_dysregulation: "💭", other: "📋",
-};
+const CARD_COLORS = [
+  "bg-red-50 border-red-200 text-red-700",
+  "bg-orange-50 border-orange-200 text-orange-700",
+  "bg-yellow-50 border-yellow-200 text-yellow-700",
+  "bg-purple-50 border-purple-200 text-purple-700",
+  "bg-blue-50 border-blue-200 text-blue-700",
+  "bg-teal-50 border-teal-200 text-teal-700",
+  "bg-pink-50 border-pink-200 text-pink-700",
+  "bg-indigo-50 border-indigo-200 text-indigo-700",
+  "bg-green-50 border-green-200 text-green-700",
+];
 
-function formatCategoryLabel(key) {
-  return key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function StepList({ label, content, color = "bg-primary/10 text-primary" }) {
-  if (!content) return null;
-  const lines = content.split("\n").filter(l => l.trim());
+function StepList({ label, items = [], color = "bg-primary/10 text-primary" }) {
+  if (!items?.length) return null;
   return (
     <div className="mb-5">
       <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">{label}</h3>
       <div className="space-y-2">
-        {lines.map((line, i) => (
+        {items.map((line, i) => (
           <div key={i} className={`flex items-start gap-3 p-3 rounded-xl ${color}`}>
             <span className="text-xs font-bold mt-0.5 flex-shrink-0">{i + 1}</span>
-            <p className="text-sm leading-snug">{line.replace(/^\d+[\.\)]\s*/, "")}</p>
+            <p className="text-sm leading-snug">{line}</p>
           </div>
         ))}
       </div>
@@ -46,16 +36,14 @@ function StepList({ label, content, color = "bg-primary/10 text-primary" }) {
 
 export default function HelpNow() {
   const navigate = useNavigate();
-  const [childData, setChildData] = useState({ child: null, documents: [], interventionPlans: [], behaviorPlans: [] });
-  const [availableCategories, setAvailableCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [plan, setPlan] = useState(null);
-  const [aiGuidance, setAiGuidance] = useState(null);
+  const [child, setChild] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [selectedBehavior, setSelectedBehavior] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [step, setStep] = useState("select_behavior");
+  const [step, setStep] = useState("select");
+  const [isIndividualClient, setIsIndividualClient] = useState(false);
 
   const childId = new URLSearchParams(window.location.search).get("child_id");
-  const [isIndividualClient, setIsIndividualClient] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -64,166 +52,105 @@ export default function HelpNow() {
       if (!me) { setLoading(false); return; }
 
       const byId = await base44.entities.Child.filter({ parent_id: me.id }).catch(() => []);
-      // Only fall back to email lookup if no records found by parent_id
       const byEmail = byId.length === 0 && me.email
         ? await base44.entities.Child.filter({ parent_email: me.email }).catch(() => [])
         : [];
       const seen = new Set();
-      const allChildren = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
-
-      let child = childId ? allChildren.find(c => c.id === childId) : allChildren[0];
-      if (!child) { setLoading(false); return; }
-
-      // Check if this is an individual/self client
-      const familyId = child.family_id;
-      if (familyId) {
-        const fams = await base44.entities.Family.filter({ id: familyId }).catch(() => []);
-        if (fams[0]?.account_type === "individual") setIsIndividualClient(true);
-      }
-
-      const [docs, interventionPlans, behaviorPlans] = await Promise.all([
-        base44.entities.Document.filter({ child_id: child.id }).catch(() => []),
-        base44.entities.InterventionPlan.filter({ child_id: child.id }).catch(() => []),
-        base44.entities.BehaviorPlan.filter({ child_id: child.id }).catch(() => []),
-      ]);
-
-      setChildData({ child, documents: docs, interventionPlans, behaviorPlans });
-
-      const cats = new Set();
-      interventionPlans.forEach(p => { if (p.behavior_category && p.is_active !== false) cats.add(p.behavior_category); });
-      behaviorPlans.forEach(p => { if (p.behavior_name) cats.add(`__plan__${p.id}`); });
-
-      const hasDocs = docs.filter(d => ["treatment_plan", "behavior_protocol", "reinforcement_plan", "coping_strategy", "other"].includes(d.category)).length > 0;
-      const structuredCats = [...cats].filter(c => !c.startsWith("__plan__"));
-
-      const displayCats = [];
-      structuredCats.forEach(key => {
-        displayCats.push({ type: "intervention", key, label: formatCategoryLabel(key), emoji: CATEGORY_EMOJIS[key] || "📋", color: CATEGORY_COLORS[key] || CATEGORY_COLORS.other });
+      const allChildren = [...byId, ...byEmail].filter(c => {
+        if (seen.has(c.id)) return false;
+        seen.add(c.id);
+        return true;
       });
-      behaviorPlans.forEach(p => {
-        displayCats.push({ type: "behavior_plan", key: p.id, planId: p.id, label: p.behavior_name, emoji: "📋", color: CATEGORY_COLORS[p.severity_level] || "bg-slate-50 border-slate-200 text-slate-700" });
-      });
-      if (displayCats.length === 0 && hasDocs) {
-        // Use AI to extract real situation categories from the uploaded documents
-        const relevantDocs = docs.filter(d => ["treatment_plan", "behavior_protocol", "reinforcement_plan", "coping_strategy", "other"].includes(d.category));
-        try {
-          const extracted = await base44.integrations.Core.InvokeLLM({
-            prompt: `Read these clinical documents and extract the specific behavioral situations, challenges, or scenarios that are covered. Return 3-8 distinct situation labels that a parent or client could select from when they need help right now. Each label should be short (2-5 words), plain-language, and actionable (e.g. "Meltdown or Tantrum", "Feeling Anxious", "Refusing Tasks", "Trouble Sleeping", "School Refusal", "Aggression or Hitting"). Only include situations clearly supported by the document content.`,
-            file_urls: relevantDocs.slice(0, 3).map(d => d.file_url),
-            response_json_schema: {
-              type: "object",
-              properties: {
-                situations: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      label: { type: "string" },
-                      emoji: { type: "string" }
-                    }
-                  }
-                }
-              },
-              required: ["situations"]
-            }
-          }).catch(() => null);
 
-          if (extracted?.situations?.length > 0) {
-            extracted.situations.forEach(sit => {
-              displayCats.push({ type: "doc_search", key: `doc_${sit.label}`, label: sit.label, emoji: sit.emoji || "📋", color: "bg-blue-50 border-blue-200 text-blue-700" });
-            });
-          } else {
-            displayCats.push({ type: "doc_search", key: "doc_search", label: "Search my clinician's documents", emoji: "📂", color: "bg-blue-50 border-blue-200 text-blue-700" });
-          }
-        } catch {
-          displayCats.push({ type: "doc_search", key: "doc_search", label: "Search my clinician's documents", emoji: "📂", color: "bg-blue-50 border-blue-200 text-blue-700" });
+      const foundChild = childId ? allChildren.find(c => c.id === childId) : allChildren[0];
+      if (!foundChild) { setLoading(false); return; }
+      setChild(foundChild);
+
+      // Check if individual client
+      if (me.account_type === "individual" || foundChild.family_id) {
+        if (me.account_type === "individual") {
+          setIsIndividualClient(true);
+        } else if (foundChild.family_id) {
+          const fams = await base44.entities.Family.filter({ id: foundChild.family_id }).catch(() => []);
+          if (fams[0]?.account_type === "individual") setIsIndividualClient(true);
         }
       }
 
-      setAvailableCategories(displayCats);
+      // Load ClientProfile (primary source)
+      const profiles = await base44.entities.ClientProfile.filter({ child_id: foundChild.id }).catch(() => []);
+      if (profiles[0]?.behaviors?.length > 0) {
+        setProfile(profiles[0]);
+        setLoading(false);
+        return;
+      }
+
+      // Fallback: build from InterventionPlans + BehaviorPlans
+      const [interventionPlans, behaviorPlans] = await Promise.all([
+        base44.entities.InterventionPlan.filter({ child_id: foundChild.id }).catch(() => []),
+        base44.entities.BehaviorPlan.filter({ child_id: foundChild.id }).catch(() => []),
+      ]);
+
+      const fallbackBehaviors = [];
+      interventionPlans.filter(p => p.is_active !== false).forEach(p => {
+        fallbackBehaviors.push({
+          name: p.title || p.behavior_category?.replace(/_/g, " "),
+          emoji: "📋",
+          description: p.description || "",
+          interventions: p.immediate_steps ? p.immediate_steps.split("\n").filter(Boolean) : [],
+          avoid: p.things_to_avoid ? p.things_to_avoid.split("\n").filter(Boolean) : [],
+          linked_goals: [],
+          triggers: [],
+          when_to_contact_clinician: p.emergency_instructions || "",
+          _deescalation: p.deescalation_steps,
+          _reinforcement: p.reinforcement_steps,
+        });
+      });
+      behaviorPlans.forEach(p => {
+        fallbackBehaviors.push({
+          name: p.behavior_name,
+          emoji: "📋",
+          description: p.behavior_description || "",
+          interventions: p.strategy_steps ? p.strategy_steps.split("\n").filter(Boolean) : [],
+          avoid: p.avoid_actions ? p.avoid_actions.split("\n").filter(Boolean) : [],
+          linked_goals: [],
+          triggers: p.common_triggers ? p.common_triggers.split(",").map(t => t.trim()) : [],
+          when_to_contact_clinician: "",
+        });
+      });
+
+      if (fallbackBehaviors.length > 0) {
+        setProfile({ behaviors: fallbackBehaviors, goals: [], diagnoses: [], reinforcers: [], safety_procedures: [], crisis_plan: [] });
+      }
+
       setLoading(false);
     };
     load();
   }, [childId]);
 
-  const handleSelectCategory = async (cat) => {
-    setSelectedCategory(cat);
-    setStep("loading");
-
-    const { child, documents, interventionPlans, behaviorPlans } = childData;
-
-    if (cat.type === "intervention") {
-      const matchedPlan = interventionPlans.find(p => p.behavior_category === cat.key && p.is_active !== false);
-      if (matchedPlan) {
-        setPlan(matchedPlan);
-        setAiGuidance(null);
-        setStep("show_plan");
-        if (child) base44.entities.BehaviorLog.create({ child_id: child.id, behavior_type: cat.label, context: "Parent requested help via Help Now" }).catch(() => {});
-        return;
-      }
+  const handleSelectBehavior = (behavior) => {
+    setSelectedBehavior(behavior);
+    if (!behavior.interventions?.length) {
+      setStep("no_plan");
+    } else {
+      setStep("show_guidance");
     }
-
-    if (cat.type === "behavior_plan") {
-      const bp = behaviorPlans.find(p => p.id === cat.key);
-      if (bp) {
-        setPlan({ title: bp.behavior_name, description: bp.behavior_description, immediate_steps: bp.strategy_steps, deescalation_steps: bp.deescalation_steps, reinforcement_steps: bp.reinforcement_method, prevention_tips: bp.when_to_use, things_to_avoid: bp.avoid_actions, emergency_instructions: null });
-        setAiGuidance(null);
-        setStep("show_plan");
-        if (child) base44.entities.BehaviorLog.create({ child_id: child.id, behavior_type: cat.label, context: "Parent requested help via Help Now (behavior plan)" }).catch(() => {});
-        return;
-      }
+    if (child) {
+      base44.entities.BehaviorLog.create({
+        child_id: child.id,
+        behavior_type: behavior.name,
+        context: "Parent requested help via Help Now"
+      }).catch(() => {});
     }
-
-    const relevantDocs = documents.filter(d => ["treatment_plan", "behavior_protocol", "reinforcement_plan", "coping_strategy", "other"].includes(d.category));
-
-    if (relevantDocs.length > 0) {
-      const behaviorQuery = cat.type === "doc_search" ? "any behavioral crisis, regulation challenge, or emotional difficulty" : cat.label;
-      const { isIndividualClient: isInd } = { isIndividualClient };
-      const promptVoice = isIndividualClient
-        ? `You are a compassionate self-help support assistant. The person reading this IS the client themselves — they are going through "${behaviorQuery}" right now. Speak directly to THEM in first person ("you", "yourself"). Do NOT use third-person language like "allow them" or "let the child". Instead say things like "Try moving to a quieter space", "Take a slow breath in", "You can pause what you're doing right now". Make every step actionable for the person themselves.`
-        : `You are a clinical support assistant. A parent/caregiver needs help right now. Their child/client is having: "${behaviorQuery}". Child: ${child?.child_name || "the child"}. Speak to the caregiver — third-person references to the child are appropriate (e.g. "Allow ${child?.child_name || "them"} to retreat to a quiet space").`;
-      const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `${promptVoice} ${child?.diagnosis ? `Diagnosis: ${child.diagnosis}.` : ""} ${child?.triggers ? `Known triggers: ${child.triggers}.` : ""}\n\nRead the clinician's uploaded documents and extract ONLY clinician-approved guidance. Rewrite every step in the appropriate voice (self-directed if individual client, caregiver-directed if parent). If not relevant, set has_relevant_guidance to false.`,
-        file_urls: relevantDocs.slice(0, 3).map(d => d.file_url),
-        response_json_schema: {
-          type: "object",
-          properties: {
-            has_relevant_guidance: { type: "boolean" },
-            immediate_steps: { type: "string" },
-            deescalation_tips: { type: "string" },
-            things_to_avoid: { type: "string" },
-            source_document: { type: "string" },
-          },
-          required: ["has_relevant_guidance"]
-        }
-      }).catch(() => null);
-
-      if (result?.has_relevant_guidance && result?.immediate_steps) {
-        setAiGuidance(result);
-        setPlan(null);
-        setStep("show_doc_guidance");
-        if (child) base44.entities.BehaviorLog.create({ child_id: child.id, behavior_type: cat.label, context: "Parent requested help via Help Now (document-based)" }).catch(() => {});
-        return;
-      }
-    }
-
-    setPlan(null);
-    setAiGuidance(null);
-    setStep("no_plan");
   };
 
   const handleBack = () => {
-    if (["show_plan", "show_doc_guidance", "no_plan"].includes(step)) {
-      setStep("select_behavior");
-      setSelectedCategory(null);
-      setPlan(null);
-      setAiGuidance(null);
+    if (["show_guidance", "no_plan"].includes(step)) {
+      setStep("select");
+      setSelectedBehavior(null);
     } else {
       navigate(-1);
     }
   };
-
-  const { child } = childData;
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -231,120 +158,222 @@ export default function HelpNow() {
     </div>
   );
 
+  const behaviors = profile?.behaviors || [];
+  const goals = profile?.goals || [];
+  const reinforcers = profile?.reinforcers || [];
+  const safetyProcedures = profile?.safety_procedures || [];
+  const crisisPlan = profile?.crisis_plan || [];
+
   return (
     <div className="min-h-screen bg-background font-inter">
+      {/* Header */}
       <div className="sticky top-0 z-10 bg-red-600 px-4 py-4 flex items-center gap-3">
-        <button onClick={handleBack} className="text-white/80 hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
+        <button onClick={handleBack} className="text-white/80 hover:text-white">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
         <div className="flex items-center gap-2 flex-1">
           <AlertTriangle className="w-5 h-5 text-white" />
           <h1 className="text-white font-bold text-base">I Need Help Now</h1>
         </div>
-        {child && <span className="text-white/80 text-xs bg-white/20 px-2 py-1 rounded-full">{child.child_name}</span>}
+        {child && (
+          <span className="text-white/80 text-xs bg-white/20 px-2 py-1 rounded-full">
+            {child.child_name}
+          </span>
+        )}
       </div>
 
       <div className="p-5 max-w-2xl mx-auto">
         <AnimatePresence mode="wait">
-          {step === "select_behavior" && (
+
+          {/* Step 1: Select Behavior */}
+          {step === "select" && (
             <motion.div key="select" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
               {!child ? (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground text-sm">No client profile linked to your account. Ask your clinician for an invite.</p>
                 </div>
-              ) : availableCategories.length === 0 ? (
+              ) : behaviors.length === 0 ? (
                 <div className="text-center py-12 space-y-4">
                   <div className="text-5xl">📋</div>
                   <h2 className="font-bold text-foreground text-lg">No Approved Plans Yet</h2>
                   <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 text-left">
-                    <p className="text-sm font-semibold text-yellow-800 mb-1">Your clinician hasn't uploaded any intervention plans or behavior protocols yet.</p>
-                    <p className="text-sm text-yellow-700">Once your clinician uploads documents or creates intervention plans for {child.child_name}, they'll appear here.</p>
+                    <p className="text-sm font-semibold text-yellow-800 mb-1">Your clinician hasn't uploaded any clinical documents yet.</p>
+                    <p className="text-sm text-yellow-700">Once your clinician uploads treatment plans or behavior protocols for {child.child_name}, personalized help cards will appear here.</p>
                   </div>
-                  <Button variant="outline" className="w-full rounded-xl" onClick={() => navigate("/Messages")}>Message Your Clinician</Button>
+                  <Button variant="outline" className="w-full rounded-xl" onClick={() => navigate("/Messages")}>
+                    <MessageSquare className="w-4 h-4 mr-2" /> Message Your Clinician
+                  </Button>
                 </div>
               ) : (
                 <>
-                  <p className="text-sm text-muted-foreground mb-5 text-center">What is happening right now? Select the situation.</p>
+                  <div className="mb-5 text-center">
+                    <p className="text-sm font-semibold text-foreground mb-1">What is happening right now?</p>
+                    <p className="text-xs text-muted-foreground">Select a behavior. Only clinician-approved guidance will be shown.</p>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
-                    {availableCategories.map((cat) => (
-                      <button key={cat.key} onClick={() => handleSelectCategory(cat)} className={`border-2 rounded-2xl p-4 text-left transition-all hover:scale-[1.02] active:scale-100 ${cat.color}`}>
-                        <div className="text-3xl mb-2">{cat.emoji}</div>
-                        <p className="text-sm font-semibold leading-snug">{cat.label}</p>
+                    {behaviors.map((behavior, i) => (
+                      <button
+                        key={behavior.name}
+                        onClick={() => handleSelectBehavior(behavior)}
+                        className={`border-2 rounded-2xl p-4 text-left transition-all hover:scale-[1.02] active:scale-100 ${CARD_COLORS[i % CARD_COLORS.length]}`}
+                      >
+                        <div className="text-3xl mb-2">{behavior.emoji || "📋"}</div>
+                        <p className="text-sm font-semibold leading-snug">{behavior.name}</p>
                         <ChevronRight className="w-4 h-4 mt-1 opacity-60" />
                       </button>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground text-center mt-4">Only showing behaviors with clinician-approved plans for {child.child_name}.</p>
+                  <p className="text-xs text-muted-foreground text-center mt-4">
+                    Only showing behaviors with clinician-approved plans for {child.child_name}.
+                  </p>
+
+                  {/* Profile summary chips */}
+                  {(profile?.diagnoses?.length > 0 || reinforcers.length > 0) && (
+                    <div className="mt-6 pt-5 border-t border-border space-y-3">
+                      {profile?.diagnoses?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Diagnoses</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {profile.diagnoses.map(d => (
+                              <span key={d} className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-medium">{d}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {reinforcers.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Known Reinforcers</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {reinforcers.map(r => (
+                              <span key={r} className="text-xs bg-green-50 text-green-700 border border-green-200 px-2.5 py-1 rounded-full font-medium">{r}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </motion.div>
           )}
 
-          {step === "loading" && (
-            <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
-              <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-muted-foreground text-sm">Finding your clinician-approved plan...</p>
-            </motion.div>
-          )}
-
-          {step === "show_plan" && plan && (
-            <motion.div key="plan" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+          {/* Step 2: Show Guidance */}
+          {step === "show_guidance" && selectedBehavior && (
+            <motion.div key="guidance" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+              {/* Header card */}
               <div className="bg-card border border-border rounded-2xl p-5 mb-5">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-2xl">{selectedCategory?.emoji || "📋"}</span>
-                  <h2 className="font-bold text-foreground text-lg">{plan.title}</h2>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">{selectedBehavior.emoji || "📋"}</span>
+                  <h2 className="font-bold text-foreground text-lg">{selectedBehavior.name}</h2>
                 </div>
-                {plan.description && <p className="text-sm text-muted-foreground">{plan.description}</p>}
-                <p className="text-xs text-primary mt-2 font-medium">✓ Clinician-approved plan</p>
+                {selectedBehavior.description && (
+                  <p className="text-sm text-muted-foreground mb-2">{selectedBehavior.description}</p>
+                )}
+                {selectedBehavior.triggers?.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">Common Triggers</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedBehavior.triggers.map(t => (
+                        <span key={t} className="text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full">{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <p className="text-xs text-primary mt-3 font-medium flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Clinician-approved strategies only
+                </p>
               </div>
-              <StepList label="Do This Right Now" content={plan.immediate_steps} color="bg-green-50 border border-green-200 text-green-800" />
-              <StepList label="If It Escalates" content={plan.deescalation_steps} color="bg-yellow-50 border border-yellow-200 text-yellow-800" />
-              <StepList label="Reinforcement & Rewards" content={plan.reinforcement_steps} color="bg-blue-50 border border-blue-200 text-blue-800" />
-              <StepList label="Prevention Tips" content={plan.prevention_tips} color="bg-purple-50 border border-purple-200 text-purple-800" />
-              {plan.things_to_avoid && (
-                <div className="mb-5">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Things to Avoid</h3>
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                    <p className="text-sm text-red-800 whitespace-pre-line">{plan.things_to_avoid}</p>
+
+              {/* Goal Mapping */}
+              {selectedBehavior.linked_goals?.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Target className="w-4 h-4 text-blue-600" />
+                    <h3 className="text-sm font-bold text-blue-800">Treatment Goal Connection</h3>
+                  </div>
+                  <p className="text-xs text-blue-700 mb-2">
+                    Working through this behavior supports {isIndividualClient ? "your" : `${child?.child_name}'s`} treatment goals:
+                  </p>
+                  <div className="space-y-1">
+                    {selectedBehavior.linked_goals.map(g => (
+                      <div key={g} className="flex items-center gap-2 text-sm text-blue-800">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                        <span>{g}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
-              {plan.emergency_instructions && (
+
+              {/* Interventions */}
+              <StepList
+                label="Clinician-Approved Strategies"
+                items={selectedBehavior.interventions}
+                color="bg-green-50 border border-green-200 text-green-800"
+              />
+
+              {/* Things to Avoid */}
+              {selectedBehavior.avoid?.length > 0 && (
+                <div className="mb-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Things to Avoid</h3>
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-1.5">
+                    {selectedBehavior.avoid.map((item, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm text-red-800">
+                        <span className="font-bold text-red-400 flex-shrink-0">✕</span>
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Deescalation (from fallback plans) */}
+              {selectedBehavior._deescalation && (
+                <StepList
+                  label="If It Escalates"
+                  items={selectedBehavior._deescalation.split("\n").filter(Boolean)}
+                  color="bg-yellow-50 border border-yellow-200 text-yellow-800"
+                />
+              )}
+
+              {/* Reinforcement (from fallback plans) */}
+              {selectedBehavior._reinforcement && (
+                <StepList
+                  label="Reinforcement & Rewards"
+                  items={selectedBehavior._reinforcement.split("\n").filter(Boolean)}
+                  color="bg-blue-50 border border-blue-200 text-blue-800"
+                />
+              )}
+
+              {/* Safety / Crisis */}
+              {(safetyProcedures.length > 0 || crisisPlan.length > 0) && (
                 <div className="mb-5">
                   <div className="bg-red-600 rounded-2xl p-4 flex gap-3">
                     <ShieldAlert className="w-5 h-5 text-white flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-bold text-white text-sm mb-1">Emergency Instructions</p>
-                      <p className="text-white/90 text-sm whitespace-pre-line">{plan.emergency_instructions}</p>
+                      <p className="font-bold text-white text-sm mb-1">Safety Procedures</p>
+                      <ul className="space-y-1">
+                        {[...safetyProcedures, ...crisisPlan].map((s, i) => (
+                          <li key={i} className="text-white/90 text-sm">{s}</li>
+                        ))}
+                      </ul>
                     </div>
                   </div>
                 </div>
               )}
-              <Button className="w-full rounded-xl gap-2" onClick={() => navigate(`/LogBehavior?child_id=${child?.id}&behavior=${selectedCategory?.label}`)}>
-                <CheckCircle2 className="w-4 h-4" /> Log This Behavior
-              </Button>
-            </motion.div>
-          )}
 
-          {step === "show_doc_guidance" && aiGuidance && (
-            <motion.div key="docguidance" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-              <div className="bg-card border border-border rounded-2xl p-5 mb-5">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-2xl">{selectedCategory?.emoji || "📋"}</span>
-                  <h2 className="font-bold text-foreground text-lg">{selectedCategory?.label}</h2>
-                </div>
-                <p className="text-xs text-primary mt-1 font-medium">✓ Guidance from your clinician's uploaded documents</p>
-                {aiGuidance.source_document && <p className="text-xs text-muted-foreground mt-0.5">Source: {aiGuidance.source_document}</p>}
-              </div>
-              <StepList label="Do This Right Now" content={aiGuidance.immediate_steps} color="bg-green-50 border border-green-200 text-green-800" />
-              <StepList label="If It Escalates" content={aiGuidance.deescalation_tips} color="bg-yellow-50 border border-yellow-200 text-yellow-800" />
-              {aiGuidance.things_to_avoid && (
-                <div className="mb-5">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Things to Avoid</h3>
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                    <p className="text-sm text-red-800 whitespace-pre-line">{aiGuidance.things_to_avoid}</p>
+              {/* Contact clinician if */}
+              {selectedBehavior.when_to_contact_clinician && (
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-5 flex gap-3">
+                  <AlertCircle className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-bold text-orange-800 uppercase tracking-wide mb-0.5">Contact Your Clinician If</p>
+                    <p className="text-sm text-orange-800">{selectedBehavior.when_to_contact_clinician}</p>
                   </div>
                 </div>
               )}
-              <Button className="w-full rounded-xl gap-2 mb-3" onClick={() => navigate(`/LogBehavior?child_id=${child?.id}&behavior=${selectedCategory?.label}`)}>
+
+              <Button className="w-full rounded-xl gap-2 mb-3" onClick={() => navigate(`/LogBehavior?child_id=${child?.id}&behavior=${selectedBehavior?.name}`)}>
                 <CheckCircle2 className="w-4 h-4" /> Log This Behavior
               </Button>
               <Button variant="outline" className="w-full rounded-xl gap-2" onClick={() => navigate("/Messages")}>
@@ -353,17 +382,24 @@ export default function HelpNow() {
             </motion.div>
           )}
 
-          {step === "no_plan" && (
+          {/* Step 3: No Plan */}
+          {step === "no_plan" && selectedBehavior && (
             <motion.div key="noplan" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="text-center py-10">
-              <div className="text-5xl mb-4">{selectedCategory?.emoji || "📋"}</div>
-              <h2 className="font-bold text-foreground text-lg mb-2">{selectedCategory?.label}</h2>
+              <div className="text-5xl mb-4">{selectedBehavior.emoji || "📋"}</div>
+              <h2 className="font-bold text-foreground text-lg mb-2">{selectedBehavior.name}</h2>
               <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 text-left mb-5">
-                <p className="text-sm font-semibold text-yellow-800 mb-1">No clinician-approved intervention currently exists for this behavior.</p>
-                <p className="text-sm text-yellow-700">Please contact your provider.</p>
+                <div className="flex gap-2 mb-2">
+                  <BookOpen className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm font-semibold text-yellow-800">No clinician-approved strategy was found for this behavior.</p>
+                </div>
+                <p className="text-sm text-yellow-700">Please contact your clinician for guidance on how to handle this situation.</p>
               </div>
-              <Button variant="outline" className="w-full rounded-xl" onClick={() => navigate("/Messages")}>Message Your Clinician</Button>
+              <Button variant="outline" className="w-full rounded-xl gap-2" onClick={() => navigate("/Messages")}>
+                <MessageSquare className="w-4 h-4" /> Message Your Clinician
+              </Button>
             </motion.div>
           )}
+
         </AnimatePresence>
       </div>
     </div>

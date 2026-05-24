@@ -1,0 +1,119 @@
+{
+  "name": "ClientProfile",
+  "type": "object",
+  "properties": {
+    "child_id": {
+      "type": "string",
+      "description": "ID of the child this profile belongs to"
+    },
+    "clinician_id": {
+      "type": "string",
+      "description": "ID of the clinician who manages this client"
+    },
+    "diagnoses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of diagnoses (e.g. ADHD, ASD, Anxiety)"
+    },
+    "goals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Treatment goals extracted from documents"
+    },
+    "behaviors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "triggers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "linked_goals": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "interventions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "avoid": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "when_to_contact_clinician": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Target behaviors with clinician-approved interventions"
+    },
+    "triggers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Known behavioral triggers across all behaviors"
+    },
+    "reinforcers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Known reinforcers and rewards"
+    },
+    "safety_procedures": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Safety procedures from clinical documents"
+    },
+    "crisis_plan": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Crisis protocol steps"
+    },
+    "source_doc_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Document IDs that contributed to this profile"
+    }
+  },
+  "required": [
+    "child_id"
+  ]
+}

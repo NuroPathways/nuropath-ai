@@ -130,10 +130,93 @@ Extract a primary intervention plan and all behavior plans mentioned. Be brief b
       }
     }
 
+    await buildClientProfile(doc, clinicianId);
     await base44.entities.Document.update(doc.id, { scan_status: "done" }).catch(() => {});
   } catch (e) {
     await base44.entities.Document.update(doc.id, { scan_status: "error" }).catch(() => {});
     throw e;
+  }
+}
+
+async function buildClientProfile(doc, clinicianId) {
+  const richResult = await base44.integrations.Core.InvokeLLM({
+    prompt: `You are a clinical data specialist. Read this behavioral/clinical document carefully and extract a complete structured knowledge base. Extract ONLY information explicitly stated in the document. Do NOT invent, generalize, or add advice not present in the document.
+
+Document: "${doc.title}" (${doc.category?.replace(/_/g, " ")})
+
+For each behavior found, identify: its name (plain language, 2-4 words), a relevant emoji, description of when it occurs, specific triggers, which treatment goals it relates to, the exact clinician-approved intervention steps, actions to avoid, and when to contact the clinician.
+
+For interventions — only list strategies explicitly described in this document. Do not add generic behavioral advice.`,
+    file_urls: [doc.file_url],
+    response_json_schema: {
+      type: "object",
+      properties: {
+        diagnoses: { type: "array", items: { type: "string" } },
+        goals: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: { title: { type: "string" }, description: { type: "string" } },
+            required: ["title"]
+          }
+        },
+        behaviors: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              emoji: { type: "string" },
+              description: { type: "string" },
+              triggers: { type: "array", items: { type: "string" } },
+              linked_goals: { type: "array", items: { type: "string" } },
+              interventions: { type: "array", items: { type: "string" } },
+              avoid: { type: "array", items: { type: "string" } },
+              when_to_contact_clinician: { type: "string" }
+            },
+            required: ["name"]
+          }
+        },
+        triggers: { type: "array", items: { type: "string" } },
+        reinforcers: { type: "array", items: { type: "string" } },
+        safety_procedures: { type: "array", items: { type: "string" } },
+        crisis_plan: { type: "array", items: { type: "string" } }
+      }
+    }
+  }).catch(() => null);
+
+  if (!richResult) return;
+
+  const existing = await base44.entities.ClientProfile.filter({ child_id: doc.child_id }).catch(() => []);
+  const profile = existing[0];
+
+  const mergeStrings = (a = [], b = []) => [...new Set([...a, ...b])];
+  const mergeByKey = (a = [], b = [], key) => {
+    const map = new Map();
+    for (const item of [...a, ...b]) {
+      const k = item[key]?.toLowerCase?.();
+      if (k && !map.has(k)) map.set(k, item);
+    }
+    return [...map.values()];
+  };
+
+  const newData = {
+    child_id: doc.child_id,
+    clinician_id: clinicianId,
+    diagnoses: mergeStrings(profile?.diagnoses, richResult.diagnoses),
+    goals: mergeByKey(profile?.goals, richResult.goals, "title"),
+    behaviors: mergeByKey(profile?.behaviors, richResult.behaviors, "name"),
+    triggers: mergeStrings(profile?.triggers, richResult.triggers),
+    reinforcers: mergeStrings(profile?.reinforcers, richResult.reinforcers),
+    safety_procedures: mergeStrings(profile?.safety_procedures, richResult.safety_procedures),
+    crisis_plan: mergeStrings(profile?.crisis_plan, richResult.crisis_plan),
+    source_doc_ids: [...new Set([...(profile?.source_doc_ids || []), doc.id])],
+  };
+
+  if (profile) {
+    await base44.entities.ClientProfile.update(profile.id, newData).catch(() => {});
+  } else {
+    await base44.entities.ClientProfile.create(newData).catch(() => {});
   }
 }
 
