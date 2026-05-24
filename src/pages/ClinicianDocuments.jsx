@@ -29,17 +29,121 @@ function cleanTitle(fileName) {
     .trim();
 }
 
+// Builds/merges a rich ClientProfile from a document
+async function buildClientProfile(doc, clinicianId) {
+  const profileSchema = {
+    type: "object",
+    properties: {
+      diagnoses: { type: "array", items: { type: "string" } },
+      goals: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            description: { type: "string" }
+          }
+        }
+      },
+      behaviors: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            emoji: { type: "string" },
+            description: { type: "string" },
+            triggers: { type: "array", items: { type: "string" } },
+            linked_goals: { type: "array", items: { type: "string" } },
+            interventions: { type: "array", items: { type: "string" } },
+            avoid: { type: "array", items: { type: "string" } },
+            when_to_contact_clinician: { type: "string" }
+          },
+          required: ["name"]
+        }
+      },
+      triggers: { type: "array", items: { type: "string" } },
+      reinforcers: { type: "array", items: { type: "string" } },
+      safety_procedures: { type: "array", items: { type: "string" } },
+      crisis_plan: { type: "array", items: { type: "string" } }
+    }
+  };
+
+  const docLabel = doc.title + " (" + (doc.category || "").replace(/_/g, " ") + ")";
+  const result = await base44.integrations.Core.InvokeLLM({
+    model: "claude_sonnet_4_6",
+    prompt: "You are a behavioral health specialist. Read this clinical document and extract a comprehensive structured client profile. Document: " + docLabel + ". Extract ONLY what is explicitly present in the document. Do NOT invent or hallucinate anything. For each target behavior, provide: name (short plain-language like Refusal, Aggression, Anxiety Attack), description, an appropriate emoji, specific triggers, which treatment goals this behavior maps to, ONLY the clinician-approved intervention steps, things to avoid, and when to contact the clinician. For goals: extract each treatment goal title and description. For reinforcers: list all rewards mentioned. For safety/crisis: extract safety and crisis protocol steps.",
+    file_urls: [doc.file_url],
+    response_json_schema: profileSchema
+  });
+
+  if (!result || !result.behaviors || result.behaviors.length === 0) return;
+
+  const mergeArr = (a, b) => [...new Set([...(a || []), ...(b || [])])];
+
+  const mergeBehaviors = (existing, incoming) => {
+    const map = new Map((existing || []).map(b => [b.name && b.name.toLowerCase(), b]));
+    for (const b of (incoming || [])) {
+      const key = b.name && b.name.toLowerCase();
+      if (key && map.has(key)) {
+        const prev = map.get(key);
+        map.set(key, {
+          ...prev, ...b,
+          triggers: mergeArr(prev.triggers, b.triggers),
+          linked_goals: mergeArr(prev.linked_goals, b.linked_goals),
+          interventions: mergeArr(prev.interventions, b.interventions),
+          avoid: mergeArr(prev.avoid, b.avoid),
+        });
+      } else if (key) {
+        map.set(key, b);
+      }
+    }
+    return [...map.values()];
+  };
+
+  const mergeGoals = (existing, incoming) => {
+    const titles = new Set((existing || []).map(g => g.title && g.title.toLowerCase()));
+    const newGoals = (incoming || []).filter(g => g.title && !titles.has(g.title.toLowerCase()));
+    return [...(existing || []), ...newGoals];
+  };
+
+  const existing = await base44.entities.ClientProfile.filter({ child_id: doc.child_id }).catch(() => []);
+
+  if (existing.length > 0) {
+    const profile = existing[0];
+    await base44.entities.ClientProfile.update(profile.id, {
+      diagnoses: mergeArr(profile.diagnoses, result.diagnoses),
+      goals: mergeGoals(profile.goals, result.goals),
+      behaviors: mergeBehaviors(profile.behaviors, result.behaviors),
+      triggers: mergeArr(profile.triggers, result.triggers),
+      reinforcers: mergeArr(profile.reinforcers, result.reinforcers),
+      safety_procedures: mergeArr(profile.safety_procedures, result.safety_procedures),
+      crisis_plan: mergeArr(profile.crisis_plan, result.crisis_plan),
+      source_doc_ids: mergeArr(profile.source_doc_ids, [doc.id]),
+    }).catch(() => {});
+  } else {
+    await base44.entities.ClientProfile.create({
+      child_id: doc.child_id,
+      clinician_id: clinicianId,
+      diagnoses: result.diagnoses || [],
+      goals: result.goals || [],
+      behaviors: result.behaviors || [],
+      triggers: result.triggers || [],
+      reinforcers: result.reinforcers || [],
+      safety_procedures: result.safety_procedures || [],
+      crisis_plan: result.crisis_plan || [],
+      source_doc_ids: [doc.id],
+    }).catch(() => {});
+  }
+}
+
 // Runs entirely in background — doesn't block UI
 async function scanDocumentInBackground(doc, clinicianId) {
   await base44.entities.Document.update(doc.id, { scan_status: "scanning" }).catch(() => {});
 
   try {
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are a behavioral intervention specialist. Read this clinical document and extract ALL structured behavioral information concisely.
-
-Document: "${doc.title}" (${doc.category?.replace(/_/g, " ")})
-
-Extract a primary intervention plan and all behavior plans mentioned. Be brief but complete. Only extract information that is explicitly present in the document — do not invent or hallucinate.`,
+      prompt: "You are a behavioral intervention specialist. Read this clinical document and extract ALL structured behavioral information concisely. Document: " + doc.title + " (" + (doc.category || "").replace(/_/g, " ") + "). Extract a primary intervention plan and all behavior plans mentioned. Be brief but complete. Only extract information that is explicitly present in the document.",
       file_urls: [doc.file_url],
       response_json_schema: {
         type: "object",
@@ -104,7 +208,7 @@ Extract a primary intervention plan and all behavior plans mentioned. Be brief b
       });
     }
 
-    if (result.behavior_plans?.length > 0) {
+    if (result.behavior_plans && result.behavior_plans.length > 0) {
       const existingBP = await base44.entities.BehaviorPlan.filter({
         source_document_id: doc.id
       }).catch(() => []);
@@ -130,93 +234,13 @@ Extract a primary intervention plan and all behavior plans mentioned. Be brief b
       }
     }
 
-    await buildClientProfile(doc, clinicianId);
     await base44.entities.Document.update(doc.id, { scan_status: "done" }).catch(() => {});
+
+    // Build/update the rich ClientProfile knowledge base
+    await buildClientProfile(doc, clinicianId).catch(() => {});
   } catch (e) {
     await base44.entities.Document.update(doc.id, { scan_status: "error" }).catch(() => {});
     throw e;
-  }
-}
-
-async function buildClientProfile(doc, clinicianId) {
-  const richResult = await base44.integrations.Core.InvokeLLM({
-    prompt: `You are a clinical data specialist. Read this behavioral/clinical document carefully and extract a complete structured knowledge base. Extract ONLY information explicitly stated in the document. Do NOT invent, generalize, or add advice not present in the document.
-
-Document: "${doc.title}" (${doc.category?.replace(/_/g, " ")})
-
-For each behavior found, identify: its name (plain language, 2-4 words), a relevant emoji, description of when it occurs, specific triggers, which treatment goals it relates to, the exact clinician-approved intervention steps, actions to avoid, and when to contact the clinician.
-
-For interventions — only list strategies explicitly described in this document. Do not add generic behavioral advice.`,
-    file_urls: [doc.file_url],
-    response_json_schema: {
-      type: "object",
-      properties: {
-        diagnoses: { type: "array", items: { type: "string" } },
-        goals: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: { title: { type: "string" }, description: { type: "string" } },
-            required: ["title"]
-          }
-        },
-        behaviors: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              name: { type: "string" },
-              emoji: { type: "string" },
-              description: { type: "string" },
-              triggers: { type: "array", items: { type: "string" } },
-              linked_goals: { type: "array", items: { type: "string" } },
-              interventions: { type: "array", items: { type: "string" } },
-              avoid: { type: "array", items: { type: "string" } },
-              when_to_contact_clinician: { type: "string" }
-            },
-            required: ["name"]
-          }
-        },
-        triggers: { type: "array", items: { type: "string" } },
-        reinforcers: { type: "array", items: { type: "string" } },
-        safety_procedures: { type: "array", items: { type: "string" } },
-        crisis_plan: { type: "array", items: { type: "string" } }
-      }
-    }
-  }).catch(() => null);
-
-  if (!richResult) return;
-
-  const existing = await base44.entities.ClientProfile.filter({ child_id: doc.child_id }).catch(() => []);
-  const profile = existing[0];
-
-  const mergeStrings = (a = [], b = []) => [...new Set([...a, ...b])];
-  const mergeByKey = (a = [], b = [], key) => {
-    const map = new Map();
-    for (const item of [...a, ...b]) {
-      const k = item[key]?.toLowerCase?.();
-      if (k && !map.has(k)) map.set(k, item);
-    }
-    return [...map.values()];
-  };
-
-  const newData = {
-    child_id: doc.child_id,
-    clinician_id: clinicianId,
-    diagnoses: mergeStrings(profile?.diagnoses, richResult.diagnoses),
-    goals: mergeByKey(profile?.goals, richResult.goals, "title"),
-    behaviors: mergeByKey(profile?.behaviors, richResult.behaviors, "name"),
-    triggers: mergeStrings(profile?.triggers, richResult.triggers),
-    reinforcers: mergeStrings(profile?.reinforcers, richResult.reinforcers),
-    safety_procedures: mergeStrings(profile?.safety_procedures, richResult.safety_procedures),
-    crisis_plan: mergeStrings(profile?.crisis_plan, richResult.crisis_plan),
-    source_doc_ids: [...new Set([...(profile?.source_doc_ids || []), doc.id])],
-  };
-
-  if (profile) {
-    await base44.entities.ClientProfile.update(profile.id, newData).catch(() => {});
-  } else {
-    await base44.entities.ClientProfile.create(newData).catch(() => {});
   }
 }
 
@@ -454,7 +478,7 @@ export default function ClinicianDocuments() {
                     ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading {queue.filter(i => i.status === "uploading").length}/{queue.length}...</>
                     : allDone
                       ? <><CheckCircle2 className="w-4 h-4" /> All Uploaded!</>
-                      : <><Upload className="w-4 h-4" /> Upload {queue.length > 0 ? `${queue.length} File${queue.length > 1 ? "s" : ""}` : ""}</>
+                      : <><Upload className="w-4 h-4" /> Upload {queue.length > 0 ? queue.length + " File" + (queue.length > 1 ? "s" : "") : ""}</>
                   }
                 </Button>
               </div>
@@ -489,7 +513,7 @@ export default function ClinicianDocuments() {
                     <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-foreground hover:text-primary truncate block">
                       {doc.title}
                     </a>
-                    <p className="text-xs text-muted-foreground">{childMap[doc.child_id] || "Unknown"} • {doc.category?.replace(/_/g, " ")}</p>
+                    <p className="text-xs text-muted-foreground">{childMap[doc.child_id] || "Unknown"} • {doc.category && doc.category.replace(/_/g, " ")}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {docStatus === "scanning" && (
@@ -505,7 +529,7 @@ export default function ClinicianDocuments() {
                     {(docStatus === "pending" || docStatus === "error") && (
                       <button
                         onClick={() => manualScan(doc)}
-                        title="Extract behavior & intervention plans"
+                        title="Extract behavior and intervention plans"
                         className="text-muted-foreground hover:text-primary transition-colors"
                       >
                         <Sparkles className="w-4 h-4" />
