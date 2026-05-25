@@ -85,74 +85,75 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
     const baseUrl = window.location.origin;
     const link = `${baseUrl}/RoleSetup?invite=${token}`;
 
-    if (isFamily) {
-      // Create family record
-      const fam = await base44.entities.Family.create({
-        family_name: clientName.trim() || `${holder.name}'s Family`,
-        notes: clientNotes || undefined,
-        clinician_id: clinicianId,
-        invite_token: token,
-        invite_email: holder.email || undefined,
-        invite_status: "pending",
-        parent_name: holder.name || undefined,
-        account_type: accountType,
-      });
+    try {
+      if (isFamily) {
+        const fam = await base44.entities.Family.create({
+          family_name: clientName.trim() || `${holder.name}'s Family`,
+          notes: clientNotes || undefined,
+          clinician_id: clinicianId,
+          invite_token: token,
+          invite_email: holder.email || undefined,
+          invite_status: "pending",
+          parent_name: holder.name || undefined,
+          account_type: accountType,
+        });
 
-      // Create children linked to family
-      for (const child of children) {
-        if (!child.child_name.trim()) continue;
+        for (const child of children) {
+          if (!child.child_name.trim()) continue;
+          await base44.entities.Child.create({
+            child_name: child.child_name.trim(),
+            age: child.age ? Number(child.age) : undefined,
+            diagnosis: child.diagnosis || undefined,
+            triggers: child.triggers || undefined,
+            notes: child.notes || undefined,
+            is_patient: child.is_patient || false,
+            family_id: fam.id,
+            clinician_id: clinicianId,
+            parent_email: holder.email || undefined,
+          });
+        }
+      } else {
+        const fam = await base44.entities.Family.create({
+          family_name: holder.name.trim() || "Individual Client",
+          notes: individual.notes || undefined,
+          clinician_id: clinicianId,
+          invite_token: token,
+          invite_email: holder.email || undefined,
+          invite_status: "pending",
+          parent_name: holder.name || undefined,
+          account_type: "individual",
+        });
+
         await base44.entities.Child.create({
-          child_name: child.child_name.trim(),
-          age: child.age ? Number(child.age) : undefined,
-          diagnosis: child.diagnosis || undefined,
-          triggers: child.triggers || undefined,
-          notes: child.notes || undefined,
-          is_patient: child.is_patient || false,
+          child_name: holder.name.trim(),
+          age: individual.age ? Number(individual.age) : undefined,
+          diagnosis: individual.diagnosis || undefined,
+          notes: individual.goals ? `Goals: ${individual.goals}\n${individual.notes || ""}`.trim() : (individual.notes || undefined),
+          is_patient: true,
           family_id: fam.id,
           clinician_id: clinicianId,
           parent_email: holder.email || undefined,
         });
       }
-    } else {
-      // Individual client — create as Child record (the "child" IS the client)
-      const fam = await base44.entities.Family.create({
-        family_name: holder.name.trim() || "Individual Client",
-        notes: individual.notes || undefined,
-        clinician_id: clinicianId,
-        invite_token: token,
-        invite_email: holder.email || undefined,
-        invite_status: "pending",
-        parent_name: holder.name || undefined,
-        account_type: "individual",
-      });
 
-      await base44.entities.Child.create({
-        child_name: holder.name.trim(),
-        age: individual.age ? Number(individual.age) : undefined,
-        diagnosis: individual.diagnosis || undefined,
-        notes: individual.goals ? `Goals: ${individual.goals}\n${individual.notes || ""}`.trim() : (individual.notes || undefined),
-        is_patient: true,
-        family_id: fam.id,
-        clinician_id: clinicianId,
-        parent_email: holder.email || undefined,
-      });
-    }
+      setInviteLink(link);
 
-    setInviteLink(link);
-
-    // Send invite email
-    if (holder.email) {
-      try {
-        await sendInviteEmail(holder.email, holder.name, link);
-        setEmailSent(true);
-      } catch {
-        setEmailError(true);
+      if (holder.email) {
+        try {
+          await sendInviteEmail(holder.email, holder.name, link);
+          setEmailSent(true);
+        } catch {
+          setEmailError(true);
+        }
       }
-    }
 
-    setSaving(false);
-    setStep(isFamily ? 3 : 2);
-    onSuccess();
+      setSaving(false);
+      setStep(isFamily ? 3 : 2);
+      onSuccess();
+    } catch (err) {
+      console.error("Save failed:", err);
+      setSaving(false);
+    }
   };
 
   const handleResend = async () => {
