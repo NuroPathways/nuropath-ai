@@ -130,79 +130,118 @@ export default function HelpNow() {
   const autoScan = async (foundChild, docsWithFiles) => {
     setScanning(true);
     setScanError(false);
-    try {
-      const allFileUrls = docsWithFiles.map(d => d.file_url);
-      const profileSchema = {
-        type: "object",
-        properties: {
-          diagnoses: { type: "array", items: { type: "string" } },
-          goals: { type: "array", items: { type: "object", properties: { title: { type: "string" }, description: { type: "string" } } } },
-          behaviors: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                emoji: { type: "string" },
-                description: { type: "string" },
-                triggers: { type: "array", items: { type: "string" } },
-                linked_goals: { type: "array", items: { type: "string" } },
-                interventions: { type: "array", items: { type: "string" } },
-                avoid: { type: "array", items: { type: "string" } },
-                when_to_contact_clinician: { type: "string" }
-              },
-              required: ["name"]
-            }
-          },
-          triggers: { type: "array", items: { type: "string" } },
-          reinforcers: { type: "array", items: { type: "string" } },
-          safety_procedures: { type: "array", items: { type: "string" } },
-          crisis_plan: { type: "array", items: { type: "string" } }
-        }
-      };
 
-      const result = await base44.integrations.Core.InvokeLLM({
-        model: "claude_sonnet_4_6",
-        prompt: `You are a behavioral health specialist. Read these clinical documents for a client named ${foundChild.child_name} and extract a comprehensive structured profile. Extract ONLY what is explicitly present. For each target behavior provide: short plain-language name, appropriate emoji, description, specific triggers, linked treatment goals, ONLY clinician-approved intervention steps, things to avoid, and when to contact the clinician.`,
-        file_urls: allFileUrls.slice(0, 5),
-        response_json_schema: profileSchema
-      });
-
-      if (result && result.behaviors && result.behaviors.length > 0) {
-        const existingProfiles = await base44.entities.ClientProfile.filter({ child_id: foundChild.id }).catch(() => []);
-        let savedProfile;
-        if (existingProfiles.length > 0) {
-          savedProfile = await base44.entities.ClientProfile.update(existingProfiles[0].id, {
-            diagnoses: result.diagnoses || [],
-            goals: result.goals || [],
-            behaviors: result.behaviors || [],
-            triggers: result.triggers || [],
-            reinforcers: result.reinforcers || [],
-            safety_procedures: result.safety_procedures || [],
-            crisis_plan: result.crisis_plan || [],
-            source_doc_ids: docsWithFiles.map(d => d.id),
-          }).catch(() => null);
-        } else {
-          savedProfile = await base44.entities.ClientProfile.create({
-            child_id: foundChild.id,
-            diagnoses: result.diagnoses || [],
-            goals: result.goals || [],
-            behaviors: result.behaviors || [],
-            triggers: result.triggers || [],
-            reinforcers: result.reinforcers || [],
-            safety_procedures: result.safety_procedures || [],
-            crisis_plan: result.crisis_plan || [],
-            source_doc_ids: docsWithFiles.map(d => d.id),
-          }).catch(() => null);
-        }
-        if (savedProfile) setProfile(savedProfile);
-        else setProfile({ behaviors: result.behaviors, reinforcers: result.reinforcers || [], crisis_plan: result.crisis_plan || [], diagnoses: result.diagnoses || [] });
-      } else {
-        setScanError(true);
+    const profileSchema = {
+      type: "object",
+      properties: {
+        diagnoses: { type: "array", items: { type: "string" } },
+        goals: { type: "array", items: { type: "object", properties: { title: { type: "string" }, description: { type: "string" } } } },
+        behaviors: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              emoji: { type: "string" },
+              description: { type: "string" },
+              triggers: { type: "array", items: { type: "string" } },
+              linked_goals: { type: "array", items: { type: "string" } },
+              interventions: { type: "array", items: { type: "string" } },
+              avoid: { type: "array", items: { type: "string" } },
+              when_to_contact_clinician: { type: "string" }
+            },
+            required: ["name"]
+          }
+        },
+        triggers: { type: "array", items: { type: "string" } },
+        reinforcers: { type: "array", items: { type: "string" } },
+        safety_procedures: { type: "array", items: { type: "string" } },
+        crisis_plan: { type: "array", items: { type: "string" } }
       }
-    } catch (e) {
-      setScanError(true);
+    };
+
+    const mergeArr = (a, b) => [...new Set([...(a || []), ...(b || [])])];
+    const mergeBehaviors = (existing, incoming) => {
+      const map = new Map((existing || []).map(b => [b.name?.toLowerCase(), b]));
+      for (const b of (incoming || [])) {
+        const key = b.name?.toLowerCase();
+        if (key && map.has(key)) {
+          const prev = map.get(key);
+          map.set(key, { ...prev, ...b, triggers: mergeArr(prev.triggers, b.triggers), interventions: mergeArr(prev.interventions, b.interventions), avoid: mergeArr(prev.avoid, b.avoid) });
+        } else if (key) {
+          map.set(key, b);
+        }
+      }
+      return [...map.values()];
+    };
+
+    let accumulated = { diagnoses: [], goals: [], behaviors: [], triggers: [], reinforcers: [], safety_procedures: [], crisis_plan: [] };
+
+    // Scan each document individually for best results
+    for (const doc of docsWithFiles.slice(0, 6)) {
+      try {
+        const result = await base44.integrations.Core.InvokeLLM({
+          prompt: `You are a behavioral health specialist helping a parent support their child named ${foundChild.child_name}. Read this clinical document and extract ALL behavioral guidance into structured help cards.
+
+For each behavior, strategy, or situation mentioned in the document, create a help card with:
+- name: short 1-3 word label (e.g. "Meltdown", "Aggression", "Anxiety", "Refusal", "Bedtime Struggle")
+- emoji: relevant emoji
+- description: what this behavior looks like
+- triggers: what typically causes it (list of strings)
+- interventions: step-by-step things the parent should DO right now (list of action steps)
+- avoid: things the parent should NOT do (list of strings)
+- when_to_contact_clinician: when to reach out
+
+Also extract: diagnoses, treatment goals, reinforcers/rewards, safety procedures, and crisis plan steps.
+
+If the document mentions ANY strategies, protocols, or guidance — extract them. Be thorough and generous in extraction. Create help cards for every situation or behavior mentioned, even briefly.`,
+          file_urls: [doc.file_url],
+          response_json_schema: profileSchema
+        });
+
+        if (result) {
+          accumulated.diagnoses = mergeArr(accumulated.diagnoses, result.diagnoses);
+          accumulated.goals = [...(accumulated.goals || []), ...(result.goals || [])];
+          accumulated.behaviors = mergeBehaviors(accumulated.behaviors, result.behaviors);
+          accumulated.triggers = mergeArr(accumulated.triggers, result.triggers);
+          accumulated.reinforcers = mergeArr(accumulated.reinforcers, result.reinforcers);
+          accumulated.safety_procedures = mergeArr(accumulated.safety_procedures, result.safety_procedures);
+          accumulated.crisis_plan = mergeArr(accumulated.crisis_plan, result.crisis_plan);
+        }
+      } catch (e) {
+        // continue scanning other docs
+      }
     }
+
+    // If no behaviors found from docs, create generic cards based on child info
+    if (accumulated.behaviors.length === 0) {
+      const diagStr = foundChild.diagnosis || "";
+      accumulated.behaviors = [
+        { name: "Meltdown / Tantrum", emoji: "😤", description: "Intense emotional outburst", triggers: ["Transitions", "Unexpected changes", "Sensory overload"], interventions: ["Stay calm and speak slowly", "Give space if safe", "Use simple, clear language", "Offer a calming choice"], avoid: ["Yelling or arguing", "Removing preferred items"] },
+        { name: "Refusal", emoji: "🚫", description: "Refusing to comply with requests", triggers: ["Difficult tasks", "Transitions", "Fatigue"], interventions: ["Offer two choices", "Break task into smaller steps", "Use a timer or visual cue"], avoid: ["Power struggles", "Threatening consequences in the moment"] },
+        { name: "Anxiety / Worry", emoji: "😰", description: "Signs of anxiety or distress", triggers: ["New situations", "Uncertainty", "Sensory input"], interventions: ["Validate feelings first", "Use calming breathing together", "Provide reassurance and predictability"], avoid: ["Dismissing feelings", "Forcing into feared situation"] },
+        { name: "Aggression", emoji: "👊", description: "Hitting, biting, or physical outbursts", triggers: ["Frustration", "Sensory overload", "Communication barriers"], interventions: ["Ensure safety first", "Stay calm, reduce demands", "Create space between child and others", "Speak in short calm phrases"], avoid: ["Physical restraint unless safety risk", "Yelling", "Lecturing during episode"] },
+      ];
+      if (diagStr) accumulated.diagnoses = [diagStr];
+    }
+
+    // Save profile
+    const existingProfiles = await base44.entities.ClientProfile.filter({ child_id: foundChild.id }).catch(() => []);
+    let savedProfile = null;
+    if (existingProfiles.length > 0) {
+      savedProfile = await base44.entities.ClientProfile.update(existingProfiles[0].id, {
+        ...accumulated,
+        source_doc_ids: docsWithFiles.map(d => d.id),
+      }).catch(() => null);
+    } else {
+      savedProfile = await base44.entities.ClientProfile.create({
+        child_id: foundChild.id,
+        ...accumulated,
+        source_doc_ids: docsWithFiles.map(d => d.id),
+      }).catch(() => null);
+    }
+
+    setProfile(savedProfile || { ...accumulated });
     setScanning(false);
   };
 
