@@ -48,10 +48,7 @@
   ],
   "rls": {
     "create": {
-      "data.clinician_id": "{{user.id}}",
-      "user_condition": {
-        "app_role": "clinician"
-      }
+      "data.clinician_id": "{{user.id}}"
     },
     "read": {
       "$or": [
@@ -90,12 +87,9 @@
       ]
     },
     "delete": {
-      "data.clinician_id": "{{user.id}}",
       "$or": [
         {
-          "user_condition": {
-            "app_role": "clinician"
-          }
+          "data.clinician_id": "{{user.id}}"
         },
         {
           "user_condition": {

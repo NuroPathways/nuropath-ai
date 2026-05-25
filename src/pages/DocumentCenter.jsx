@@ -49,7 +49,9 @@ export default function DocumentCenter() {
 
   useEffect(() => {
     const load = async () => {
-      const me = await base44.auth.me();
+      let me;
+      try { me = await base44.auth.me(); } catch { setLoading(false); return; }
+      if (!me) { setLoading(false); return; }
 
       // Detect individual client account type
       const acctType = me.account_type || null;
