@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, AlertTriangle, ChevronRight, CheckCircle2, ShieldAlert, Loader2, MessageSquare, Target, AlertCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, AlertTriangle, ChevronRight, CheckCircle2, ShieldAlert, Loader2, MessageSquare, Target, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -47,6 +47,7 @@ export default function HelpNow() {
   const [isIndividualClient, setIsIndividualClient] = useState(false);
 
   const childId = new URLSearchParams(window.location.search).get("child_id");
+  const hasScannedRef = useRef(false);
 
   useEffect(() => {
     const load = async () => {
@@ -88,6 +89,18 @@ export default function HelpNow() {
       setDocuments(docs);
 
       setLoading(false);
+
+      // Auto-scan: run if no profile, or if there are new docs not yet scanned into profile
+      const docsWithFiles = docs.filter(d => d.file_url);
+      if (docsWithFiles.length > 0 && !hasScannedRef.current) {
+        const existingProfile = profiles[0];
+        const scannedIds = new Set((existingProfile?.source_doc_ids) || []);
+        const hasNewDocs = docsWithFiles.some(d => !scannedIds.has(d.id));
+        if (!existingProfile || hasNewDocs) {
+          hasScannedRef.current = true;
+          autoScan(foundChild, docsWithFiles);
+        }
+      }
     };
     load();
   }, [childId]);
@@ -113,17 +126,12 @@ export default function HelpNow() {
     }
   };
 
-  // Active scan: pull all documents and extract behaviors using AI
-  const runActiveScan = async () => {
-    if (!child || documents.length === 0) return;
+  // Auto scan — called on load when new docs detected
+  const autoScan = async (foundChild, docsWithFiles) => {
     setScanning(true);
     setScanError(false);
     try {
-      const docsToScan = documents.filter(d => d.file_url);
-      if (docsToScan.length === 0) { setScanning(false); return; }
-
-      // Extract from all documents combined
-      const allFileUrls = docsToScan.map(d => d.file_url);
+      const allFileUrls = docsWithFiles.map(d => d.file_url);
       const profileSchema = {
         type: "object",
         properties: {
@@ -155,14 +163,13 @@ export default function HelpNow() {
 
       const result = await base44.integrations.Core.InvokeLLM({
         model: "claude_sonnet_4_6",
-        prompt: `You are a behavioral health specialist. Read these clinical documents for a client named ${child.child_name} and extract a comprehensive structured profile. Extract ONLY what is explicitly present. For each target behavior provide: short plain-language name, appropriate emoji, description, specific triggers, linked treatment goals, ONLY clinician-approved intervention steps, things to avoid, and when to contact the clinician.`,
+        prompt: `You are a behavioral health specialist. Read these clinical documents for a client named ${foundChild.child_name} and extract a comprehensive structured profile. Extract ONLY what is explicitly present. For each target behavior provide: short plain-language name, appropriate emoji, description, specific triggers, linked treatment goals, ONLY clinician-approved intervention steps, things to avoid, and when to contact the clinician.`,
         file_urls: allFileUrls.slice(0, 5),
         response_json_schema: profileSchema
       });
 
       if (result && result.behaviors && result.behaviors.length > 0) {
-        // Save/update ClientProfile so it's available next time
-        const existingProfiles = await base44.entities.ClientProfile.filter({ child_id: child.id }).catch(() => []);
+        const existingProfiles = await base44.entities.ClientProfile.filter({ child_id: foundChild.id }).catch(() => []);
         let savedProfile;
         if (existingProfiles.length > 0) {
           savedProfile = await base44.entities.ClientProfile.update(existingProfiles[0].id, {
@@ -173,11 +180,11 @@ export default function HelpNow() {
             reinforcers: result.reinforcers || [],
             safety_procedures: result.safety_procedures || [],
             crisis_plan: result.crisis_plan || [],
-            source_doc_ids: docsToScan.map(d => d.id),
+            source_doc_ids: docsWithFiles.map(d => d.id),
           }).catch(() => null);
         } else {
           savedProfile = await base44.entities.ClientProfile.create({
-            child_id: child.id,
+            child_id: foundChild.id,
             diagnoses: result.diagnoses || [],
             goals: result.goals || [],
             behaviors: result.behaviors || [],
@@ -185,7 +192,7 @@ export default function HelpNow() {
             reinforcers: result.reinforcers || [],
             safety_procedures: result.safety_procedures || [],
             crisis_plan: result.crisis_plan || [],
-            source_doc_ids: docsToScan.map(d => d.id),
+            source_doc_ids: docsWithFiles.map(d => d.id),
           }).catch(() => null);
         }
         if (savedProfile) setProfile(savedProfile);
@@ -250,45 +257,34 @@ export default function HelpNow() {
                 <div className="text-center py-12">
                   <p className="text-muted-foreground text-sm">No client profile linked to your account. Ask your clinician for an invite.</p>
                 </div>
+              ) : scanning ? (
+                <div className="text-center py-12 space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  </div>
+                  <h2 className="font-bold text-foreground text-lg">Preparing Your Help Cards...</h2>
+                  <p className="text-sm text-muted-foreground">Reading {child.child_name}'s clinical documents. This takes about 30 seconds.</p>
+                </div>
               ) : !hasProfile ? (
                 <div className="text-center py-12 space-y-4">
-                  {scanning ? (
-                    <>
-                      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                      </div>
-                      <h2 className="font-bold text-foreground text-lg">Reading Documents...</h2>
-                      <p className="text-sm text-muted-foreground">Analyzing {child.child_name}'s clinical documents to generate help cards. This takes about 30 seconds.</p>
-                    </>
+                  {!docsExist ? (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 text-left">
+                      <p className="text-sm font-semibold text-yellow-800 mb-1">No documents uploaded yet.</p>
+                      <p className="text-sm text-yellow-700">Once your clinician uploads treatment plans or behavior protocols for {child.child_name}, personalized help cards will appear here automatically.</p>
+                    </div>
                   ) : (
                     <>
-                      <div className="text-5xl">{docsExist ? '📄' : '📋'}</div>
-                      <h2 className="font-bold text-foreground text-lg">{docsExist ? 'Documents Found — Generate Help Cards' : 'No Approved Plans Yet'}</h2>
                       {scanError && (
                         <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
-                          Could not extract behaviors from the documents. Try again or message your clinician.
+                          Could not extract behaviors from the documents. Please message your clinician.
                         </div>
                       )}
-                      {docsExist ? (
-                        <>
-                          <p className="text-sm text-muted-foreground">
-                            {documents.length} document{documents.length > 1 ? 's' : ''} found for {child.child_name}. Tap below to read them and create personalized help cards.
-                          </p>
-                          <Button className="w-full rounded-xl gap-2" onClick={runActiveScan}>
-                            <Sparkles className="w-4 h-4" /> Generate Help Cards from Documents
-                          </Button>
-                        </>
-                      ) : (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 text-left">
-                          <p className="text-sm font-semibold text-yellow-800 mb-1">No documents uploaded yet.</p>
-                          <p className="text-sm text-yellow-700">Once your clinician uploads treatment plans or behavior protocols for {child.child_name}, personalized help cards will appear here.</p>
-                        </div>
-                      )}
-                      <Button variant="outline" className="w-full rounded-xl" onClick={() => navigate("/Messages")}>
-                        Message Your Clinician
-                      </Button>
+                      <p className="text-sm text-muted-foreground">No help cards could be generated from {child.child_name}'s documents yet.</p>
                     </>
                   )}
+                  <Button variant="outline" className="w-full rounded-xl" onClick={() => navigate("/Messages")}>
+                    Message Your Clinician
+                  </Button>
                 </div>
               ) : (
                 <>

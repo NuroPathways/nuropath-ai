@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, Upload, FileText, Trash2, Loader2, Sparkles, CheckCircle2, X, Plus } from "lucide-react";
+import { ArrowLeft, Upload, FileText, Trash2, Loader2, Sparkles, CheckCircle2, X, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -526,13 +526,14 @@ export default function ClinicianDocuments() {
                         <CheckCircle2 className="w-3.5 h-3.5" /> Synced
                       </span>
                     )}
-                    {(docStatus === "pending" || docStatus === "error") && (
+                    {docStatus !== "scanning" && (
                       <button
                         onClick={() => manualScan(doc)}
-                        title="Extract behavior and intervention plans"
-                        className="text-muted-foreground hover:text-primary transition-colors"
+                        title={docStatus === "done" ? "Re-scan document" : "Scan document"}
+                        className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg border border-border hover:border-primary hover:text-primary text-muted-foreground transition-colors"
                       >
-                        <Sparkles className="w-4 h-4" />
+                        {docStatus === "done" ? <RefreshCw className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
+                        {docStatus === "done" ? "Re-scan" : "Scan"}
                       </button>
                     )}
                     <button onClick={() => handleDelete(doc.id)} className="text-muted-foreground hover:text-destructive">
