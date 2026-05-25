@@ -25,34 +25,6 @@ nav, button, [role="button"], label {
   user-select: none;
 }
 
-/* Automatic dark mode (if no explicit theme saved) */
-@media (prefers-color-scheme: dark) {
-  html:not(.theme-light) {
-    color-scheme: dark;
-  }
-  html:not(.theme-light):not(.dark) {
-    --background: 220 25% 10%;
-    --foreground: 210 20% 96%;
-    --card: 220 20% 14%;
-    --card-foreground: 210 20% 96%;
-    --popover: 220 20% 14%;
-    --popover-foreground: 210 20% 96%;
-    --primary: 216 38% 55%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 15% 55%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 220 20% 20%;
-    --muted-foreground: 215 13% 65%;
-    --accent: 180 29% 65%;
-    --accent-foreground: 220 25% 14%;
-    --destructive: 0 72% 55%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 220 20% 22%;
-    --input: 220 20% 22%;
-    --ring: 216 38% 55%;
-  }
-}
-
 @layer base {
   :root {
     --background: 210 20% 96%;
