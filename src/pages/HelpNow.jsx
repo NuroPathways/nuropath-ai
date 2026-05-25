@@ -37,6 +37,8 @@ export default function HelpNow() {
   const navigate = useNavigate();
   const [child, setChild] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [behaviorPlans, setBehaviorPlans] = useState([]);
+  const [docsExist, setDocsExist] = useState(false);
   const [selectedBehavior, setSelectedBehavior] = useState(null);
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState("select_behavior");
@@ -75,6 +77,14 @@ export default function HelpNow() {
       const profiles = await base44.entities.ClientProfile.filter({ child_id: foundChild.id }).catch(() => []);
       if (profiles.length > 0) setProfile(profiles[0]);
 
+      // Always load BehaviorPlans as fallback
+      const bps = await base44.entities.BehaviorPlan.filter({ child_id: foundChild.id }).catch(() => []);
+      setBehaviorPlans(bps);
+
+      // Check if any documents exist for this child
+      const docs = await base44.entities.Document.filter({ child_id: foundChild.id }).catch(() => []);
+      setDocsExist(docs.length > 0);
+
       setLoading(false);
     };
     load();
@@ -101,7 +111,24 @@ export default function HelpNow() {
     }
   };
 
-  const behaviors = (profile && profile.behaviors) || [];
+  // Build behavior cards: prefer ClientProfile behaviors, fall back to BehaviorPlan records
+  const profileBehaviors = (profile && profile.behaviors) || [];
+  const fallbackBehaviors = behaviorPlans.map(bp => ({
+    name: bp.behavior_name,
+    emoji: bp.behavior_name?.toLowerCase().includes('aggress') ? '👊'
+      : bp.behavior_name?.toLowerCase().includes('tantrum') || bp.behavior_name?.toLowerCase().includes('meltdown') ? '😡'
+      : bp.behavior_name?.toLowerCase().includes('anxi') ? '😰'
+      : bp.behavior_name?.toLowerCase().includes('refus') ? '🚫'
+      : bp.behavior_name?.toLowerCase().includes('transition') ? '🔄'
+      : '📋',
+    description: bp.behavior_description || '',
+    triggers: bp.common_triggers ? bp.common_triggers.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean) : [],
+    interventions: bp.strategy_steps ? bp.strategy_steps.split(/\n+/).map(s => s.trim()).filter(Boolean) : [],
+    avoid: bp.avoid_actions ? bp.avoid_actions.split(/\n+/).map(s => s.trim()).filter(Boolean) : [],
+    when_to_contact_clinician: '',
+    linked_goals: [],
+  }));
+  const behaviors = profileBehaviors.length > 0 ? profileBehaviors : fallbackBehaviors;
   const hasProfile = behaviors.length > 0;
 
   if (loading) return (
@@ -136,14 +163,18 @@ export default function HelpNow() {
                 </div>
               ) : !hasProfile ? (
                 <div className="text-center py-12 space-y-4">
-                  <div className="text-5xl">📋</div>
-                  <h2 className="font-bold text-foreground text-lg">No Approved Plans Yet</h2>
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 text-left">
-                    <p className="text-sm font-semibold text-yellow-800 mb-1">
-                      Your clinician has not uploaded clinical documents yet.
+                  <div className="text-5xl">{docsExist ? '⏳' : '📋'}</div>
+                  <h2 className="font-bold text-foreground text-lg">{docsExist ? 'Documents Are Processing' : 'No Approved Plans Yet'}</h2>
+                  <div className={`border rounded-2xl p-5 text-left ${docsExist ? 'bg-blue-50 border-blue-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                    <p className={`text-sm font-semibold mb-1 ${docsExist ? 'text-blue-800' : 'text-yellow-800'}`}>
+                      {docsExist
+                        ? 'Your clinician has uploaded documents but they may still be processing.'
+                        : 'Your clinician has not uploaded clinical documents yet.'}
                     </p>
-                    <p className="text-sm text-yellow-700">
-                      Once your clinician uploads treatment plans, behavior protocols, or session notes for {child.child_name}, personalized help cards will appear here.
+                    <p className={`text-sm ${docsExist ? 'text-blue-700' : 'text-yellow-700'}`}>
+                      {docsExist
+                        ? `Documents have been uploaded for ${child.child_name}. Ask your clinician to ensure they are fully scanned and synced in the Documents section.`
+                        : `Once your clinician uploads treatment plans, behavior protocols, or session notes for ${child.child_name}, personalized help cards will appear here.`}
                     </p>
                   </div>
                   <Button variant="outline" className="w-full rounded-xl" onClick={() => navigate("/Messages")}>
