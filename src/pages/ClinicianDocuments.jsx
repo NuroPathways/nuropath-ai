@@ -495,54 +495,70 @@ export default function ClinicianDocuments() {
             <p className="text-sm text-muted-foreground">Upload care documents, treatment plans, and behavioral protocols for your clients.</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {documents.map((doc, i) => {
-              const docStatus = getDocScanStatus(doc);
-              return (
-                <motion.div
-                  key={doc.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.03 }}
-                  className="flex items-center gap-4 p-4 bg-card border border-border rounded-2xl"
-                >
-                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-5 h-5 text-primary" />
+          <div className="space-y-6">
+            {children
+              .filter(child => documents.some(d => d.child_id === child.id))
+              .map(child => {
+                const childDocs = documents.filter(d => d.child_id === child.id);
+                return (
+                  <div key={child.id}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs font-bold text-primary">{child.child_name?.[0]?.toUpperCase()}</span>
+                      </div>
+                      <h3 className="font-semibold text-foreground text-sm">{child.child_name}</h3>
+                      <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{childDocs.length} doc{childDocs.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {childDocs.map((doc) => {
+                        const docStatus = getDocScanStatus(doc);
+                        return (
+                          <div
+                            key={doc.id}
+                            className="flex items-center gap-4 p-4 bg-card border border-border rounded-2xl"
+                          >
+                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                              <FileText className="w-4 h-4 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-foreground hover:text-primary truncate block">
+                                {doc.title}
+                              </a>
+                              <p className="text-xs text-muted-foreground">{doc.category && doc.category.replace(/_/g, " ")}</p>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {docStatus === "scanning" && (
+                                <span className="flex items-center gap-1 text-xs text-primary font-medium">
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Scanning...
+                                </span>
+                              )}
+                              {docStatus === "done" && (
+                                <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Synced
+                                </span>
+                              )}
+                              {docStatus !== "scanning" && (
+                                <button
+                                  onClick={() => manualScan(doc)}
+                                  title={docStatus === "done" ? "Re-scan document" : "Scan document"}
+                                  className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg border border-border hover:border-primary hover:text-primary text-muted-foreground transition-colors"
+                                >
+                                  {docStatus === "done" ? <RefreshCw className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
+                                  {docStatus === "done" ? "Re-scan" : "Scan"}
+                                </button>
+                              )}
+                              <button onClick={() => handleDelete(doc.id)} className="text-muted-foreground hover:text-destructive">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-foreground hover:text-primary truncate block">
-                      {doc.title}
-                    </a>
-                    <p className="text-xs text-muted-foreground">{childMap[doc.child_id] || "Unknown"} • {doc.category && doc.category.replace(/_/g, " ")}</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {docStatus === "scanning" && (
-                      <span className="flex items-center gap-1 text-xs text-primary font-medium">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Scanning...
-                      </span>
-                    )}
-                    {docStatus === "done" && (
-                      <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Synced
-                      </span>
-                    )}
-                    {docStatus !== "scanning" && (
-                      <button
-                        onClick={() => manualScan(doc)}
-                        title={docStatus === "done" ? "Re-scan document" : "Scan document"}
-                        className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg border border-border hover:border-primary hover:text-primary text-muted-foreground transition-colors"
-                      >
-                        {docStatus === "done" ? <RefreshCw className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
-                        {docStatus === "done" ? "Re-scan" : "Scan"}
-                      </button>
-                    )}
-                    <button onClick={() => handleDelete(doc.id)} className="text-muted-foreground hover:text-destructive">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </motion.div>
-              );
-            })}
+                );
+              })
+            }
           </div>
         )}
       </div>

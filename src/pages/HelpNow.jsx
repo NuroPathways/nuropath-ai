@@ -173,45 +173,44 @@ export default function HelpNow() {
 
     let accumulated = { diagnoses: [], goals: [], behaviors: [], triggers: [], reinforcers: [], safety_procedures: [], crisis_plan: [] };
 
-    // Scan each document — use ExtractDataFromUploadedFile which handles PDFs properly
-    for (const doc of docsWithFiles.slice(0, 6)) {
+    // Scan ALL docs together as one unified context so info makes sense across documents
+    if (docsWithFiles.length > 0) {
       try {
-        const extracted = await base44.integrations.Core.ExtractDataFromUploadedFile({
-          file_url: doc.file_url,
-          json_schema: {
-            type: "object",
-            description: `Extract all behavioral health information from this clinical document for a child named ${foundChild.child_name}. For every behavior, problem, or situation mentioned create a behavior card. For interventions/strategies list each step separately.`,
-            properties: extractSchema.properties
-          }
+        const allFileUrls = docsWithFiles.slice(0, 6).map(d => d.file_url);
+        const result = await base44.integrations.Core.InvokeLLM({
+          prompt: `You are a behavioral health specialist helping a parent support their child named ${foundChild.child_name}. You are reading ALL of their clinical documents together as one complete picture.\n\nRead every document and synthesize the information across all of them. Create behavior help cards that combine strategies from all documents.\n\nFor each target behavior or challenging situation, create ONE unified card:\n- name: short 2-4 word label (e.g. "Meltdown", "Aggression", "Anxiety", "Task Refusal", "Bedtime Struggle")\n- emoji: fitting emoji\n- description: what this behavior looks like\n- triggers: common causes (list)\n- interventions: step-by-step things the parent should DO, combining all strategies from all docs (list of action steps)\n- avoid: what NOT to do (list)\n- when_to_contact_clinician: when to reach out\n- linked_goals: which treatment goals this behavior addresses (list)\n\nAlso extract across all docs: diagnoses, treatment goals, reinforcers/rewards, safety procedures, and crisis plan steps.\n\nBe thorough — cover every behavior or situation mentioned across any document.`,
+          file_urls: allFileUrls,
+          response_json_schema: { type: "object", properties: extractSchema.properties }
         });
-        const result = extracted?.status === "success" ? extracted.output : null;
         if (result) {
           accumulated.diagnoses = mergeArr(accumulated.diagnoses, result.diagnoses);
-          accumulated.goals = [...(accumulated.goals || []), ...(result.goals || [])];
-          accumulated.behaviors = mergeBehaviors(accumulated.behaviors, result.behaviors);
+          accumulated.goals = [...(result.goals || [])];
+          accumulated.behaviors = result.behaviors || [];
           accumulated.triggers = mergeArr(accumulated.triggers, result.triggers);
           accumulated.reinforcers = mergeArr(accumulated.reinforcers, result.reinforcers);
           accumulated.safety_procedures = mergeArr(accumulated.safety_procedures, result.safety_procedures);
           accumulated.crisis_plan = mergeArr(accumulated.crisis_plan, result.crisis_plan);
         }
       } catch (e) {
-        // try InvokeLLM as fallback for this doc
-        try {
-          const result = await base44.integrations.Core.InvokeLLM({
-            prompt: `You are a behavioral health specialist. Extract ALL behavioral guidance from this clinical document for a child named ${foundChild.child_name}. Create a behavior card for every behavior, problem, or situation mentioned. List interventions as numbered steps.`,
-            file_urls: [doc.file_url],
-            response_json_schema: { type: "object", properties: extractSchema.properties }
-          });
-          if (result) {
-            accumulated.diagnoses = mergeArr(accumulated.diagnoses, result.diagnoses);
-            accumulated.goals = [...(accumulated.goals || []), ...(result.goals || [])];
-            accumulated.behaviors = mergeBehaviors(accumulated.behaviors, result.behaviors);
-            accumulated.triggers = mergeArr(accumulated.triggers, result.triggers);
-            accumulated.reinforcers = mergeArr(accumulated.reinforcers, result.reinforcers);
-            accumulated.safety_procedures = mergeArr(accumulated.safety_procedures, result.safety_procedures);
-            accumulated.crisis_plan = mergeArr(accumulated.crisis_plan, result.crisis_plan);
-          }
-        } catch (e2) { /* skip doc */ }
+        // fallback: try each doc individually
+        for (const doc of docsWithFiles.slice(0, 6)) {
+          try {
+            const result = await base44.integrations.Core.InvokeLLM({
+              prompt: `Extract ALL behavioral guidance from this clinical document for ${foundChild.child_name}. Create a behavior card for every behavior mentioned with triggers, step-by-step interventions, and what to avoid.`,
+              file_urls: [doc.file_url],
+              response_json_schema: { type: "object", properties: extractSchema.properties }
+            });
+            if (result) {
+              accumulated.diagnoses = mergeArr(accumulated.diagnoses, result.diagnoses);
+              accumulated.goals = [...(accumulated.goals || []), ...(result.goals || [])];
+              accumulated.behaviors = mergeBehaviors(accumulated.behaviors, result.behaviors);
+              accumulated.triggers = mergeArr(accumulated.triggers, result.triggers);
+              accumulated.reinforcers = mergeArr(accumulated.reinforcers, result.reinforcers);
+              accumulated.safety_procedures = mergeArr(accumulated.safety_procedures, result.safety_procedures);
+              accumulated.crisis_plan = mergeArr(accumulated.crisis_plan, result.crisis_plan);
+            }
+          } catch (e2) { /* skip */ }
+        }
       }
     }
 
