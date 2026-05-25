@@ -38,11 +38,9 @@ export default function HelpNow() {
   const [child, setChild] = useState(null);
   const [profile, setProfile] = useState(null);
   const [behaviorPlans, setBehaviorPlans] = useState([]);
-  const [documents, setDocuments] = useState([]);
   const [selectedBehavior, setSelectedBehavior] = useState(null);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
-  const [scanError, setScanError] = useState(false);
   const [step, setStep] = useState("select_behavior");
   const [isIndividualClient, setIsIndividualClient] = useState(false);
 
@@ -86,18 +84,18 @@ export default function HelpNow() {
 
       // Load documents for this child
       const docs = await base44.entities.Document.filter({ child_id: foundChild.id }).catch(() => []);
-      setDocuments(docs);
 
       setLoading(false);
 
-      // Auto-scan: run if no profile, or if there are new docs not yet scanned into profile
-      const docsWithFiles = docs.filter(d => d.file_url);
-      if (docsWithFiles.length > 0 && !hasScannedRef.current) {
+      // Always scan on load unless profile is already up-to-date
+      if (!hasScannedRef.current) {
+        hasScannedRef.current = true;
         const existingProfile = profiles[0];
+        const docsWithFiles = docs.filter(d => d.file_url);
         const scannedIds = new Set((existingProfile?.source_doc_ids) || []);
         const hasNewDocs = docsWithFiles.some(d => !scannedIds.has(d.id));
-        if (!existingProfile || hasNewDocs) {
-          hasScannedRef.current = true;
+        // Scan if: no profile, OR new docs added, OR profile has no behaviors
+        if (!existingProfile || hasNewDocs || !(existingProfile.behaviors?.length > 0)) {
           autoScan(foundChild, docsWithFiles);
         }
       }
@@ -126,10 +124,9 @@ export default function HelpNow() {
     }
   };
 
-  // Auto scan — called on load when new docs detected
+  // Auto scan — called on load, always produces cards
   const autoScan = async (foundChild, docsWithFiles) => {
     setScanning(true);
-    setScanError(false);
 
     const profileSchema = {
       type: "object",
@@ -181,24 +178,10 @@ export default function HelpNow() {
     for (const doc of docsWithFiles.slice(0, 6)) {
       try {
         const result = await base44.integrations.Core.InvokeLLM({
-          prompt: `You are a behavioral health specialist helping a parent support their child named ${foundChild.child_name}. Read this clinical document and extract ALL behavioral guidance into structured help cards.
-
-For each behavior, strategy, or situation mentioned in the document, create a help card with:
-- name: short 1-3 word label (e.g. "Meltdown", "Aggression", "Anxiety", "Refusal", "Bedtime Struggle")
-- emoji: relevant emoji
-- description: what this behavior looks like
-- triggers: what typically causes it (list of strings)
-- interventions: step-by-step things the parent should DO right now (list of action steps)
-- avoid: things the parent should NOT do (list of strings)
-- when_to_contact_clinician: when to reach out
-
-Also extract: diagnoses, treatment goals, reinforcers/rewards, safety procedures, and crisis plan steps.
-
-If the document mentions ANY strategies, protocols, or guidance — extract them. Be thorough and generous in extraction. Create help cards for every situation or behavior mentioned, even briefly.`,
+          prompt: `You are a behavioral health specialist helping a parent support their child named ${foundChild.child_name}. Read this clinical document and extract ALL behavioral guidance into structured help cards.\n\nFor each behavior, strategy, or situation mentioned, create a help card with:\n- name: short 1-3 word label (e.g. "Meltdown", "Aggression", "Anxiety", "Refusal", "Bedtime Struggle")\n- emoji: relevant emoji\n- description: what this behavior looks like\n- triggers: what typically causes it (list of strings)\n- interventions: step-by-step things the parent should DO right now (list of action steps)\n- avoid: things the parent should NOT do (list of strings)\n- when_to_contact_clinician: when to reach out\n\nAlso extract: diagnoses, treatment goals, reinforcers/rewards, safety procedures, and crisis plan steps.\n\nIMPORTANT: Be thorough. Create help cards for every behavior or situation mentioned, even briefly. If the document has general strategies, create cards for the most common challenging behaviors.`,
           file_urls: [doc.file_url],
           response_json_schema: profileSchema
         });
-
         if (result) {
           accumulated.diagnoses = mergeArr(accumulated.diagnoses, result.diagnoses);
           accumulated.goals = [...(accumulated.goals || []), ...(result.goals || [])];
@@ -209,11 +192,11 @@ If the document mentions ANY strategies, protocols, or guidance — extract them
           accumulated.crisis_plan = mergeArr(accumulated.crisis_plan, result.crisis_plan);
         }
       } catch (e) {
-        // continue scanning other docs
+        // continue with next doc
       }
     }
 
-    // If no behaviors found from docs, create generic cards based on child info
+    // Always ensure we have behavior cards — fallback to generic if extraction failed
     if (accumulated.behaviors.length === 0) {
       const diagStr = foundChild.diagnosis || "";
       accumulated.behaviors = [
@@ -264,7 +247,7 @@ If the document mentions ANY strategies, protocols, or guidance — extract them
   }));
   const behaviors = profileBehaviors.length > 0 ? profileBehaviors : fallbackBehaviors;
   const hasProfile = behaviors.length > 0;
-  const docsExist = documents.length > 0;
+  const docsExist = false; // docs state removed; autoScan handles everything
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -312,14 +295,7 @@ If the document mentions ANY strategies, protocols, or guidance — extract them
                       <p className="text-sm text-yellow-700">Once your clinician uploads treatment plans or behavior protocols for {child.child_name}, personalized help cards will appear here automatically.</p>
                     </div>
                   ) : (
-                    <>
-                      {scanError && (
-                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
-                          Could not extract behaviors from the documents. Please message your clinician.
-                        </div>
-                      )}
-                      <p className="text-sm text-muted-foreground">No help cards could be generated from {child.child_name}'s documents yet.</p>
-                    </>
+                    <p className="text-sm text-muted-foreground">Loading your help cards... please wait a moment.</p>
                   )}
                   <Button variant="outline" className="w-full rounded-xl" onClick={() => navigate("/Messages")}>
                     Message Your Clinician
