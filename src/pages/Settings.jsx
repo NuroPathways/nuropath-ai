@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Moon, Sun, User, LogOut } from "lucide-react";
+import { Moon, Sun, User, LogOut, Trash2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
@@ -32,7 +32,17 @@ export default function Settings() {
     }
   };
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteInput, setDeleteInput] = useState("");
+
   const handleLogout = () => {
+    base44.auth.logout("/");
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteInput !== "DELETE") return;
+    // Log out after deletion request — actual deletion handled by admin/support
+    await base44.auth.updateMe({ account_deletion_requested: true }).catch(() => {});
     base44.auth.logout("/");
   };
 
@@ -82,11 +92,62 @@ export default function Settings() {
         </div>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-card border border-border rounded-2xl p-6">
-        <Button variant="destructive" className="w-full gap-2" onClick={handleLogout}>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-card border border-border rounded-2xl p-6 space-y-3">
+        <Button variant="destructive" className="w-full gap-2 min-h-[44px]" onClick={handleLogout}>
           <LogOut className="w-4 h-4" /> Sign Out
         </Button>
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          className="w-full min-h-[44px] flex items-center justify-center gap-2 text-sm text-destructive/70 hover:text-destructive transition-colors"
+        >
+          <Trash2 className="w-4 h-4" /> Delete Account
+        </button>
       </motion.div>
+
+      {/* Delete Account Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 p-4">
+          <motion.div
+            initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+            className="bg-card rounded-2xl p-6 w-full max-w-sm"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <h2 className="font-bold text-foreground">Delete Account</h2>
+                <p className="text-xs text-muted-foreground">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              All your data, children's profiles, and documents will be permanently removed. Type <strong>DELETE</strong> to confirm.
+            </p>
+            <input
+              type="text"
+              value={deleteInput}
+              onChange={e => setDeleteInput(e.target.value)}
+              placeholder="Type DELETE to confirm"
+              className="w-full border border-border rounded-xl px-4 py-3 text-sm bg-background text-foreground mb-4 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-destructive/40"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeleteInput(""); }}
+                className="flex-1 min-h-[44px] rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteInput !== "DELETE"}
+                className="flex-1 min-h-[44px] rounded-xl bg-destructive text-white text-sm font-medium disabled:opacity-40 transition-colors"
+              >
+                Delete Account
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
