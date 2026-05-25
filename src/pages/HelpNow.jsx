@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, AlertTriangle, ChevronRight, CheckCircle2, ShieldAlert, Loader2, MessageSquare, Target, AlertCircle } from "lucide-react";
+import { ArrowLeft, AlertTriangle, ChevronRight, CheckCircle2, ShieldAlert, Loader2, MessageSquare, Target, AlertCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -38,9 +38,11 @@ export default function HelpNow() {
   const [child, setChild] = useState(null);
   const [profile, setProfile] = useState(null);
   const [behaviorPlans, setBehaviorPlans] = useState([]);
-  const [docsExist, setDocsExist] = useState(false);
+  const [documents, setDocuments] = useState([]);
   const [selectedBehavior, setSelectedBehavior] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState(false);
   const [step, setStep] = useState("select_behavior");
   const [isIndividualClient, setIsIndividualClient] = useState(false);
 
@@ -81,9 +83,9 @@ export default function HelpNow() {
       const bps = await base44.entities.BehaviorPlan.filter({ child_id: foundChild.id }).catch(() => []);
       setBehaviorPlans(bps);
 
-      // Check if any documents exist for this child
+      // Load documents for this child
       const docs = await base44.entities.Document.filter({ child_id: foundChild.id }).catch(() => []);
-      setDocsExist(docs.length > 0);
+      setDocuments(docs);
 
       setLoading(false);
     };
@@ -111,6 +113,92 @@ export default function HelpNow() {
     }
   };
 
+  // Active scan: pull all documents and extract behaviors using AI
+  const runActiveScan = async () => {
+    if (!child || documents.length === 0) return;
+    setScanning(true);
+    setScanError(false);
+    try {
+      const docsToScan = documents.filter(d => d.file_url);
+      if (docsToScan.length === 0) { setScanning(false); return; }
+
+      // Extract from all documents combined
+      const allFileUrls = docsToScan.map(d => d.file_url);
+      const profileSchema = {
+        type: "object",
+        properties: {
+          diagnoses: { type: "array", items: { type: "string" } },
+          goals: { type: "array", items: { type: "object", properties: { title: { type: "string" }, description: { type: "string" } } } },
+          behaviors: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                emoji: { type: "string" },
+                description: { type: "string" },
+                triggers: { type: "array", items: { type: "string" } },
+                linked_goals: { type: "array", items: { type: "string" } },
+                interventions: { type: "array", items: { type: "string" } },
+                avoid: { type: "array", items: { type: "string" } },
+                when_to_contact_clinician: { type: "string" }
+              },
+              required: ["name"]
+            }
+          },
+          triggers: { type: "array", items: { type: "string" } },
+          reinforcers: { type: "array", items: { type: "string" } },
+          safety_procedures: { type: "array", items: { type: "string" } },
+          crisis_plan: { type: "array", items: { type: "string" } }
+        }
+      };
+
+      const result = await base44.integrations.Core.InvokeLLM({
+        model: "claude_sonnet_4_6",
+        prompt: `You are a behavioral health specialist. Read these clinical documents for a client named ${child.child_name} and extract a comprehensive structured profile. Extract ONLY what is explicitly present. For each target behavior provide: short plain-language name, appropriate emoji, description, specific triggers, linked treatment goals, ONLY clinician-approved intervention steps, things to avoid, and when to contact the clinician.`,
+        file_urls: allFileUrls.slice(0, 5),
+        response_json_schema: profileSchema
+      });
+
+      if (result && result.behaviors && result.behaviors.length > 0) {
+        // Save/update ClientProfile so it's available next time
+        const existingProfiles = await base44.entities.ClientProfile.filter({ child_id: child.id }).catch(() => []);
+        let savedProfile;
+        if (existingProfiles.length > 0) {
+          savedProfile = await base44.entities.ClientProfile.update(existingProfiles[0].id, {
+            diagnoses: result.diagnoses || [],
+            goals: result.goals || [],
+            behaviors: result.behaviors || [],
+            triggers: result.triggers || [],
+            reinforcers: result.reinforcers || [],
+            safety_procedures: result.safety_procedures || [],
+            crisis_plan: result.crisis_plan || [],
+            source_doc_ids: docsToScan.map(d => d.id),
+          }).catch(() => null);
+        } else {
+          savedProfile = await base44.entities.ClientProfile.create({
+            child_id: child.id,
+            diagnoses: result.diagnoses || [],
+            goals: result.goals || [],
+            behaviors: result.behaviors || [],
+            triggers: result.triggers || [],
+            reinforcers: result.reinforcers || [],
+            safety_procedures: result.safety_procedures || [],
+            crisis_plan: result.crisis_plan || [],
+            source_doc_ids: docsToScan.map(d => d.id),
+          }).catch(() => null);
+        }
+        if (savedProfile) setProfile(savedProfile);
+        else setProfile({ behaviors: result.behaviors, reinforcers: result.reinforcers || [], crisis_plan: result.crisis_plan || [], diagnoses: result.diagnoses || [] });
+      } else {
+        setScanError(true);
+      }
+    } catch (e) {
+      setScanError(true);
+    }
+    setScanning(false);
+  };
+
   // Build behavior cards: prefer ClientProfile behaviors, fall back to BehaviorPlan records
   const profileBehaviors = (profile && profile.behaviors) || [];
   const fallbackBehaviors = behaviorPlans.map(bp => ({
@@ -130,6 +218,7 @@ export default function HelpNow() {
   }));
   const behaviors = profileBehaviors.length > 0 ? profileBehaviors : fallbackBehaviors;
   const hasProfile = behaviors.length > 0;
+  const docsExist = documents.length > 0;
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -163,23 +252,43 @@ export default function HelpNow() {
                 </div>
               ) : !hasProfile ? (
                 <div className="text-center py-12 space-y-4">
-                  <div className="text-5xl">{docsExist ? '⏳' : '📋'}</div>
-                  <h2 className="font-bold text-foreground text-lg">{docsExist ? 'Documents Are Processing' : 'No Approved Plans Yet'}</h2>
-                  <div className={`border rounded-2xl p-5 text-left ${docsExist ? 'bg-blue-50 border-blue-200' : 'bg-yellow-50 border-yellow-200'}`}>
-                    <p className={`text-sm font-semibold mb-1 ${docsExist ? 'text-blue-800' : 'text-yellow-800'}`}>
-                      {docsExist
-                        ? 'Your clinician has uploaded documents but they may still be processing.'
-                        : 'Your clinician has not uploaded clinical documents yet.'}
-                    </p>
-                    <p className={`text-sm ${docsExist ? 'text-blue-700' : 'text-yellow-700'}`}>
-                      {docsExist
-                        ? `Documents have been uploaded for ${child.child_name}. Ask your clinician to ensure they are fully scanned and synced in the Documents section.`
-                        : `Once your clinician uploads treatment plans, behavior protocols, or session notes for ${child.child_name}, personalized help cards will appear here.`}
-                    </p>
-                  </div>
-                  <Button variant="outline" className="w-full rounded-xl" onClick={() => navigate("/Messages")}>
-                    Message Your Clinician
-                  </Button>
+                  {scanning ? (
+                    <>
+                      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                      </div>
+                      <h2 className="font-bold text-foreground text-lg">Reading Documents...</h2>
+                      <p className="text-sm text-muted-foreground">Analyzing {child.child_name}'s clinical documents to generate help cards. This takes about 30 seconds.</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-5xl">{docsExist ? '📄' : '📋'}</div>
+                      <h2 className="font-bold text-foreground text-lg">{docsExist ? 'Documents Found — Generate Help Cards' : 'No Approved Plans Yet'}</h2>
+                      {scanError && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
+                          Could not extract behaviors from the documents. Try again or message your clinician.
+                        </div>
+                      )}
+                      {docsExist ? (
+                        <>
+                          <p className="text-sm text-muted-foreground">
+                            {documents.length} document{documents.length > 1 ? 's' : ''} found for {child.child_name}. Tap below to read them and create personalized help cards.
+                          </p>
+                          <Button className="w-full rounded-xl gap-2" onClick={runActiveScan}>
+                            <Sparkles className="w-4 h-4" /> Generate Help Cards from Documents
+                          </Button>
+                        </>
+                      ) : (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 text-left">
+                          <p className="text-sm font-semibold text-yellow-800 mb-1">No documents uploaded yet.</p>
+                          <p className="text-sm text-yellow-700">Once your clinician uploads treatment plans or behavior protocols for {child.child_name}, personalized help cards will appear here.</p>
+                        </div>
+                      )}
+                      <Button variant="outline" className="w-full rounded-xl" onClick={() => navigate("/Messages")}>
+                        Message Your Clinician
+                      </Button>
+                    </>
+                  )}
                 </div>
               ) : (
                 <>

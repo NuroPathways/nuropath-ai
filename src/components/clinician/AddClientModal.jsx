@@ -38,6 +38,7 @@ function generateToken() {
 export default function AddClientModal({ open, onClose, onSuccess, clinicianId }) {
   const [step, setStep] = useState(0); // 0=AccountType, 1=AccountHolder, 2=Children(family only), 3=Done
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [inviteLink, setInviteLink] = useState("");
   const [emailSent, setEmailSent] = useState(false);
   const [emailError, setEmailError] = useState(false);
@@ -78,7 +79,9 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
   };
 
   const handleSave = async () => {
+    if (!clinicianId) { setSaveError("Session error: clinician ID missing. Please refresh and try again."); return; }
     setSaving(true);
+    setSaveError("");
     setEmailError(false);
     setEmailSent(false);
     const token = generateToken();
@@ -152,6 +155,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
       onSuccess();
     } catch (err) {
       console.error("Save failed:", err);
+      setSaveError(err?.message || "Something went wrong. Please try again.");
       setSaving(false);
     }
   };
@@ -171,6 +175,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
 
   const handleClose = () => {
     setStep(0);
+    setSaveError("");
     setAccountType(null);
     setHolder({ name: "", email: "" });
     setClientName("");
@@ -505,29 +510,45 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
                   Next <ChevronRight className="w-4 h-4" />
                 </Button>
               ) : (
-                <Button
-                  className="flex-1 rounded-xl bg-primary hover:bg-primary/90"
-                  onClick={handleSave}
-                  disabled={saving || !canSaveIndividual}
-                >
-                  {saving ? "Saving..." : "Save & Send Invite"}
-                </Button>
+                <div className="flex flex-col gap-2 flex-1">
+                  {saveError && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 flex items-start gap-2">
+                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                      {saveError}
+                    </div>
+                  )}
+                  <Button
+                    className="w-full rounded-xl bg-primary hover:bg-primary/90"
+                    onClick={handleSave}
+                    disabled={saving || !canSaveIndividual}
+                  >
+                    {saving ? "Saving..." : "Save & Send Invite"}
+                  </Button>
+                </div>
               )}
             </>
           )}
           {step === 2 && isFamily && (
-            <>
-              <Button variant="outline" className="flex-1 rounded-xl gap-1.5" onClick={() => setStep(1)}>
-                <ChevronLeft className="w-4 h-4" /> Back
-              </Button>
-              <Button
-                className="flex-1 rounded-xl bg-primary hover:bg-primary/90"
-                onClick={handleSave}
-                disabled={saving || !canSaveFamily}
-              >
-                {saving ? "Saving..." : "Save & Send Invite"}
-              </Button>
-            </>
+            <div className="flex flex-col gap-2 w-full">
+              {saveError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 flex items-start gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  {saveError}
+                </div>
+              )}
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1 rounded-xl gap-1.5" onClick={() => setStep(1)}>
+                  <ChevronLeft className="w-4 h-4" /> Back
+                </Button>
+                <Button
+                  className="flex-1 rounded-xl bg-primary hover:bg-primary/90"
+                  onClick={handleSave}
+                  disabled={saving || !canSaveFamily}
+                >
+                  {saving ? "Saving..." : "Save & Send Invite"}
+                </Button>
+              </div>
+            </div>
           )}
           {step === doneStep && (
             <Button className="flex-1 rounded-xl bg-primary hover:bg-primary/90" onClick={handleClose}>
