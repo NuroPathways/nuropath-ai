@@ -6,17 +6,21 @@
       "type": "string",
       "enum": [
         "admin",
-        "user"
-      ],
-      "default": "user"
+        "user",
+        "clinician",
+        "parent"
+      ]
     },
     "app_role": {
       "type": "string",
       "enum": [
         "clinician",
         "parent"
-      ],
-      "description": "Role within the Aspire app"
+      ]
+    },
+    "display_name": {
+      "type": "string",
+      "description": "User-editable display name shown in the app"
     },
     "account_type": {
       "type": "string",
@@ -24,16 +28,10 @@
         "parent_family",
         "individual",
         "caregiver"
-      ],
-      "description": "Type of client account \u2014 mirrors the Family.account_type value. 'individual' = self-managed client."
+      ]
     },
     "linked_family_id": {
-      "type": "string",
-      "description": "Family ID this parent/client is linked to"
-    },
-    "linked_clinician_id": {
-      "type": "string",
-      "description": "Clinician ID this parent/client is linked to"
+      "type": "string"
     }
   }
 }

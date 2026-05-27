@@ -20,14 +20,14 @@ export default function Settings() {
   });
 
   useEffect(() => {
-    base44.auth.me().then(u => { setUser(u); setNameInput(u?.full_name || ""); }).catch(() => {});
+    base44.auth.me().then(u => { setUser(u); setNameInput(u?.display_name || u?.full_name || ""); }).catch(() => {});
   }, []);
 
   const handleSaveName = async () => {
     if (!nameInput.trim()) return;
     setNameSaving(true);
-    await base44.auth.updateMe({ full_name: nameInput.trim() });
-    setUser(prev => ({ ...prev, full_name: nameInput.trim() }));
+    await base44.auth.updateMe({ display_name: nameInput.trim() });
+    setUser(prev => ({ ...prev, display_name: nameInput.trim() }));
     setNameSaving(false);
     setEditingName(false);
   };
@@ -72,10 +72,10 @@ export default function Settings() {
           </h2>
           <div className="flex items-center gap-4 mb-5">
             <div className="w-14 h-14 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
-              <span className="text-accent-foreground text-xl font-semibold">{(nameInput || user.full_name)?.[0]?.toUpperCase() || "U"}</span>
+              <span className="text-accent-foreground text-xl font-semibold">{(nameInput || user.display_name || user.full_name)?.[0]?.toUpperCase() || "U"}</span>
             </div>
             <div className="min-w-0">
-              <p className="font-semibold text-foreground">{user.full_name || <span className="text-muted-foreground italic">No name set</span>}</p>
+              <p className="font-semibold text-foreground">{user.display_name || user.full_name || <span className="text-muted-foreground italic">No name set</span>}</p>
               <p className="text-sm text-muted-foreground">{user.email}</p>
               <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize mt-1 inline-block">
                 {user.app_role || user.role || "user"}
@@ -116,8 +116,8 @@ export default function Settings() {
                 onClick={() => setEditingName(true)}
                 className="w-full min-h-[44px] flex items-center justify-between px-4 py-2.5 rounded-xl border border-border bg-background hover:border-primary/40 transition-colors text-sm"
               >
-                <span className={user.full_name ? "text-foreground" : "text-muted-foreground italic"}>
-                  {user.full_name || "Tap to set your name"}
+                <span className={(user.display_name || user.full_name) ? "text-foreground" : "text-muted-foreground italic"}>
+                  {user.display_name || user.full_name || "Tap to set your name"}
                 </span>
                 <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
               </button>

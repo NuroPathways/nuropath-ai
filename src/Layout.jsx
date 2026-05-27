@@ -168,7 +168,7 @@ export default function Layout({ children, currentPageName }) {
               <span className="text-accent-foreground text-xs font-semibold">{user.full_name?.[0]?.toUpperCase() || "U"}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">{user.full_name}</p>
+              <p className="text-sm font-medium text-foreground truncate">{user.display_name || user.full_name}</p>
               <p className="text-xs text-muted-foreground truncate">{user.email}</p>
             </div>
           </div>
