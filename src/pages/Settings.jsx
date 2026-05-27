@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Moon, Sun, User, LogOut, Trash2, AlertTriangle } from "lucide-react";
+import { Moon, Sun, User, LogOut, Trash2, AlertTriangle, Check, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
 export default function Settings() {
   const [user, setUser] = useState(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [nameSaving, setNameSaving] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem("theme");
     if (saved) {
@@ -17,8 +20,17 @@ export default function Settings() {
   });
 
   useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => {});
+    base44.auth.me().then(u => { setUser(u); setNameInput(u?.full_name || ""); }).catch(() => {});
   }, []);
+
+  const handleSaveName = async () => {
+    if (!nameInput.trim()) return;
+    setNameSaving(true);
+    await base44.auth.updateMe({ full_name: nameInput.trim() });
+    setUser(prev => ({ ...prev, full_name: nameInput.trim() }));
+    setNameSaving(false);
+    setEditingName(false);
+  };
 
   const toggleDarkMode = () => {
     const next = !darkMode;
@@ -58,17 +70,58 @@ export default function Settings() {
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
             <User className="w-3.5 h-3.5" /> Profile
           </h2>
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-accent flex items-center justify-center">
-              <span className="text-accent-foreground text-xl font-semibold">{user.full_name?.[0]?.toUpperCase() || "U"}</span>
+          <div className="flex items-center gap-4 mb-5">
+            <div className="w-14 h-14 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
+              <span className="text-accent-foreground text-xl font-semibold">{(nameInput || user.full_name)?.[0]?.toUpperCase() || "U"}</span>
             </div>
-            <div>
-              <p className="font-semibold text-foreground">{user.full_name}</p>
+            <div className="min-w-0">
+              <p className="font-semibold text-foreground">{user.full_name || <span className="text-muted-foreground italic">No name set</span>}</p>
               <p className="text-sm text-muted-foreground">{user.email}</p>
               <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize mt-1 inline-block">
                 {user.app_role || user.role || "user"}
               </span>
             </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Display Name</label>
+            {editingName ? (
+              <div className="flex gap-2">
+                <input
+                  autoFocus
+                  type="text"
+                  value={nameInput}
+                  onChange={e => setNameInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleSaveName()}
+                  placeholder="Your full name"
+                  className="flex-1 border border-border rounded-xl px-4 py-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 min-h-[44px]"
+                />
+                <button
+                  onClick={handleSaveName}
+                  disabled={nameSaving || !nameInput.trim()}
+                  className="min-h-[44px] px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {nameSaving ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Check className="w-4 h-4" />}
+                  Save
+                </button>
+                <button
+                  onClick={() => { setEditingName(false); setNameInput(user.full_name || ""); }}
+                  className="min-h-[44px] px-3 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditingName(true)}
+                className="w-full min-h-[44px] flex items-center justify-between px-4 py-2.5 rounded-xl border border-border bg-background hover:border-primary/40 transition-colors text-sm"
+              >
+                <span className={user.full_name ? "text-foreground" : "text-muted-foreground italic"}>
+                  {user.full_name || "Tap to set your name"}
+                </span>
+                <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            )}
           </div>
         </motion.div>
       )}
