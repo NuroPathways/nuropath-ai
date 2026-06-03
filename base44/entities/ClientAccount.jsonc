@@ -19,6 +19,10 @@
       "type": "string",
       "description": "Real or generated email used for Base44 login"
     },
+    "access_code": {
+      "type": "string",
+      "description": "6-character alphanumeric code used for username+code login"
+    },
     "family_id": {
       "type": "string",
       "description": "ID of linked Family record"

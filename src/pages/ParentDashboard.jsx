@@ -450,40 +450,45 @@ export default function ParentDashboard() {
       // Determine account type — prefer what's stored on the user record first
       let resolvedType = user.account_type || null;
 
-      const [kidsByParentId, kidsByEmail, msgs] = await Promise.all([
-        base44.entities.Child.filter({ parent_id: user.id }).catch(() => []),
-        user.email ? base44.entities.Child.filter({ parent_email: user.email }).catch(() => []) : Promise.resolve([]),
-        base44.entities.Message.filter({ to_user_id: user.id }).catch(() => []),
-      ]);
-
-      const allKidsMap = new Map();
-      for (const k of [...kidsByParentId, ...kidsByEmail]) allKidsMap.set(k.id, k);
-      const allKids = Array.from(allKidsMap.values());
-
-      // Back-fill parent_id on children found only by email
-      for (const k of allKids) {
-        if (!k.parent_id && user.id) {
-          base44.entities.Child.update(k.id, { parent_id: user.id }).catch(() => {});
+      // Client session users (no-email) have pre-loaded children
+      let allKids = [];
+      if (user.children && user.children.length > 0) {
+        allKids = user.children;
+      } else {
+        const [kidsByParentId, kidsByEmail] = await Promise.all([
+          base44.entities.Child.filter({ parent_id: user.id }).catch(() => []),
+          user.email ? base44.entities.Child.filter({ parent_email: user.email }).catch(() => []) : Promise.resolve([]),
+        ]);
+        const allKidsMap = new Map();
+        for (const k of [...kidsByParentId, ...kidsByEmail]) allKidsMap.set(k.id, k);
+        allKids = Array.from(allKidsMap.values());
+        // Back-fill parent_id on children found only by email
+        for (const k of allKids) {
+          if (!k.parent_id && user.id) {
+            base44.entities.Child.update(k.id, { parent_id: user.id }).catch(() => {});
+          }
         }
       }
+
+      const msgs = await base44.entities.Message.filter({ to_user_id: user.id }).catch(() => []);
 
       setChildren(allKids);
       setUnreadMessages(msgs.filter(m => !m.is_read).length);
 
       // If account_type not on user record yet, look it up from family
+      const isClientSession = !!user.children; // client session users have children array
       if (!resolvedType) {
-        const familyId = user.linked_family_id || allKids[0]?.family_id;
+        const familyId = user.linked_family_id || user.family_id || allKids[0]?.family_id;
         if (familyId) {
           const fams = await base44.entities.Family.filter({ id: familyId }).catch(() => []);
           resolvedType = fams[0]?.account_type || "parent_family";
-          base44.auth.updateMe({ account_type: resolvedType }).catch(() => {});
+          if (!isClientSession) base44.auth.updateMe({ account_type: resolvedType }).catch(() => {});
         } else if (allKids.length === 1 && allKids[0]?.is_patient) {
           resolvedType = "individual";
-          base44.auth.updateMe({ account_type: "individual" }).catch(() => {});
+          if (!isClientSession) base44.auth.updateMe({ account_type: "individual" }).catch(() => {});
         } else if (allKids.length > 0) {
           resolvedType = "parent_family";
         } else {
-          // No kids found yet — wait, don't default
           resolvedType = "parent_family";
         }
       }
@@ -491,8 +496,11 @@ export default function ParentDashboard() {
       setAccountType(resolvedType);
 
       if (allKids.length > 0) {
+        const logQuery = isClientSession
+          ? base44.entities.BehaviorLog.filter({ child_id: allKids[0].id }, "-created_date", 5).catch(() => [])
+          : base44.entities.BehaviorLog.filter({ parent_id: user.id }, "-created_date", 5).catch(() => []);
         const [logs, docResults] = await Promise.all([
-          base44.entities.BehaviorLog.filter({ parent_id: user.id }, "-created_date", 5).catch(() => []),
+          logQuery,
           Promise.all(allKids.map(k => base44.entities.Document.filter({ child_id: k.id }).catch(() => []))),
         ]);
         setRecentLogs(logs);

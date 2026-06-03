@@ -7,9 +7,11 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import BehaviorProgressChart from "@/components/parent/BehaviorProgressChart";
 import DailyCheckInBanner from "@/components/parent/DailyCheckInBanner";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function ClientDashboard() {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
   const [user, setUser] = useState(null);
   const [children, setChildren] = useState([]);
   const [recentLogs, setRecentLogs] = useState([]);
@@ -19,14 +21,22 @@ export default function ClientDashboard() {
 
   useEffect(() => {
     const load = async () => {
-      const me = await base44.auth.me();
+      const me = authUser;
+      if (!me) return;
       setUser(me);
-      const [byId, byEmail] = await Promise.all([
-        base44.entities.Child.filter({ parent_id: me.id }),
-        base44.entities.Child.filter({ parent_email: me.email }),
-      ]);
-      const seen = new Set();
-      const merged = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+
+      // If client session has pre-loaded children (no-email accounts), use those
+      let merged = [];
+      if (me.children && me.children.length > 0) {
+        merged = me.children;
+      } else {
+        const [byId, byEmail] = await Promise.all([
+          base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
+          me.email ? base44.entities.Child.filter({ parent_email: me.email }).catch(() => []) : Promise.resolve([]),
+        ]);
+        const seen = new Set();
+        merged = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+      }
       setChildren(merged);
 
       if (merged.length > 0) {
@@ -41,8 +51,8 @@ export default function ClientDashboard() {
       }
       setLoading(false);
     };
-    load();
-  }, []);
+    if (authUser) load();
+  }, [authUser]);
 
   const primaryChild = children[0];
 

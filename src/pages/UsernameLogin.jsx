@@ -1,35 +1,42 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Brain, Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
+import { Brain, ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { saveClientSession } from "@/lib/clientSession";
 
 export default function UsernameLogin() {
-  const [identifier, setIdentifier] = useState("");
+  const [username, setUsername] = useState("");
+  const [accessCode, setAccessCode] = useState("");
+  const [showCode, setShowCode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!identifier.trim()) return;
+    if (!username.trim() || !accessCode.trim()) return;
     setLoading(true);
     setError("");
 
     try {
-      const res = await base44.functions.invoke("lookupClientEmail", {
-        identifier: identifier.trim(),
+      const res = await base44.functions.invoke("verifyClientCredentials", {
+        username: username.trim(),
+        access_code: accessCode.trim(),
       });
 
-      const { email, error: lookupError } = res.data;
+      const { session, error: apiError } = res.data;
 
-      if (lookupError || !email) {
-        setError(lookupError || "No account found. Please check your username or email.");
+      if (apiError || !session) {
+        setError(apiError || "Invalid username or access code.");
         setLoading(false);
         return;
       }
 
-      // Redirect to Base44 login pre-filled with the resolved email
-      base44.auth.redirectToLogin("/RoleSetup", { email });
+      // Store client session in localStorage — bypasses Base44 auth
+      saveClientSession(session);
+
+      // Redirect to parent dashboard
+      window.location.href = "/ParentDashboard";
     } catch {
       setError("Could not connect. Please try again.");
       setLoading(false);
@@ -53,24 +60,49 @@ export default function UsernameLogin() {
         <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
           <h1 className="text-xl font-semibold text-foreground mb-1">Client Sign In</h1>
           <p className="text-sm text-muted-foreground mb-6">
-            Enter your username or email. We'll send a sign-in link to your email.
+            Enter the username and access code provided by your clinician.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                Username or Email
+                Username
               </label>
               <input
                 type="text"
-                value={identifier}
-                onChange={e => setIdentifier(e.target.value)}
-                placeholder="e.g. jsmith-2048 or your@email.com"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="e.g. jsmith-2048"
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
                 className="w-full min-h-[44px] border border-border rounded-xl px-4 py-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                Access Code
+              </label>
+              <div className="relative">
+                <input
+                  type={showCode ? "text" : "password"}
+                  value={accessCode}
+                  onChange={e => setAccessCode(e.target.value)}
+                  placeholder="e.g. AB3X7Q"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className="w-full min-h-[44px] border border-border rounded-xl px-4 py-2.5 pr-12 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono tracking-widest"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCode(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                >
+                  {showCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             {error && (
@@ -82,20 +114,16 @@ export default function UsernameLogin() {
             <Button
               type="submit"
               className="w-full min-h-[44px] rounded-xl"
-              disabled={loading || !identifier.trim()}
+              disabled={loading || !username.trim() || !accessCode.trim()}
             >
               {loading ? (
                 <span className="flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Looking up account...
+                  Signing in...
                 </span>
-              ) : "Continue"}
+              ) : "Sign In"}
             </Button>
           </form>
-
-          <p className="text-xs text-muted-foreground mt-4 text-center">
-            A sign-in link will be sent to the email your clinician registered for you.
-          </p>
         </div>
 
         <div className="mt-6 text-center space-y-3">

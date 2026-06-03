@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
+import { getClientSession, clearClientSession } from '@/lib/clientSession';
 
 const AuthContext = createContext();
 
@@ -69,10 +70,17 @@ export const AuthProvider = ({ children }) => {
       setUser(currentUser);
       setIsAuthenticated(true);
     } catch (error) {
-      console.error('User auth check failed:', error);
-      setIsAuthenticated(false);
-      if (error.status === 401 || error.status === 403) {
-        setAuthError({ type: 'auth_required', message: 'Authentication required' });
+      // Fall back to client session (username+code login) if Base44 auth fails
+      const clientSession = getClientSession();
+      if (clientSession) {
+        setUser(clientSession);
+        setIsAuthenticated(true);
+      } else {
+        console.error('User auth check failed:', error);
+        setIsAuthenticated(false);
+        if (error.status === 401 || error.status === 403) {
+          setAuthError({ type: 'auth_required', message: 'Authentication required' });
+        }
       }
     } finally {
       setIsLoadingAuth(false);
@@ -88,11 +96,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = (shouldRedirect = true) => {
+    clearClientSession();
     setUser(null);
     setIsAuthenticated(false);
     setAuthChecked(false);
     if (shouldRedirect) {
-      base44.auth.logout(window.location.href);
+      base44.auth.logout("/");
     } else {
       base44.auth.logout();
     }

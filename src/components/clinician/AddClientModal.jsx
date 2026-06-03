@@ -28,6 +28,15 @@ function generateToken() {
     Math.random().toString(36).substring(2, 6).toUpperCase();
 }
 
+function generateAccessCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
 function CopyField({ label, value }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
@@ -65,7 +74,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
   const [clientNotes, setClientNotes] = useState("");
   const [children, setChildren] = useState([emptyChild()]);
   const [individual, setIndividual] = useState({ age: "", diagnosis: "", goals: "", notes: "" });
-  const [credentials, setCredentials] = useState({ username: "", inviteLink: "", accountEmail: "", isGeneratedEmail: false });
+  const [credentials, setCredentials] = useState({ username: "", accessCode: "", inviteLink: "", accountEmail: "", isGeneratedEmail: false });
 
   const setHld = (k, v) => setHolder(p => ({ ...p, [k]: v }));
   const updateChild = (i, k, v) => setChildren(c => c.map((x, idx) => idx === i ? { ...x, [k]: v } : x));
@@ -93,10 +102,11 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
 
     const token = generateToken();
     const username = generateUsername(holder.firstName, holder.lastName);
+    const accessCode = generateAccessCode();
     const baseUrl = window.location.origin;
     const link = `${baseUrl}/RoleSetup?invite=${token}`;
 
-    // Use real email if provided, otherwise generate one so Base44 can create the account
+    // Use real email if provided, otherwise generate a placeholder
     const realEmail = holder.email?.trim() || null;
     const generatedEmail = `${username}@clients.neuropathways.app`;
     const accountEmail = realEmail || generatedEmail;
@@ -163,6 +173,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
         last_name: holder.lastName.trim(),
         email: accountEmail,
         phone: holder.phone || undefined,
+        access_code: accessCode,
         family_id: familyId,
         clinician_id: clinicianId,
         account_type: accountType || "individual",
@@ -170,10 +181,12 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
         is_active: true,
       });
 
-      // Invite the user into the platform so they get a real account
-      await base44.users.inviteUser(accountEmail, "user");
+      // Only invite via Base44 if a real email was provided
+      if (realEmail) {
+        await base44.users.inviteUser(accountEmail, "user");
+      }
 
-      setCredentials({ username, inviteLink: link, accountEmail, isGeneratedEmail });
+      setCredentials({ username, accessCode, inviteLink: link, accountEmail, isGeneratedEmail });
 
       if (realEmail) {
         try {
@@ -222,9 +235,9 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
   };
 
   const canProceedStep1 = accountType !== null;
-  const canProceedStep2 = holder.firstName.trim().length > 0 && holder.lastName.trim().length > 0 && holder.email.trim().length > 0;
-  const canSaveFamily = children.some(c => c.child_name.trim()) && holder.firstName.trim() && holder.lastName.trim() && holder.email.trim();
-  const canSaveIndividual = holder.firstName.trim().length > 0 && holder.lastName.trim().length > 0 && holder.email.trim().length > 0;
+  const canProceedStep2 = holder.firstName.trim().length > 0 && holder.lastName.trim().length > 0;
+  const canSaveFamily = children.some(c => c.child_name.trim()) && holder.firstName.trim() && holder.lastName.trim();
+  const canSaveIndividual = holder.firstName.trim().length > 0 && holder.lastName.trim().length > 0;
 
   if (!open) return null;
 
@@ -320,10 +333,10 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
 
               <div>
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Email <span className="normal-case font-normal text-red-500">*</span>
+                  Email <span className="normal-case font-normal text-muted-foreground">(optional)</span>
                 </Label>
                 <Input type="email" value={holder.email} onChange={(e) => setHld("email", e.target.value)} placeholder="email@example.com" className="mt-1.5 rounded-xl border-border" />
-                <p className="text-xs text-muted-foreground mt-1">Required — the client will receive a magic sign-in link to this email each time they log in.</p>
+                <p className="text-xs text-muted-foreground mt-1">If provided, an invite email will be sent. Otherwise clients log in with their username + access code.</p>
               </div>
 
               {!isFamily && (
@@ -424,20 +437,14 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
               <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-3">
                 <p className="text-xs font-semibold text-primary uppercase tracking-wider">🔐 Client Login Info</p>
                 <CopyField label="Username" value={credentials.username} />
-                <CopyField label="Email" value={credentials.accountEmail} />
+                <CopyField label="Access Code" value={credentials.accessCode} />
                 <div className="bg-background rounded-xl px-4 py-3 border border-border">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-0.5">Login URL</p>
-                  <p className="text-xs text-primary font-mono">{window.location.origin}/ClientLogin</p>
+                  <p className="text-xs text-primary font-mono">{window.location.origin}/UsernameLogin</p>
                 </div>
-                {credentials.isGeneratedEmail ? (
-                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                    ⚠️ No real email was provided. Share the <strong>First-Time Setup Link</strong> below directly with your client — they must click it once to activate their account, then log in using their username or the email above.
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Client can log in with their username or email at the login URL above.
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  Share the username and access code with your client. They sign in at the URL above — no email needed.
+                </p>
               </div>
 
               {emailError && !credentials.isGeneratedEmail && (
