@@ -77,7 +77,8 @@ async function buildClientProfile(doc, clinicianId) {
     response_json_schema: profileSchema
   });
 
-  if (!result || !result.behaviors || result.behaviors.length === 0) return;
+  if (!result || (!result.behaviors?.length && !result.goals?.length)) return null;
+  const extractedGoals = result.goals || [];
 
   const mergeArr = (a, b) => [...new Set([...(a || []), ...(b || [])])];
 
@@ -135,6 +136,7 @@ async function buildClientProfile(doc, clinicianId) {
       source_doc_ids: [doc.id],
     }).catch(() => {});
   }
+  return extractedGoals;
 }
 
 // Runs entirely in background — doesn't block UI
@@ -237,7 +239,27 @@ async function scanDocumentInBackground(doc, clinicianId) {
     await base44.entities.Document.update(doc.id, { scan_status: "done" }).catch(() => {});
 
     // Build/update the rich ClientProfile knowledge base
-    await buildClientProfile(doc, clinicianId).catch(() => {});
+    const extractedGoals = await buildClientProfile(doc, clinicianId).catch(() => null);
+
+    // Sync extracted goals into RewardToken (Goals & Milestones)
+    if (extractedGoals && extractedGoals.length > 0) {
+      const existingGoals = await base44.entities.RewardToken.filter({ child_id: doc.child_id }).catch(() => []);
+      const existingTitles = new Set(existingGoals.map(g => (g.goal_title || g.reward_description || "").toLowerCase()));
+      for (const goal of extractedGoals) {
+        if (goal.title && !existingTitles.has(goal.title.toLowerCase())) {
+          await base44.entities.RewardToken.create({
+            child_id: doc.child_id,
+            clinician_id: clinicianId,
+            goal_title: goal.title,
+            goal_description: goal.description || "",
+            progress: 0,
+            target: 10,
+            source: "document",
+            created_by_clinician: true,
+          }).catch(() => {});
+        }
+      }
+    }
   } catch (e) {
     await base44.entities.Document.update(doc.id, { scan_status: "error" }).catch(() => {});
     throw e;

@@ -9,6 +9,7 @@ export default function ClinicianUsers() {
   const [families, setFamilies] = useState([]);
   const [children, setChildren] = useState([]);
   const [parentUsers, setParentUsers] = useState([]);
+  const [clientAccounts, setClientAccounts] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -17,12 +18,12 @@ export default function ClinicianUsers() {
       let me;
       try { me = await base44.auth.me(); } catch { return; }
       if (!me) return;
-      const [fams, kids] = await Promise.all([
+      const [fams, kids, accounts] = await Promise.all([
         base44.entities.Family.filter({ clinician_id: me.id }),
         base44.entities.Child.filter({ clinician_id: me.id }),
+        base44.entities.ClientAccount.filter({ clinician_id: me.id }).catch(() => []),
       ]);
 
-      // Build parent info from child records only (User.list() is admin-only and not used)
       const parentEmailMap = {};
       kids.forEach((c) => {
         const key = c.parent_id || c.parent_email;
@@ -35,6 +36,7 @@ export default function ClinicianUsers() {
       setFamilies(fams.sort((a, b) => (a.family_name || "").localeCompare(b.family_name || "")));
       setChildren(kids);
       setParentUsers(parents);
+      setClientAccounts(accounts);
       setLoading(false);
     };
     load();
@@ -89,6 +91,7 @@ export default function ClinicianUsers() {
             const familyChildren = children.filter((c) => c.family_id === family.id);
             const familyParentIds = new Set(familyChildren.map((c) => c.parent_id).filter(Boolean));
             const familyParents = parentUsers.filter((u) => familyParentIds.has(u.id));
+            const familyAccount = clientAccounts.find((a) => a.family_id === family.id) || null;
             return (
               <motion.div
                 key={family.id}
@@ -100,6 +103,7 @@ export default function ClinicianUsers() {
                   family={family}
                   children={familyChildren}
                   parentUsers={familyParents}
+                  clientAccount={familyAccount}
                 />
               </motion.div>
             );

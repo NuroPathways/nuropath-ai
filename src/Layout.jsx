@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { Brain, Users, MessageSquare, LogOut, Menu, X, ChevronRight, FileText, Settings, Baby, AlertCircle, BarChart2, Upload, ShieldAlert, Home, Bot } from "lucide-react";
+import { Brain, Users, MessageSquare, LogOut, Menu, X, ChevronRight, FileText, Settings, Baby, AlertCircle, BarChart2, Upload, ShieldAlert, Home, Bot, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -155,6 +155,7 @@ export default function Layout({ children, currentPageName }) {
                 <AlertCircle className="w-4 h-4" /> Help Now
                 {currentPageName === "HelpNow" && <ChevronRight className="w-3 h-3 ml-auto" />}
               </Link>
+              <SidebarLink to="/GoalsMilestones" active={currentPageName === "GoalsMilestones"} icon={<Target className="w-4 h-4" />} label="Goals & Milestones" />
               <SidebarLink to="/DocumentCenter" active={currentPageName === "DocumentCenter"} icon={<FileText className="w-4 h-4" />} label="Documents" />
               <SidebarLink to="/Messages" active={currentPageName === "Messages"} icon={<MessageSquare className="w-4 h-4" />} label="Messages" />
               <SidebarLink to="/Settings" active={currentPageName === "Settings"} icon={<Settings className="w-4 h-4" />} label="Settings" />
@@ -259,6 +260,7 @@ export default function Layout({ children, currentPageName }) {
                   <Link to="/HelpNow" className={`flex items-center gap-3 px-3 min-h-[44px] rounded-lg text-sm font-medium ${currentPageName === "HelpNow" ? "bg-red-600 text-white" : "text-red-600 hover:text-red-700 hover:bg-red-50"}`}>
                     <AlertCircle className="w-4 h-4" /> Help Now
                   </Link>
+                  <DrawerLink to="/GoalsMilestones" active={currentPageName === "GoalsMilestones"} icon={<Target className="w-4 h-4" />} label="Goals & Milestones" />
                   <DrawerLink to="/DocumentCenter" active={currentPageName === "DocumentCenter"} icon={<FileText className="w-4 h-4" />} label="Documents" />
                   <DrawerLink to="/Messages" active={currentPageName === "Messages"} icon={<MessageSquare className="w-4 h-4" />} label="Messages" />
                   <DrawerLink to="/Settings" active={currentPageName === "Settings"} icon={<Settings className="w-4 h-4" />} label="Settings" />

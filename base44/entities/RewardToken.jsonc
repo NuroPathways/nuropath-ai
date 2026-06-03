@@ -8,22 +8,51 @@
     "parent_id": {
       "type": "string"
     },
+    "goal_title": {
+      "type": "string",
+      "description": "Title of the goal or milestone"
+    },
+    "goal_description": {
+      "type": "string",
+      "description": "Description of the goal"
+    },
+    "progress": {
+      "type": "number",
+      "default": 0,
+      "description": "Current progress count"
+    },
+    "target": {
+      "type": "number",
+      "description": "Target count to reach the milestone"
+    },
+    "milestone_notes": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "document"
+      ],
+      "default": "manual",
+      "description": "Whether goal was added manually or auto-extracted from documents"
+    },
+    "created_by_clinician": {
+      "type": "boolean",
+      "default": false
+    },
     "token_name": {
       "type": "string",
-      "description": "e.g. Star, Point, Sticker"
+      "description": "Legacy field"
     },
     "tokens_earned": {
       "type": "number",
       "default": 0
     },
     "tokens_goal": {
-      "type": "number",
-      "description": "Tokens needed for a reward"
+      "type": "number"
     },
     "reward_description": {
-      "type": "string"
-    },
-    "milestone_notes": {
       "type": "string"
     },
     "date": {
@@ -33,20 +62,21 @@
   },
   "required": [
     "child_id",
-    "token_name"
+    "goal_title"
   ],
   "rls": {
-    "create": {
-      "data.parent_id": "{{user.id}}"
-    },
+    "create": {},
     "read": {
       "$or": [
         {
           "data.parent_id": "{{user.id}}"
         },
         {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
           "user_condition": {
-            "app_role": "admin"
+            "role": "admin"
           }
         }
       ]
@@ -57,8 +87,11 @@
           "data.parent_id": "{{user.id}}"
         },
         {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
           "user_condition": {
-            "app_role": "admin"
+            "role": "admin"
           }
         }
       ]
@@ -69,8 +102,11 @@
           "data.parent_id": "{{user.id}}"
         },
         {
+          "data.clinician_id": "{{user.id}}"
+        },
+        {
           "user_condition": {
-            "app_role": "admin"
+            "role": "admin"
           }
         }
       ]

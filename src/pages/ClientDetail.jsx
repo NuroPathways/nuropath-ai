@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, User, FileText, Trash2, Edit2, Save, X, Upload, Download, Plus } from "lucide-react";
+import { ArrowLeft, User, FileText, Trash2, Edit2, Save, X, Upload, Download, Plus, Key, Eye, EyeOff } from "lucide-react";
+import ClientGoalsSection from "@/components/clinician/ClientGoalsSection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +20,9 @@ export default function ClientDetail() {
   const [deleting, setDeleting] = useState(false);
   const [documents, setDocuments] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [clinicianId, setClinicianId] = useState("");
+  const [clientAccount, setClientAccount] = useState(null);
+  const [showCode, setShowCode] = useState(false);
 
   useEffect(() => {
     if (!childId) { navigate("/ClinicianDashboard"); return; }
@@ -26,6 +30,7 @@ export default function ClientDetail() {
     const load = async () => {
       const me = await base44.auth.me().catch(() => null);
       if (!me) { navigate("/"); return; }
+      setClinicianId(me.id);
       const [childData, behaviorPlans, docs] = await Promise.all([
         base44.entities.Child.filter({ id: childId }).then(r => r[0] || null).catch(() => null),
         base44.entities.BehaviorPlan.filter({ child_id: childId }).catch(() => []),
@@ -35,6 +40,10 @@ export default function ClientDetail() {
       setEditForm(childData || {});
       setPlans(behaviorPlans);
       setDocuments(docs);
+      // Load client account for credentials
+      if (childData?.family_id) {
+        base44.entities.ClientAccount.filter({ family_id: childData.family_id }).then(r => setClientAccount(r[0] || null)).catch(() => {});
+      }
       setLoading(false);
     };
     load();
@@ -176,6 +185,43 @@ export default function ClientDetail() {
             </div>
           )}
         </div>
+
+        {/* Credentials */}
+        {clientAccount?.username && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl p-4">
+            <h2 className="font-semibold text-foreground text-sm flex items-center gap-2 mb-3">
+              <Key className="w-4 h-4 text-primary" /> Login Credentials
+            </h2>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between bg-muted/50 rounded-xl px-3 py-2">
+                <span className="text-xs text-muted-foreground">Username</span>
+                <span className="text-sm font-mono font-semibold text-foreground">{clientAccount.username}</span>
+              </div>
+              {clientAccount.access_code && (
+                <div className="flex items-center justify-between bg-muted/50 rounded-xl px-3 py-2">
+                  <span className="text-xs text-muted-foreground">Access Code</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-mono font-semibold text-foreground">
+                      {showCode ? clientAccount.access_code : "••••••"}
+                    </span>
+                    <button onClick={() => setShowCode(!showCode)} className="text-muted-foreground hover:text-foreground transition-colors">
+                      {showCode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {clientAccount.email && !clientAccount.email.includes("@noemail.") && (
+                <div className="flex items-center justify-between bg-muted/50 rounded-xl px-3 py-2">
+                  <span className="text-xs text-muted-foreground">Email</span>
+                  <span className="text-sm text-foreground">{clientAccount.email}</span>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Goals & Milestones */}
+        <ClientGoalsSection childId={childId} clinicianId={clinicianId} />
 
         <div>
           <h2 className="font-semibold text-foreground text-sm mb-3 px-1">Behavior Plans ({plans.length})</h2>

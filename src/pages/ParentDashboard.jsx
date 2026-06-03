@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import {
   MessageSquare, Baby, ChevronRight, AlertCircle, FileText,
-  Star, Brain, ClipboardList, TrendingUp, Bell, Activity,
+  Brain, ClipboardList, TrendingUp, Bell, Activity,
   Shield, BookOpen, Zap, ArrowUpRight, Heart, User, Target
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -27,7 +27,7 @@ function SelfClientDashboard({ user, profile, unreadMessages, documents, loading
     { label: "My Documents", sub: "Treatment plans & materials", icon: FileText, color: "bg-blue-50", iconColor: "text-blue-600", path: "/DocumentCenter" },
     { label: "My Progress", sub: "Trends & behavior history", icon: TrendingUp, color: "bg-purple-50", iconColor: "text-purple-600", path: "/ProgressReports" },
     { label: "Messages", sub: "Chat with your clinician", icon: MessageSquare, color: "bg-green-50", iconColor: "text-green-600", path: "/Messages" },
-    { label: "Goals & Rewards", sub: "Track milestones", icon: Star, color: "bg-yellow-50", iconColor: "text-yellow-600", path: "/RewardTracker" },
+    { label: "Goals & Milestones", sub: "Track progress & milestones", icon: Target, color: "bg-yellow-50", iconColor: "text-yellow-600", path: "/GoalsMilestones" },
     { label: "Settings", sub: "Your account preferences", icon: Shield, color: "bg-muted", iconColor: "text-muted-foreground", path: "/Settings" },
   ];
 
@@ -215,7 +215,7 @@ function FamilyDashboard({ user, children, recentLogs, unreadMessages, loading }
   const tools = [
     { label: "NeuroPath AI", sub: "Ask about your child's plan", icon: Brain, color: "bg-primary/10", iconColor: "text-primary", path: "/AIChat" },
     { label: "Documents", sub: "View care plans & materials", icon: FileText, color: "bg-blue-50", iconColor: "text-blue-600", path: "/DocumentCenter" },
-    { label: "Reward Tracker", sub: "Track milestones & tokens", icon: Star, color: "bg-yellow-50", iconColor: "text-yellow-600", path: "/RewardTracker" },
+    { label: "Goals & Milestones", sub: "Track progress & milestones", icon: Target, color: "bg-yellow-50", iconColor: "text-yellow-600", path: "/GoalsMilestones" },
     { label: "Messages", sub: "Chat with your clinician", icon: MessageSquare, color: "bg-green-50", iconColor: "text-green-600", path: "/Messages" },
     { label: "Progress", sub: "Behavior trends over time", icon: TrendingUp, color: "bg-purple-50", iconColor: "text-purple-600", path: "/ProgressReports" },
     { label: "Settings", sub: "Your account preferences", icon: Shield, color: "bg-muted", iconColor: "text-muted-foreground", path: "/Settings" },
