@@ -53,7 +53,7 @@ export default function UsernameLogin() {
         <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
           <h1 className="text-xl font-semibold text-foreground mb-1">Client Sign In</h1>
           <p className="text-sm text-muted-foreground mb-6">
-            Enter the username or email provided by your clinician.
+            Enter your username or email. We'll send a sign-in link to your email.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -65,7 +65,7 @@ export default function UsernameLogin() {
                 type="text"
                 value={identifier}
                 onChange={e => setIdentifier(e.target.value)}
-                placeholder="e.g. jsmith-2048 or email@example.com"
+                placeholder="e.g. jsmith-2048 or your@email.com"
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
@@ -94,7 +94,7 @@ export default function UsernameLogin() {
           </form>
 
           <p className="text-xs text-muted-foreground mt-4 text-center">
-            You'll be asked to verify via email to complete sign in.
+            A sign-in link will be sent to the email your clinician registered for you.
           </p>
         </div>
 

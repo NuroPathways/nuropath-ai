@@ -222,9 +222,9 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
   };
 
   const canProceedStep1 = accountType !== null;
-  const canProceedStep2 = holder.firstName.trim().length > 0 && holder.lastName.trim().length > 0;
-  const canSaveFamily = children.some(c => c.child_name.trim()) && holder.firstName.trim() && holder.lastName.trim();
-  const canSaveIndividual = holder.firstName.trim().length > 0 && holder.lastName.trim().length > 0;
+  const canProceedStep2 = holder.firstName.trim().length > 0 && holder.lastName.trim().length > 0 && holder.email.trim().length > 0;
+  const canSaveFamily = children.some(c => c.child_name.trim()) && holder.firstName.trim() && holder.lastName.trim() && holder.email.trim();
+  const canSaveIndividual = holder.firstName.trim().length > 0 && holder.lastName.trim().length > 0 && holder.email.trim().length > 0;
 
   if (!open) return null;
 
@@ -320,10 +320,10 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
 
               <div>
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Email <span className="normal-case font-normal text-muted-foreground">(optional)</span>
+                  Email <span className="normal-case font-normal text-red-500">*</span>
                 </Label>
                 <Input type="email" value={holder.email} onChange={(e) => setHld("email", e.target.value)} placeholder="email@example.com" className="mt-1.5 rounded-xl border-border" />
-                <p className="text-xs text-muted-foreground mt-1">If provided, an invite link will be emailed. Otherwise, share the generated credentials manually.</p>
+                <p className="text-xs text-muted-foreground mt-1">Required — the client will receive a magic sign-in link to this email each time they log in.</p>
               </div>
 
               {!isFamily && (
