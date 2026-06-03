@@ -22,11 +22,6 @@ function generateUsername(firstName, lastName) {
   return `${f}${l}-${n}`;
 }
 
-function generateAccessCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const rand = (n) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-  return `NP-${rand(4)}-${rand(2)}`;
-}
 
 function generateToken() {
   return Math.random().toString(36).substring(2, 10).toUpperCase() +
@@ -70,7 +65,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
   const [clientNotes, setClientNotes] = useState("");
   const [children, setChildren] = useState([emptyChild()]);
   const [individual, setIndividual] = useState({ age: "", diagnosis: "", goals: "", notes: "" });
-  const [credentials, setCredentials] = useState({ username: "", accessCode: "", inviteLink: "" });
+  const [credentials, setCredentials] = useState({ username: "", inviteLink: "", accountEmail: "", isGeneratedEmail: false });
 
   const setHld = (k, v) => setHolder(p => ({ ...p, [k]: v }));
   const updateChild = (i, k, v) => setChildren(c => c.map((x, idx) => idx === i ? { ...x, [k]: v } : x));
@@ -97,10 +92,15 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
     setEmailSent(false);
 
     const token = generateToken();
-    const accessCode = generateAccessCode();
     const username = generateUsername(holder.firstName, holder.lastName);
     const baseUrl = window.location.origin;
     const link = `${baseUrl}/RoleSetup?invite=${token}`;
+
+    // Use real email if provided, otherwise generate one so Base44 can create the account
+    const realEmail = holder.email?.trim() || null;
+    const generatedEmail = `${username}@clients.neuropathways.app`;
+    const accountEmail = realEmail || generatedEmail;
+    const isGeneratedEmail = !realEmail;
 
     try {
       let familyId;
@@ -111,7 +111,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
           notes: clientNotes || undefined,
           clinician_id: clinicianId,
           invite_token: token,
-          invite_email: holder.email || undefined,
+          invite_email: accountEmail,
           invite_status: "pending",
           parent_name: fullName || undefined,
           account_type: accountType,
@@ -129,7 +129,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
             is_patient: child.is_patient || false,
             family_id: familyId,
             clinician_id: clinicianId,
-            parent_email: holder.email || undefined,
+            parent_email: accountEmail,
           });
         }
       } else {
@@ -138,7 +138,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
           notes: individual.notes || undefined,
           clinician_id: clinicianId,
           invite_token: token,
-          invite_email: holder.email || undefined,
+          invite_email: accountEmail,
           invite_status: "pending",
           parent_name: fullName || undefined,
           account_type: "individual",
@@ -153,30 +153,31 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
           is_patient: true,
           family_id: familyId,
           clinician_id: clinicianId,
-          parent_email: holder.email || undefined,
+          parent_email: accountEmail,
         });
       }
 
       await base44.entities.ClientAccount.create({
         username,
-        access_code: accessCode,
         first_name: holder.firstName.trim(),
         last_name: holder.lastName.trim(),
-        email: holder.email || undefined,
+        email: accountEmail,
         phone: holder.phone || undefined,
         family_id: familyId,
         clinician_id: clinicianId,
         account_type: accountType || "individual",
         invite_token: token,
-        must_change_password: true,
         is_active: true,
       });
 
-      setCredentials({ username, accessCode, inviteLink: link });
+      // Invite the user into the platform so they get a real account
+      await base44.users.inviteUser(accountEmail, "user");
 
-      if (holder.email) {
+      setCredentials({ username, inviteLink: link, accountEmail, isGeneratedEmail });
+
+      if (realEmail) {
         try {
-          await sendInviteEmail(holder.email, fullName, link);
+          await sendInviteEmail(realEmail, fullName, link);
           setEmailSent(true);
         } catch {
           setEmailError(true);
@@ -214,7 +215,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
     setClientNotes("");
     setChildren([emptyChild()]);
     setIndividual({ age: "", diagnosis: "", goals: "", notes: "" });
-    setCredentials({ username: "", accessCode: "", inviteLink: "" });
+    setCredentials({ username: "", inviteLink: "", accountEmail: "", isGeneratedEmail: false });
     setEmailSent(false);
     setEmailError(false);
     onClose();
@@ -411,46 +412,51 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
                 </div>
                 <h3 className="font-bold text-foreground text-lg">Client Added!</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {holder.email
-                    ? emailSent
-                      ? `Invite email sent to ${holder.email}.`
-                      : emailError
-                        ? "Email failed — share the credentials below manually."
-                        : `Processing invite for ${holder.email}...`
-                    : "Share these credentials with your client."}
+                  {!credentials.isGeneratedEmail && emailSent
+                    ? `Invite email sent to ${credentials.accountEmail}.`
+                    : !credentials.isGeneratedEmail && emailError
+                      ? "Email failed — share the login info below manually."
+                      : "Share the login info below with your client."}
                 </p>
               </div>
 
-              {/* Credentials Card */}
+              {/* Login Credentials Card */}
               <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-3">
-                <p className="text-xs font-semibold text-primary uppercase tracking-wider">🔐 Login Credentials</p>
+                <p className="text-xs font-semibold text-primary uppercase tracking-wider">🔐 Client Login Info</p>
                 <CopyField label="Username" value={credentials.username} />
-                <CopyField label="Access Code" value={credentials.accessCode} />
+                <CopyField label="Email" value={credentials.accountEmail} />
                 <div className="bg-background rounded-xl px-4 py-3 border border-border">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-0.5">Login URL</p>
-                  <p className="text-xs text-primary font-mono">{window.location.origin}/UsernameLogin</p>
+                  <p className="text-xs text-primary font-mono">{window.location.origin}/ClientLogin</p>
                 </div>
-                <p className="text-xs text-muted-foreground pt-1">
-                  Client uses their username + access code at the login URL above. The access code acts as their temporary password.
-                </p>
+                {credentials.isGeneratedEmail ? (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                    ⚠️ No real email was provided. Share the <strong>First-Time Setup Link</strong> below directly with your client — they must click it once to activate their account, then log in using their username or the email above.
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Client can log in with their username or email at the login URL above.
+                  </p>
+                )}
               </div>
 
-              {emailError && holder.email && (
+              {emailError && !credentials.isGeneratedEmail && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 space-y-2">
                   <p className="font-semibold">⚠️ Email delivery failed</p>
-                  <p>Share the credentials above with your client manually.</p>
+                  <p>Share the setup link below with your client directly.</p>
                   <Button variant="outline" size="sm" className="w-full rounded-xl gap-1.5" onClick={handleResend} disabled={resending}>
                     {resending ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Resending...</> : <><RefreshCw className="w-3.5 h-3.5" /> Retry Email</>}
                   </Button>
                 </div>
               )}
 
-              {/* Setup link */}
+              {/* First-Time Setup Link */}
               <div className="bg-muted rounded-xl p-4 space-y-2">
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4 text-primary" />
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">First-Time Setup Link</p>
                 </div>
+                <p className="text-xs text-muted-foreground">Client must click this once to activate their account:</p>
                 <p className="text-xs font-mono text-foreground break-all">{credentials.inviteLink}</p>
                 <Button variant="outline" size="sm" className="w-full rounded-xl mt-1" onClick={() => navigator.clipboard.writeText(credentials.inviteLink)}>
                   Copy Setup Link

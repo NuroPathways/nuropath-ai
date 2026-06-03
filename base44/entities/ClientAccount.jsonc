@@ -6,10 +6,6 @@
       "type": "string",
       "description": "Unique username e.g. jsmith-2048"
     },
-    "access_code": {
-      "type": "string",
-      "description": "Temporary access code for first login (e.g. NP-XXXX-XX)"
-    },
     "first_name": {
       "type": "string"
     },
@@ -20,7 +16,8 @@
       "type": "string"
     },
     "email": {
-      "type": "string"
+      "type": "string",
+      "description": "Real or generated email used for Base44 login"
     },
     "family_id": {
       "type": "string",
@@ -40,10 +37,6 @@
     "invite_token": {
       "type": "string",
       "description": "Token used for RoleSetup redirect"
-    },
-    "must_change_password": {
-      "type": "boolean",
-      "default": true
     },
     "is_active": {
       "type": "boolean",

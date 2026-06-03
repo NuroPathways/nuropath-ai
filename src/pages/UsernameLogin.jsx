@@ -1,39 +1,37 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Brain, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Brain, Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
 export default function UsernameLogin() {
-  const navigate = useNavigate();
-  const [username, setUsername] = useState("");
-  const [accessCode, setAccessCode] = useState("");
-  const [showCode, setShowCode] = useState(false);
+  const [identifier, setIdentifier] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!username.trim() || !accessCode.trim()) return;
+    if (!identifier.trim()) return;
     setLoading(true);
     setError("");
 
     try {
-      const res = await base44.functions.invoke("verifyClientCredentials", {
-        username: username.trim().toLowerCase(),
-        access_code: accessCode.trim().toUpperCase(),
+      const res = await base44.functions.invoke("lookupClientEmail", {
+        identifier: identifier.trim(),
       });
 
-      const data = res.data;
-      if (data?.success && data?.invite_token) {
-        window.location.href = `/RoleSetup?invite=${data.invite_token}`;
-      } else {
-        setError(data?.error || "Invalid username or access code.");
+      const { email, error: lookupError } = res.data;
+
+      if (lookupError || !email) {
+        setError(lookupError || "No account found. Please check your username or email.");
+        setLoading(false);
+        return;
       }
+
+      // Redirect to Base44 login pre-filled with the resolved email
+      base44.auth.redirectToLogin("/RoleSetup", { email });
     } catch {
       setError("Could not connect. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
@@ -55,46 +53,24 @@ export default function UsernameLogin() {
         <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
           <h1 className="text-xl font-semibold text-foreground mb-1">Client Sign In</h1>
           <p className="text-sm text-muted-foreground mb-6">
-            Enter the username and access code provided by your clinician.
+            Enter the username or email provided by your clinician.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                Username
+                Username or Email
               </label>
               <input
                 type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="e.g. jsmith-2048"
+                value={identifier}
+                onChange={e => setIdentifier(e.target.value)}
+                placeholder="e.g. jsmith-2048 or email@example.com"
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
                 className="w-full min-h-[44px] border border-border rounded-xl px-4 py-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                Access Code
-              </label>
-              <div className="relative">
-                <input
-                  type={showCode ? "text" : "password"}
-                  value={accessCode}
-                  onChange={e => setAccessCode(e.target.value)}
-                  placeholder="NP-XXXX-XX"
-                  className="w-full min-h-[44px] border border-border rounded-xl px-4 py-2.5 pr-11 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCode(s => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
             </div>
 
             {error && (
@@ -106,21 +82,25 @@ export default function UsernameLogin() {
             <Button
               type="submit"
               className="w-full min-h-[44px] rounded-xl"
-              disabled={loading || !username.trim() || !accessCode.trim()}
+              disabled={loading || !identifier.trim()}
             >
               {loading ? (
                 <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Verifying...
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Looking up account...
                 </span>
-              ) : "Sign In"}
+              ) : "Continue"}
             </Button>
           </form>
+
+          <p className="text-xs text-muted-foreground mt-4 text-center">
+            You'll be asked to verify via email to complete sign in.
+          </p>
         </div>
 
         <div className="mt-6 text-center space-y-3">
           <p className="text-xs text-muted-foreground">
-            Have an email account?{" "}
+            Are you a clinician?{" "}
             <button
               onClick={() => base44.auth.redirectToLogin("/RoleSetup")}
               className="text-primary hover:underline font-medium"
@@ -129,10 +109,10 @@ export default function UsernameLogin() {
             </button>
           </p>
           <button
-            onClick={() => navigate("/")}
+            onClick={() => window.history.back()}
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mx-auto"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to welcome
+            <ArrowLeft className="w-3.5 h-3.5" /> Back
           </button>
         </div>
       </motion.div>
