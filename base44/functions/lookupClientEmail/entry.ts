@@ -11,12 +11,10 @@ Deno.serve(async (req) => {
 
     const val = identifier.trim().toLowerCase();
 
-    // If it looks like an email, just return it directly
     if (val.includes('@')) {
       return Response.json({ email: val });
     }
 
-    // Otherwise treat as username — look up in ClientAccount
     const accounts = await base44.asServiceRole.entities.ClientAccount.filter({ username: val });
 
     if (!accounts || accounts.length === 0) {
