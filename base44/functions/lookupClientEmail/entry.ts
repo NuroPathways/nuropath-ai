@@ -1,6 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-// Given a username OR email, returns the real account email for Base44 login.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
