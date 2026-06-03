@@ -46,7 +46,7 @@
         },
         {
           "user_condition": {
-            "role": "admin"
+            "app_role": "admin"
           }
         }
       ]
@@ -58,7 +58,7 @@
         },
         {
           "user_condition": {
-            "role": "admin"
+            "app_role": "admin"
           }
         }
       ]
@@ -70,7 +70,7 @@
         },
         {
           "user_condition": {
-            "role": "admin"
+            "app_role": "admin"
           }
         }
       ]

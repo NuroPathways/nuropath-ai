@@ -22,6 +22,10 @@
       "type": "string",
       "description": "User-editable display name shown in the app"
     },
+    "phone": {
+      "type": "string",
+      "description": "User phone number"
+    },
     "account_type": {
       "type": "string",
       "enum": [

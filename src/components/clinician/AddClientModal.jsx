@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { X, Plus, Trash2, ChevronRight, ChevronLeft, Users, User, Baby, Mail, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { X, Plus, Trash2, ChevronRight, ChevronLeft, User, Baby, Mail, CheckCircle2, AlertCircle, RefreshCw, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,51 +8,69 @@ import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
 
 const ACCOUNT_TYPES = [
-  {
-    key: "parent_family",
-    label: "Parent / Family",
-    desc: "A parent or guardian managing care for a child",
-    icon: "👨‍👩‍👧",
-  },
-  {
-    key: "individual",
-    label: "Individual Client",
-    desc: "The client will use the app directly for their own care",
-    icon: "🧑",
-  },
-  {
-    key: "caregiver",
-    label: "Caregiver / Guardian",
-    desc: "A non-parent caregiver managing care for a child",
-    icon: "🤝",
-  },
+  { key: "parent_family", label: "Parent / Family", desc: "A parent or guardian managing care for a child", icon: "👨‍👩‍👧" },
+  { key: "individual", label: "Individual Client", desc: "The client will use the app directly for their own care", icon: "🧑" },
+  { key: "caregiver", label: "Caregiver / Guardian", desc: "A non-parent caregiver managing care for a child", icon: "🤝" },
 ];
 
 const emptyChild = () => ({ child_name: "", age: "", diagnosis: "", triggers: "", notes: "", is_patient: true });
+
+function generateUsername(firstName, lastName) {
+  const f = firstName.toLowerCase().replace(/[^a-z]/g, '').charAt(0) || 'x';
+  const l = lastName.toLowerCase().replace(/[^a-z]/g, '').substring(0, 9) || 'user';
+  const n = Math.floor(1000 + Math.random() * 8999);
+  return `${f}${l}-${n}`;
+}
+
+function generateAccessCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const rand = (n) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  return `NP-${rand(4)}-${rand(2)}`;
+}
 
 function generateToken() {
   return Math.random().toString(36).substring(2, 10).toUpperCase() +
     Math.random().toString(36).substring(2, 6).toUpperCase();
 }
 
+function CopyField({ label, value }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div className="flex items-center justify-between bg-background rounded-xl px-4 py-3 border border-border">
+      <div>
+        <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-0.5">{label}</p>
+        <p className="text-sm font-mono font-bold text-foreground tracking-wide">{value}</p>
+      </div>
+      <button
+        onClick={copy}
+        className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 px-3 py-1.5 rounded-lg border border-primary/20 hover:bg-primary/5 transition-colors flex-shrink-0 ml-3 min-h-[36px]"
+      >
+        {copied ? <><Check className="w-3.5 h-3.5" /> Copied</> : <><Copy className="w-3.5 h-3.5" /> Copy</>}
+      </button>
+    </div>
+  );
+}
+
 export default function AddClientModal({ open, onClose, onSuccess, clinicianId }) {
-  const [step, setStep] = useState(0); // 0=AccountType, 1=AccountHolder, 2=Children(family only), 3=Done
+  const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
-  const [inviteLink, setInviteLink] = useState("");
   const [emailSent, setEmailSent] = useState(false);
   const [emailError, setEmailError] = useState(false);
   const [resending, setResending] = useState(false);
   const [accountType, setAccountType] = useState(null);
 
-  // Shared holder info (parent, individual, or caregiver)
-  const [holder, setHolder] = useState({ name: "", email: "" });
-  // For family/caregiver: client/child details
-  const [clientName, setClientName] = useState(""); // family name or individual name
+  const [holder, setHolder] = useState({ firstName: "", lastName: "", email: "", phone: "" });
+  const [clientName, setClientName] = useState("");
   const [clientNotes, setClientNotes] = useState("");
   const [children, setChildren] = useState([emptyChild()]);
-  // For individual: extra fields
   const [individual, setIndividual] = useState({ age: "", diagnosis: "", goals: "", notes: "" });
+  const [credentials, setCredentials] = useState({ username: "", accessCode: "", inviteLink: "" });
 
   const setHld = (k, v) => setHolder(p => ({ ...p, [k]: v }));
   const updateChild = (i, k, v) => setChildren(c => c.map((x, idx) => idx === i ? { ...x, [k]: v } : x));
@@ -60,46 +78,45 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
   const removeChild = (i) => setChildren(c => c.filter((_, idx) => idx !== i));
 
   const isFamily = accountType === "parent_family" || accountType === "caregiver";
+  const fullName = `${holder.firstName.trim()} ${holder.lastName.trim()}`.trim();
 
-  const getSteps = () => {
-    if (isFamily) return ["Account Type", "Account Holder", "Client Profile"];
-    return ["Account Type", "Client Details"];
-  };
-
+  const getSteps = () => isFamily ? ["Account Type", "Account Holder", "Client Profile"] : ["Account Type", "Client Details"];
   const totalSteps = getSteps().length;
+  const doneStep = isFamily ? 3 : 2;
 
   const sendInviteEmail = async (email, name, link) => {
-    const response = await base44.functions.invoke('sendInviteEmail', {
-      to: email,
-      name,
-      link,
-      type: accountType,
-    });
+    const response = await base44.functions.invoke('sendInviteEmail', { to: email, name, link, type: accountType });
     if (response.data?.error) throw new Error(response.data.error);
   };
 
   const handleSave = async () => {
-    if (!clinicianId) { setSaveError("Session error: clinician ID missing. Please refresh and try again."); return; }
+    if (!clinicianId) { setSaveError("Session error: clinician ID missing."); return; }
     setSaving(true);
     setSaveError("");
     setEmailError(false);
     setEmailSent(false);
+
     const token = generateToken();
+    const accessCode = generateAccessCode();
+    const username = generateUsername(holder.firstName, holder.lastName);
     const baseUrl = window.location.origin;
     const link = `${baseUrl}/RoleSetup?invite=${token}`;
 
     try {
+      let familyId;
+
       if (isFamily) {
         const fam = await base44.entities.Family.create({
-          family_name: clientName.trim() || `${holder.name}'s Family`,
+          family_name: clientName.trim() || `${fullName}'s Family`,
           notes: clientNotes || undefined,
           clinician_id: clinicianId,
           invite_token: token,
           invite_email: holder.email || undefined,
           invite_status: "pending",
-          parent_name: holder.name || undefined,
+          parent_name: fullName || undefined,
           account_type: accountType,
         });
+        familyId = fam.id;
 
         for (const child of children) {
           if (!child.child_name.trim()) continue;
@@ -110,40 +127,56 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
             triggers: child.triggers || undefined,
             notes: child.notes || undefined,
             is_patient: child.is_patient || false,
-            family_id: fam.id,
+            family_id: familyId,
             clinician_id: clinicianId,
             parent_email: holder.email || undefined,
           });
         }
       } else {
         const fam = await base44.entities.Family.create({
-          family_name: holder.name.trim() || "Individual Client",
+          family_name: fullName || "Individual Client",
           notes: individual.notes || undefined,
           clinician_id: clinicianId,
           invite_token: token,
           invite_email: holder.email || undefined,
           invite_status: "pending",
-          parent_name: holder.name || undefined,
+          parent_name: fullName || undefined,
           account_type: "individual",
         });
+        familyId = fam.id;
 
         await base44.entities.Child.create({
-          child_name: holder.name.trim(),
+          child_name: fullName,
           age: individual.age ? Number(individual.age) : undefined,
           diagnosis: individual.diagnosis || undefined,
           notes: individual.goals ? `Goals: ${individual.goals}\n${individual.notes || ""}`.trim() : (individual.notes || undefined),
           is_patient: true,
-          family_id: fam.id,
+          family_id: familyId,
           clinician_id: clinicianId,
           parent_email: holder.email || undefined,
         });
       }
 
-      setInviteLink(link);
+      await base44.entities.ClientAccount.create({
+        username,
+        access_code: accessCode,
+        first_name: holder.firstName.trim(),
+        last_name: holder.lastName.trim(),
+        email: holder.email || undefined,
+        phone: holder.phone || undefined,
+        family_id: familyId,
+        clinician_id: clinicianId,
+        account_type: accountType || "individual",
+        invite_token: token,
+        must_change_password: true,
+        is_active: true,
+      });
+
+      setCredentials({ username, accessCode, inviteLink: link });
 
       if (holder.email) {
         try {
-          await sendInviteEmail(holder.email, holder.name, link);
+          await sendInviteEmail(holder.email, fullName, link);
           setEmailSent(true);
         } catch {
           setEmailError(true);
@@ -151,21 +184,20 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
       }
 
       setSaving(false);
-      setStep(isFamily ? 3 : 2);
+      setStep(doneStep);
       onSuccess();
     } catch (err) {
-      console.error("Save failed:", err);
       setSaveError(err?.message || "Something went wrong. Please try again.");
       setSaving(false);
     }
   };
 
   const handleResend = async () => {
-    if (!holder.email || !inviteLink) return;
+    if (!holder.email || !credentials.inviteLink) return;
     setResending(true);
     setEmailError(false);
     try {
-      await sendInviteEmail(holder.email, holder.name, inviteLink);
+      await sendInviteEmail(holder.email, fullName, credentials.inviteLink);
       setEmailSent(true);
     } catch {
       setEmailError(true);
@@ -177,25 +209,21 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
     setStep(0);
     setSaveError("");
     setAccountType(null);
-    setHolder({ name: "", email: "" });
+    setHolder({ firstName: "", lastName: "", email: "", phone: "" });
     setClientName("");
     setClientNotes("");
     setChildren([emptyChild()]);
     setIndividual({ age: "", diagnosis: "", goals: "", notes: "" });
-    setInviteLink("");
+    setCredentials({ username: "", accessCode: "", inviteLink: "" });
     setEmailSent(false);
     setEmailError(false);
     onClose();
   };
 
-  const copyLink = () => navigator.clipboard.writeText(inviteLink);
-
   const canProceedStep1 = accountType !== null;
-  const canProceedStep2 = holder.name.trim().length > 0;
-  const canSaveFamily = children.some(c => c.child_name.trim());
-  const canSaveIndividual = holder.name.trim().length > 0;
-
-  const doneStep = isFamily ? 3 : 2;
+  const canProceedStep2 = holder.firstName.trim().length > 0 && holder.lastName.trim().length > 0;
+  const canSaveFamily = children.some(c => c.child_name.trim()) && holder.firstName.trim() && holder.lastName.trim();
+  const canSaveIndividual = holder.firstName.trim().length > 0 && holder.lastName.trim().length > 0;
 
   if (!open) return null;
 
@@ -211,13 +239,9 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
         <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
           <div>
             <h2 className="font-semibold text-foreground text-base">Add New Client</h2>
-            {step < doneStep && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Step {step + 1} of {totalSteps}
-              </p>
-            )}
+            {step < doneStep && <p className="text-xs text-muted-foreground mt-0.5">Step {step + 1} of {totalSteps}</p>}
           </div>
-          <button onClick={handleClose} className="text-muted-foreground hover:text-foreground">
+          <button onClick={handleClose} className="text-muted-foreground hover:text-foreground min-w-[44px] min-h-[44px] flex items-center justify-center">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -234,7 +258,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
         {/* Content */}
         <div className="p-6 overflow-y-auto flex-1">
 
-          {/* Step 0: Account Type Selection */}
+          {/* Step 0: Account Type */}
           {step === 0 && (
             <div className="space-y-4">
               <div>
@@ -246,20 +270,14 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
                   <button
                     key={type.key}
                     onClick={() => setAccountType(type.key)}
-                    className={`w-full text-left rounded-xl border-2 p-4 flex items-start gap-3 transition-all ${
-                      accountType === type.key
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/40 bg-card"
-                    }`}
+                    className={`w-full text-left rounded-xl border-2 p-4 flex items-start gap-3 transition-all ${accountType === type.key ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 bg-card"}`}
                   >
                     <span className="text-2xl mt-0.5">{type.icon}</span>
                     <div>
                       <p className="font-semibold text-sm text-foreground">{type.label}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{type.desc}</p>
                     </div>
-                    {accountType === type.key && (
-                      <CheckCircle2 className="w-5 h-5 text-primary ml-auto flex-shrink-0" />
-                    )}
+                    {accountType === type.key && <CheckCircle2 className="w-5 h-5 text-primary ml-auto flex-shrink-0" />}
                   </button>
                 ))}
               </div>
@@ -273,99 +291,66 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
                 <User className="w-6 h-6 text-primary" />
               </div>
               <p className="text-xs text-muted-foreground -mt-1 mb-2">
-                {isFamily
-                  ? "Enter the account holder's details. They will receive the invite to access Aspire."
-                  : "Enter the client's details. They will receive a direct invite to their personal Aspire account."}
+                Enter the client's details. A username and access code will be generated automatically — no email required.
               </p>
 
-              {/* For family: collect family/group name */}
               {isFamily && (
                 <div>
-                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Client / Family Name
-                  </Label>
-                  <Input
-                    value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
-                    placeholder="e.g. The Johnson Family"
-                    className="mt-1.5 rounded-xl border-border"
-                  />
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Client / Family Name</Label>
+                  <Input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="e.g. The Johnson Family" className="mt-1.5 rounded-xl border-border" />
                 </div>
               )}
 
-              <div>
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  {isFamily ? "Account Holder Name *" : "Client Name *"}
-                </Label>
-                <Input
-                  value={holder.name}
-                  onChange={(e) => setHld("name", e.target.value)}
-                  placeholder={isFamily ? "Primary guardian / caregiver full name" : "Client's full name"}
-                  className="mt-1.5 rounded-xl border-border"
-                />
-              </div>
-              <div>
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email (for invite)</Label>
-                <Input
-                  type="email"
-                  value={holder.email}
-                  onChange={(e) => setHld("email", e.target.value)}
-                  placeholder="email@example.com"
-                  className="mt-1.5 rounded-xl border-border"
-                />
-                <p className="text-xs text-muted-foreground mt-1">A secure invite link will be emailed to this address.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">First Name *</Label>
+                  <Input value={holder.firstName} onChange={(e) => setHld("firstName", e.target.value)} placeholder="First name" className="mt-1.5 rounded-xl border-border" />
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Last Name *</Label>
+                  <Input value={holder.lastName} onChange={(e) => setHld("lastName", e.target.value)} placeholder="Last name" className="mt-1.5 rounded-xl border-border" />
+                </div>
               </div>
 
-              {/* Individual-only extra fields */}
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Phone Number</Label>
+                <Input type="tel" value={holder.phone} onChange={(e) => setHld("phone", e.target.value)} placeholder="(optional)" className="mt-1.5 rounded-xl border-border" />
+              </div>
+
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Email <span className="normal-case font-normal text-muted-foreground">(optional)</span>
+                </Label>
+                <Input type="email" value={holder.email} onChange={(e) => setHld("email", e.target.value)} placeholder="email@example.com" className="mt-1.5 rounded-xl border-border" />
+                <p className="text-xs text-muted-foreground mt-1">If provided, an invite link will be emailed. Otherwise, share the generated credentials manually.</p>
+              </div>
+
               {!isFamily && (
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs text-muted-foreground">Age</Label>
-                      <Input
-                        type="number"
-                        value={individual.age}
-                        onChange={(e) => setIndividual(p => ({ ...p, age: e.target.value }))}
-                        placeholder="e.g. 24"
-                        className="mt-1 rounded-xl border-border text-sm"
-                      />
+                      <Input type="number" value={individual.age} onChange={(e) => setIndividual(p => ({ ...p, age: e.target.value }))} placeholder="e.g. 24" className="mt-1 rounded-xl border-border text-sm" />
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Diagnosis</Label>
-                      <Input
-                        value={individual.diagnosis}
-                        onChange={(e) => setIndividual(p => ({ ...p, diagnosis: e.target.value }))}
-                        placeholder="e.g. Anxiety"
-                        className="mt-1 rounded-xl border-border text-sm"
-                      />
+                      <Input value={individual.diagnosis} onChange={(e) => setIndividual(p => ({ ...p, diagnosis: e.target.value }))} placeholder="e.g. Anxiety" className="mt-1 rounded-xl border-border text-sm" />
                     </div>
                   </div>
                   <div>
                     <Label className="text-xs text-muted-foreground">Treatment Goals</Label>
-                    <Textarea
-                      value={individual.goals}
-                      onChange={(e) => setIndividual(p => ({ ...p, goals: e.target.value }))}
-                      placeholder="List primary behavioral or therapeutic goals..."
-                      rows={2}
-                      className="mt-1 rounded-xl border-border resize-none text-sm"
-                    />
+                    <Textarea value={individual.goals} onChange={(e) => setIndividual(p => ({ ...p, goals: e.target.value }))} placeholder="List primary behavioral or therapeutic goals..." rows={2} className="mt-1 rounded-xl border-border resize-none text-sm" />
                   </div>
                   <div>
                     <Label className="text-xs text-muted-foreground">Notes (optional)</Label>
-                    <Textarea
-                      value={individual.notes}
-                      onChange={(e) => setIndividual(p => ({ ...p, notes: e.target.value }))}
-                      placeholder="Any general notes..."
-                      rows={2}
-                      className="mt-1 rounded-xl border-border resize-none text-sm"
-                    />
+                    <Textarea value={individual.notes} onChange={(e) => setIndividual(p => ({ ...p, notes: e.target.value }))} placeholder="Any general notes..." rows={2} className="mt-1 rounded-xl border-border resize-none text-sm" />
                   </div>
                 </>
               )}
             </div>
           )}
 
-          {/* Step 2 (Family only): Child/Client Profile */}
+          {/* Step 2 (Family only): Children */}
           {step === 2 && isFamily && (
             <div className="space-y-5">
               <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center mb-2">
@@ -405,7 +390,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
                       onClick={() => updateChild(i, "is_patient", !c.is_patient)}
                       className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors flex-shrink-0 ${c.is_patient ? "bg-primary border-primary" : "border-border bg-background"}`}
                     >
-                      {c.is_patient && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      {c.is_patient && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                     </div>
                     <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">This is the patient / client</span>
                   </label>
@@ -417,70 +402,60 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
             </div>
           )}
 
-          {/* Done step */}
+          {/* Done: Credentials */}
           {step === doneStep && (
-            <div className="text-center py-4 space-y-5">
-              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-8 h-8 text-green-600" />
-              </div>
-              <div>
+            <div className="space-y-5">
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle2 className="w-8 h-8 text-green-600" />
+                </div>
                 <h3 className="font-bold text-foreground text-lg">Client Added!</h3>
                 <p className="text-sm text-muted-foreground mt-1">
                   {holder.email
                     ? emailSent
                       ? `Invite email sent to ${holder.email}.`
                       : emailError
-                        ? `Email delivery failed. Use the link below.`
+                        ? "Email failed — share the credentials below manually."
                         : `Processing invite for ${holder.email}...`
-                    : "Share the invite link below manually."}
+                    : "Share these credentials with your client."}
                 </p>
               </div>
 
-              {/* Email status badge */}
-              {holder.email && (
-                <div className={`flex items-center justify-center gap-2 text-xs font-medium px-3 py-2 rounded-xl mx-auto w-fit ${
-                  emailSent ? "bg-green-50 text-green-700" :
-                  emailError ? "bg-red-50 text-red-700" :
-                  "bg-muted text-muted-foreground"
-                }`}>
-                  {emailSent && <><CheckCircle2 className="w-3.5 h-3.5" /> Email Sent Successfully</>}
-                  {emailError && <><AlertCircle className="w-3.5 h-3.5" /> Email Failed — Copy link below</>}
+              {/* Credentials Card */}
+              <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-3">
+                <p className="text-xs font-semibold text-primary uppercase tracking-wider">🔐 Login Credentials</p>
+                <CopyField label="Username" value={credentials.username} />
+                <CopyField label="Access Code" value={credentials.accessCode} />
+                <div className="bg-background rounded-xl px-4 py-3 border border-border">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-0.5">Login URL</p>
+                  <p className="text-xs text-primary font-mono">{window.location.origin}/UsernameLogin</p>
                 </div>
-              )}
+                <p className="text-xs text-muted-foreground pt-1">
+                  Client uses their username + access code at the login URL above. The access code acts as their temporary password.
+                </p>
+              </div>
 
-              {/* Email failed explanation */}
-              {emailError && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-left text-xs text-amber-800 space-y-1">
-                  <p className="font-semibold">⚠️ Why did the email fail?</p>
-                  <p>Email delivery requires integration credits. Your workspace may be out of credits or the email service is temporarily unavailable. <strong>The client profile was created successfully.</strong> You can still onboard them by copying the invite link below and sending it manually.</p>
-                </div>
-              )}
-
-              {/* Resend button on error */}
               {emailError && holder.email && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl gap-1.5 text-xs"
-                  onClick={handleResend}
-                  disabled={resending}
-                >
-                  {resending ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Resending...</> : <><RefreshCw className="w-3.5 h-3.5" /> Try Resend Email</>}
-                </Button>
-              )}
-
-              {inviteLink && (
-                <div className="bg-muted rounded-xl p-4 text-left space-y-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Mail className="w-4 h-4 text-primary" />
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Invite Link</p>
-                  </div>
-                  <p className="text-xs font-mono text-foreground break-all">{inviteLink}</p>
-                  <Button variant="outline" size="sm" className="w-full rounded-xl mt-2" onClick={copyLink}>
-                    Copy Link
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 space-y-2">
+                  <p className="font-semibold">⚠️ Email delivery failed</p>
+                  <p>Share the credentials above with your client manually.</p>
+                  <Button variant="outline" size="sm" className="w-full rounded-xl gap-1.5" onClick={handleResend} disabled={resending}>
+                    {resending ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Resending...</> : <><RefreshCw className="w-3.5 h-3.5" /> Retry Email</>}
                   </Button>
                 </div>
               )}
+
+              {/* Setup link */}
+              <div className="bg-muted rounded-xl p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-primary" />
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">First-Time Setup Link</p>
+                </div>
+                <p className="text-xs font-mono text-foreground break-all">{credentials.inviteLink}</p>
+                <Button variant="outline" size="sm" className="w-full rounded-xl mt-1" onClick={() => navigator.clipboard.writeText(credentials.inviteLink)}>
+                  Copy Setup Link
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -488,11 +463,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
         {/* Footer */}
         <div className="px-6 pb-6 flex gap-3 flex-shrink-0 border-t border-border pt-4">
           {step === 0 && (
-            <Button
-              className="flex-1 rounded-xl gap-1.5 bg-primary hover:bg-primary/90"
-              disabled={!canProceedStep1}
-              onClick={() => setStep(1)}
-            >
+            <Button className="flex-1 rounded-xl gap-1.5 bg-primary hover:bg-primary/90" disabled={!canProceedStep1} onClick={() => setStep(1)}>
               Next <ChevronRight className="w-4 h-4" />
             </Button>
           )}
@@ -502,27 +473,18 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
                 <ChevronLeft className="w-4 h-4" /> Back
               </Button>
               {isFamily ? (
-                <Button
-                  className="flex-1 rounded-xl bg-primary hover:bg-primary/90"
-                  disabled={!canProceedStep2}
-                  onClick={() => setStep(2)}
-                >
+                <Button className="flex-1 rounded-xl bg-primary hover:bg-primary/90" disabled={!canProceedStep2} onClick={() => setStep(2)}>
                   Next <ChevronRight className="w-4 h-4" />
                 </Button>
               ) : (
                 <div className="flex flex-col gap-2 flex-1">
                   {saveError && (
                     <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 flex items-start gap-2">
-                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                      {saveError}
+                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" /> {saveError}
                     </div>
                   )}
-                  <Button
-                    className="w-full rounded-xl bg-primary hover:bg-primary/90"
-                    onClick={handleSave}
-                    disabled={saving || !canSaveIndividual}
-                  >
-                    {saving ? "Saving..." : "Save & Send Invite"}
+                  <Button className="w-full rounded-xl bg-primary hover:bg-primary/90" onClick={handleSave} disabled={saving || !canSaveIndividual}>
+                    {saving ? "Creating Account..." : "Create Account"}
                   </Button>
                 </div>
               )}
@@ -532,20 +494,15 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
             <div className="flex flex-col gap-2 w-full">
               {saveError && (
                 <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 flex items-start gap-2">
-                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                  {saveError}
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" /> {saveError}
                 </div>
               )}
               <div className="flex gap-3">
                 <Button variant="outline" className="flex-1 rounded-xl gap-1.5" onClick={() => setStep(1)}>
                   <ChevronLeft className="w-4 h-4" /> Back
                 </Button>
-                <Button
-                  className="flex-1 rounded-xl bg-primary hover:bg-primary/90"
-                  onClick={handleSave}
-                  disabled={saving || !canSaveFamily}
-                >
-                  {saving ? "Saving..." : "Save & Send Invite"}
+                <Button className="flex-1 rounded-xl bg-primary hover:bg-primary/90" onClick={handleSave} disabled={saving || !canSaveFamily}>
+                  {saving ? "Creating Account..." : "Create Account"}
                 </Button>
               </div>
             </div>

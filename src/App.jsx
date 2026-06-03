@@ -27,6 +27,7 @@ import ProgressReports from './pages/ProgressReports';
 import ClinicianDocuments from './pages/ClinicianDocuments';
 import FamilyDetail from './pages/FamilyDetail';
 import AIChat from './pages/AIChat';
+import UsernameLogin from './pages/UsernameLogin';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -90,6 +91,7 @@ const AuthenticatedApp = () => {
       <Route path="/ClinicianDocuments" element={<LayoutWrapper currentPageName="ClinicianDocuments"><ClinicianDocuments /></LayoutWrapper>} />
       <Route path="/FamilyDetail" element={<LayoutWrapper currentPageName="FamilyDetail"><FamilyDetail /></LayoutWrapper>} />
       <Route path="/AIChat" element={<LayoutWrapper currentPageName="AIChat"><AIChat /></LayoutWrapper>} />
+      <Route path="/UsernameLogin" element={<UsernameLogin />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

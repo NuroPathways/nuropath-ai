@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Moon, Sun, User, LogOut, Trash2, AlertTriangle, Check, Pencil } from "lucide-react";
+import { Moon, Sun, User, LogOut, Trash2, AlertTriangle, Check, Pencil, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
@@ -9,6 +9,9 @@ export default function Settings() {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [nameSaving, setNameSaving] = useState(false);
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [phoneSaving, setPhoneSaving] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem("theme");
     if (saved) {
@@ -20,7 +23,11 @@ export default function Settings() {
   });
 
   useEffect(() => {
-    base44.auth.me().then(u => { setUser(u); setNameInput(u?.display_name || u?.full_name || ""); }).catch(() => {});
+    base44.auth.me().then(u => {
+      setUser(u);
+      setNameInput(u?.display_name || u?.full_name || "");
+      setPhoneInput(u?.phone || "");
+    }).catch(() => {});
   }, []);
 
   const handleSaveName = async () => {
@@ -30,6 +37,14 @@ export default function Settings() {
     setUser(prev => ({ ...prev, display_name: nameInput.trim() }));
     setNameSaving(false);
     setEditingName(false);
+  };
+
+  const handleSavePhone = async () => {
+    setPhoneSaving(true);
+    await base44.auth.updateMe({ phone: phoneInput.trim() });
+    setUser(prev => ({ ...prev, phone: phoneInput.trim() }));
+    setPhoneSaving(false);
+    setEditingPhone(false);
   };
 
   const toggleDarkMode = () => {
@@ -83,7 +98,7 @@ export default function Settings() {
             </div>
           </div>
 
-          <div>
+          <div className="mb-4">
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Display Name</label>
             {editingName ? (
               <div className="flex gap-2">
@@ -118,6 +133,48 @@ export default function Settings() {
               >
                 <span className={(user.display_name || user.full_name) ? "text-foreground" : "text-muted-foreground italic"}>
                   {user.display_name || user.full_name || "Tap to set your name"}
+                </span>
+                <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Phone Number</label>
+            {editingPhone ? (
+              <div className="flex gap-2">
+                <input
+                  autoFocus
+                  type="tel"
+                  value={phoneInput}
+                  onChange={e => setPhoneInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleSavePhone()}
+                  placeholder="Your phone number"
+                  className="flex-1 border border-border rounded-xl px-4 py-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 min-h-[44px]"
+                />
+                <button
+                  onClick={handleSavePhone}
+                  disabled={phoneSaving}
+                  className="min-h-[44px] px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {phoneSaving ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Check className="w-4 h-4" />}
+                  Save
+                </button>
+                <button
+                  onClick={() => { setEditingPhone(false); setPhoneInput(user?.phone || ""); }}
+                  className="min-h-[44px] px-3 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditingPhone(true)}
+                className="w-full min-h-[44px] flex items-center justify-between px-4 py-2.5 rounded-xl border border-border bg-background hover:border-primary/40 transition-colors text-sm"
+              >
+                <span className={user?.phone ? "text-foreground" : "text-muted-foreground italic"}>
+                  {user?.phone || "Tap to add phone number"}
                 </span>
                 <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
               </button>

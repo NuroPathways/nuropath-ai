@@ -36,7 +36,13 @@ export default function ParentLogin() {
         >
           Sign In / Create Account
         </button>
-        <button onClick={() => navigate("/")} className="mt-6 text-sm text-muted-foreground hover:text-foreground">
+        <p className="mt-5 text-sm text-muted-foreground">
+          Have a username & access code?{" "}
+          <button onClick={() => navigate("/UsernameLogin")} className="text-primary hover:underline font-medium">
+            Sign in here
+          </button>
+        </p>
+        <button onClick={() => navigate("/")} className="mt-3 text-sm text-muted-foreground hover:text-foreground">
           ← Back to welcome page
         </button>
       </motion.div>
