@@ -65,14 +65,13 @@
     "goal_title"
   ],
   "rls": {
-    "create": {},
+    "create": {
+      "data.parent_id": "{{user.id}}"
+    },
     "read": {
       "$or": [
         {
           "data.parent_id": "{{user.id}}"
-        },
-        {
-          "data.clinician_id": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -87,9 +86,6 @@
           "data.parent_id": "{{user.id}}"
         },
         {
-          "data.clinician_id": "{{user.id}}"
-        },
-        {
           "user_condition": {
             "role": "admin"
           }
@@ -100,9 +96,6 @@
       "$or": [
         {
           "data.parent_id": "{{user.id}}"
-        },
-        {
-          "data.clinician_id": "{{user.id}}"
         },
         {
           "user_condition": {
