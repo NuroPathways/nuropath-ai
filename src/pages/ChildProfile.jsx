@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, AlertCircle, FileText, Star, ClipboardList, MessageCircle, AlertTriangle, Stethoscope, Calendar, ChevronRight, ShieldAlert, Brain, Download } from "lucide-react";
+import { ArrowLeft, AlertCircle, FileText, Target, ClipboardList, MessageCircle, AlertTriangle, Stethoscope, Calendar, ChevronRight, ShieldAlert, Brain, Download } from "lucide-react";
 import { motion } from "framer-motion";
 
 const SEVERITY_STYLES = {
@@ -122,7 +122,7 @@ export default function ChildProfile() {
           className="grid grid-cols-3 gap-3">
           {[
             { icon: ClipboardList, label: "Log Behavior", color: "bg-purple-50 text-purple-600", onClick: () => navigate(`/LogBehavior?child_id=${childId}`) },
-            { icon: Star, label: "Rewards", color: "bg-yellow-50 text-yellow-600", onClick: () => navigate(`/RewardTracker?child_id=${childId}`) },
+            { icon: Target, label: "Goals", color: "bg-yellow-50 text-yellow-600", onClick: () => navigate(`/GoalsMilestones?child_id=${childId}`) },
             { icon: MessageCircle, label: "Message", color: "bg-green-50 text-green-600", onClick: () => navigate("/Messages") },
           ].map((item, i) => (
             <button key={item.label} onClick={item.onClick}
