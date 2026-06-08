@@ -1,0 +1,35 @@
+{
+  "name": "DailyCheckIn",
+  "type": "object",
+  "properties": {
+    "parent_id": {
+      "type": "string"
+    },
+    "child_id": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "YYYY-MM-DD date of check-in"
+    },
+    "mood": {
+      "type": "string",
+      "enum": [
+        "great",
+        "okay",
+        "difficult",
+        "very_difficult"
+      ]
+    },
+    "streak": {
+      "type": "number",
+      "default": 1
+    }
+  },
+  "required": [
+    "parent_id",
+    "date",
+    "mood"
+  ]
+}

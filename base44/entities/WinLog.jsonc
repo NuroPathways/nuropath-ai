@@ -1,0 +1,28 @@
+{
+  "name": "WinLog",
+  "type": "object",
+  "properties": {
+    "parent_id": {
+      "type": "string"
+    },
+    "child_id": {
+      "type": "string"
+    },
+    "child_name": {
+      "type": "string"
+    },
+    "win_text": {
+      "type": "string",
+      "description": "What went well"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "parent_id",
+    "win_text",
+    "date"
+  ]
+}

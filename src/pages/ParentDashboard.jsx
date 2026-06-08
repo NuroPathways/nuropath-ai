@@ -8,6 +8,10 @@ import {
   Shield, BookOpen, Zap, ArrowUpRight, Heart, User, Target
 } from "lucide-react";
 import { motion } from "framer-motion";
+import DailyCheckInModal from "@/components/parent/DailyCheckInModal";
+import WinTodayButton from "@/components/parent/WinTodayButton";
+import GoalWidget from "@/components/parent/GoalWidget";
+import StreakBadge from "@/components/parent/StreakBadge";
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -19,8 +23,8 @@ function getGreeting() {
 // ─── Individual / Self-managed client dashboard ───────────────────────────────
 function SelfClientDashboard({ user, profile, unreadMessages, documents, loading }) {
   const navigate = useNavigate();
-  // Use the user's own full name for greeting, not the child record name
   const firstName = user?.full_name?.split(" ")[0] || "there";
+  const childIds = profile ? [profile.id] : [];
 
   const tools = [
     { label: "NeuroPath AI", sub: "Get support right now", icon: Brain, color: "bg-primary/10", iconColor: "text-primary", path: "/AIChat" },
@@ -33,6 +37,9 @@ function SelfClientDashboard({ user, profile, unreadMessages, documents, loading
 
   return (
     <div className="min-h-screen bg-background font-inter">
+      <DailyCheckInModal userId={user?.id} childId={profile?.id} />
+      <WinTodayButton userId={user?.id} children={profile ? [profile] : []} />
+
       {/* Hero */}
       <div className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, hsl(216,38%,42%) 0%, hsl(180,29%,50%) 100%)" }}>
         <div className="absolute inset-0 opacity-10">
@@ -47,6 +54,7 @@ function SelfClientDashboard({ user, profile, unreadMessages, documents, loading
                   <Brain className="w-4 h-4 text-white" />
                 </div>
                 <span className="text-white/80 text-sm font-medium">NuroPathways</span>
+                <StreakBadge userId={user?.id} />
               </div>
               <p className="text-white/70 text-sm">{getGreeting()},</p>
               <h1 className="text-2xl md:text-3xl font-bold text-white mt-0.5 mb-1">
@@ -105,6 +113,9 @@ function SelfClientDashboard({ user, profile, unreadMessages, documents, loading
           </div>
           <ChevronRight className="w-5 h-5 text-white/70 flex-shrink-0" />
         </motion.button>
+
+        {/* Goal Widget */}
+        <GoalWidget childIds={childIds} />
 
         {/* My Profile / Treatment */}
         {profile && (
@@ -211,6 +222,7 @@ function SelfClientDashboard({ user, profile, unreadMessages, documents, loading
 function FamilyDashboard({ user, children, recentLogs, unreadMessages, loading }) {
   const navigate = useNavigate();
   const firstName = user?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
+  const childIds = children.map(c => c.id);
 
   const tools = [
     { label: "NeuroPath AI", sub: "Ask about your child's plan", icon: Brain, color: "bg-primary/10", iconColor: "text-primary", path: "/AIChat" },
@@ -223,6 +235,9 @@ function FamilyDashboard({ user, children, recentLogs, unreadMessages, loading }
 
   return (
     <div className="min-h-screen bg-background font-inter">
+      <DailyCheckInModal userId={user?.id} childId={children[0]?.id} />
+      <WinTodayButton userId={user?.id} children={children} />
+
       <div className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, hsl(216,38%,42%) 0%, hsl(180,29%,50%) 100%)" }}>
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-4 right-10 w-40 h-40 rounded-full bg-white" />
@@ -236,6 +251,7 @@ function FamilyDashboard({ user, children, recentLogs, unreadMessages, loading }
                   <Brain className="w-4 h-4 text-white" />
                 </div>
                 <span className="text-white/80 text-sm font-medium">NuroPathways</span>
+                <StreakBadge userId={user?.id} />
               </div>
               <p className="text-white/70 text-sm">{getGreeting()},</p>
               <h1 className="text-2xl md:text-3xl font-bold text-white mt-0.5 mb-1">
@@ -293,6 +309,9 @@ function FamilyDashboard({ user, children, recentLogs, unreadMessages, loading }
           </div>
           <ChevronRight className="w-5 h-5 text-white/70 flex-shrink-0" />
         </motion.button>
+
+        {/* Goal Widget */}
+        <GoalWidget childIds={childIds} />
 
         {/* My Children */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
