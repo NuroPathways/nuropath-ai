@@ -518,12 +518,13 @@ export default function ParentDashboard() {
         const logQuery = isClientSession
           ? base44.entities.BehaviorLog.filter({ child_id: allKids[0].id }, "-created_date", 5).catch(() => [])
           : base44.entities.BehaviorLog.filter({ parent_id: user.id }, "-created_date", 5).catch(() => []);
-        const [logs, docResults] = await Promise.all([
+        // Fetch docs by parent_id (RLS-compliant) — works for both oauth and username-code users
+        const [logs, docs] = await Promise.all([
           logQuery,
-          Promise.all(allKids.map(k => base44.entities.Document.filter({ child_id: k.id }).catch(() => []))),
+          base44.entities.Document.filter({ parent_id: user.id }).catch(() => []),
         ]);
         setRecentLogs(logs);
-        setDocuments(docResults.flat());
+        setDocuments(docs);
       }
 
       setLoading(false);

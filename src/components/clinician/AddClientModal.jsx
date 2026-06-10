@@ -88,8 +88,15 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
   const totalSteps = getSteps().length;
   const doneStep = isFamily ? 3 : 2;
 
-  const sendInviteEmail = async (email, name, link) => {
-    const response = await base44.functions.invoke('sendInviteEmail', { to: email, name, link, type: accountType });
+  const sendInviteEmail = async (email, name, link, username, accessCode) => {
+    const response = await base44.functions.invoke('sendInviteEmail', {
+      to: email,
+      name,
+      link,
+      type: accountType,
+      username,
+      access_code: accessCode,
+    });
     if (response.data?.error) throw new Error(response.data.error);
   };
 
@@ -107,7 +114,8 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
     const username = generateUsername(holder.firstName, holder.lastName);
     const accessCode = generateAccessCode();
     const baseUrl = window.location.origin;
-    const link = `${baseUrl}/RoleSetup?invite=${token}`;
+    // Primary login path is always UsernameLogin — no OAuth required
+    const link = `${baseUrl}/UsernameLogin`;
 
     // Use real email if provided, otherwise generate a placeholder
     const realEmail = holder.email?.trim() || null;
@@ -184,16 +192,12 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
         is_active: true,
       });
 
-      // Only invite via Base44 if a real email was provided
-      if (realEmail) {
-        await base44.users.inviteUser(accountEmail, "user");
-      }
-
       setCredentials({ username, accessCode, inviteLink: link, accountEmail, isGeneratedEmail });
 
+      // Send invite email with credentials if a real email was provided
       if (realEmail) {
         try {
-          await sendInviteEmail(realEmail, fullName, link);
+          await sendInviteEmail(realEmail, fullName, link, username, accessCode);
           setEmailSent(true);
         } catch {
           setEmailError(true);
@@ -214,7 +218,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
     setResending(true);
     setEmailError(false);
     try {
-      await sendInviteEmail(holder.email, fullName, credentials.inviteLink);
+      await sendInviteEmail(holder.email, fullName, credentials.inviteLink, credentials.username, credentials.accessCode);
       setEmailSent(true);
     } catch {
       setEmailError(true);
@@ -460,16 +464,23 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
                 </div>
               )}
 
-              {/* First-Time Setup Link */}
+              {/* Share Summary */}
               <div className="bg-muted rounded-xl p-4 space-y-2">
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4 text-primary" />
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">First-Time Setup Link</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">What to Share With Your Client</p>
                 </div>
-                <p className="text-xs text-muted-foreground">Client must click this once to activate their account:</p>
-                <p className="text-xs font-mono text-foreground break-all">{credentials.inviteLink}</p>
-                <Button variant="outline" size="sm" className="w-full rounded-xl mt-1" onClick={() => navigator.clipboard.writeText(credentials.inviteLink)}>
-                  Copy Setup Link
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Send them the <strong>username</strong>, <strong>access code</strong>, and the login URL below. They can sign in immediately — no email required.
+                </p>
+                <div className="bg-background rounded-lg px-3 py-2 border border-border">
+                  <p className="text-xs font-mono text-primary break-all">{credentials.inviteLink}</p>
+                </div>
+                <Button variant="outline" size="sm" className="w-full rounded-xl" onClick={() => {
+                  const text = `NeuroPathways Login\nURL: ${credentials.inviteLink}\nUsername: ${credentials.username}\nAccess Code: ${credentials.accessCode}`;
+                  navigator.clipboard.writeText(text);
+                }}>
+                  <Copy className="w-3.5 h-3.5 mr-1.5" /> Copy All Login Info
                 </Button>
               </div>
             </div>
