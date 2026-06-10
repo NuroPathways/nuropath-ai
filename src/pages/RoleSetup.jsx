@@ -21,11 +21,10 @@ export default function RoleSetup() {
       if (!me) { base44.auth.redirectToLogin(window.location.href); return; }
       setUser(me);
 
-      if (me.app_role === "clinician") { navigate("/ClinicianDashboard"); return; }
-
-      // Auto-assign clinician role if coming from ClinicianLogin
-      if (forceRole === "clinician") {
-        await base44.auth.updateMe({ app_role: "clinician", role: "admin", account_type: "clinician" });
+      if (me.app_role === "clinician" || forceRole === "clinician") {
+        if (me.app_role !== "clinician") {
+          await base44.auth.updateMe({ app_role: "clinician", role: "admin", account_type: "clinician" });
+        }
         navigate("/ClinicianDashboard");
         return;
       }

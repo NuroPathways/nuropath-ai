@@ -36,6 +36,10 @@ export default function ClinicianDashboard() {
     if (!user?.id) { navigate("/ClinicianLogin"); return; }
     const load = async () => {
       const me = await base44.auth.me().catch(() => null);
+      // If user doesn't have clinician role yet, fix it silently
+      if (me && me.app_role !== "clinician") {
+        await base44.auth.updateMe({ app_role: "clinician", role: "admin", account_type: "clinician" }).catch(() => {});
+      }
       const clinicianId = me?.id || user.id;
       const [kids, allLogs, msgs] = await Promise.all([
         base44.entities.Child.filter({ clinician_id: clinicianId }).catch(() => []),
