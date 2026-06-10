@@ -22,8 +22,7 @@ function getGreeting() {
 
 export default function ClinicianDashboard() {
   const navigate = useNavigate();
-  const { user: authUser } = useAuth();
-  const [user, setUser] = useState(authUser);
+  const { user, isLoadingAuth } = useAuth();
   const [children, setChildren] = useState([]);
   const [logs, setLogs] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -32,15 +31,13 @@ export default function ClinicianDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (isLoadingAuth) return;
+    if (!user?.id) { navigate("/ClinicianLogin"); return; }
     const load = async () => {
-      // Always fetch directly to get the real authenticated user
-      const me = await base44.auth.me().catch(() => null);
-      if (!me?.id) { navigate("/ClinicianLogin"); return; }
-      setUser(me);
       const [kids, allLogs, msgs] = await Promise.all([
-        base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []),
+        base44.entities.Child.filter({ clinician_id: user.id }).catch(() => []),
         base44.entities.BehaviorLog.filter({}).catch(() => []),
-        base44.entities.Message.filter({ to_user_id: me.id }).catch(() => []),
+        base44.entities.Message.filter({ to_user_id: user.id }).catch(() => []),
       ]);
       setChildren(kids);
       const kidIds = new Set(kids.map(k => k.id));
@@ -49,12 +46,11 @@ export default function ClinicianDashboard() {
       setLoading(false);
     };
     load();
-  }, []);
+  }, [user?.id, isLoadingAuth]);
 
   const refresh = async () => {
-    const me = await base44.auth.me().catch(() => null);
-    if (!me?.id) return;
-    const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
+    if (!user?.id) return;
+    const kids = await base44.entities.Child.filter({ clinician_id: user.id }).catch(() => []);
     setChildren(kids);
   };
 
