@@ -34,13 +34,10 @@ export default function ClinicianDashboard() {
   useEffect(() => {
     if (isLoadingAuth) return;
     if (!user?.id) { navigate("/ClinicianLogin"); return; }
+    // Don't redirect away if the user is authenticated but role hasn't propagated yet
+    if (user.app_role && user.app_role !== "clinician") { navigate("/ParentDashboard"); return; }
     const load = async () => {
-      const me = await base44.auth.me().catch(() => null);
-      // If user doesn't have clinician role yet, fix it silently
-      if (me && me.app_role !== "clinician") {
-        await base44.auth.updateMe({ app_role: "clinician", role: "admin", account_type: "clinician" }).catch(() => {});
-      }
-      const clinicianId = me?.id || user.id;
+      const clinicianId = user.id;
       const [kids, allLogs, msgs] = await Promise.all([
         base44.entities.Child.filter({ clinician_id: clinicianId }).catch(() => []),
         base44.entities.BehaviorLog.filter({}).catch(() => []),
@@ -56,10 +53,8 @@ export default function ClinicianDashboard() {
   }, [user?.id, isLoadingAuth]);
 
   const refresh = async () => {
-    const me = await base44.auth.me().catch(() => null);
-    const clinicianId = me?.id || user?.id;
-    if (!clinicianId) return;
-    const kids = await base44.entities.Child.filter({ clinician_id: clinicianId }).catch(() => []);
+    if (!user?.id) return;
+    const kids = await base44.entities.Child.filter({ clinician_id: user.id }).catch(() => []);
     setChildren(kids);
   };
 
