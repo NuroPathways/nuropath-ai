@@ -53,16 +53,22 @@ export default function HelpNow() {
       const me = await base44.auth.me().catch(() => null);
       if (!me) { setLoading(false); return; }
 
-      const byId = await base44.entities.Child.filter({ parent_id: me.id }).catch(() => []);
-      const byEmail = byId.length === 0 && me.email
-        ? await base44.entities.Child.filter({ parent_email: me.email }).catch(() => [])
-        : [];
-      const seen = new Set();
-      const allChildren = [...byId, ...byEmail].filter(c => {
-        if (seen.has(c.id)) return false;
-        seen.add(c.id);
-        return true;
-      });
+      let allChildren = [];
+      // Username+code client sessions carry their children with them
+      if (me.children && me.children.length > 0) {
+        allChildren = me.children;
+      } else {
+        const byId = await base44.entities.Child.filter({ parent_id: me.id }).catch(() => []);
+        const byEmail = me.email
+          ? await base44.entities.Child.filter({ parent_email: me.email }).catch(() => [])
+          : [];
+        const seen = new Set();
+        allChildren = [...byId, ...byEmail].filter(c => {
+          if (seen.has(c.id)) return false;
+          seen.add(c.id);
+          return true;
+        });
+      }
 
       const foundChild = childId ? allChildren.find(c => c.id === childId) : allChildren[0];
       if (!foundChild) { setLoading(false); return; }
@@ -294,8 +300,9 @@ export default function HelpNow() {
           {step === "select_behavior" && (
             <motion.div key="select" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
               {!child ? (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground text-sm">No client profile linked to your account. Ask your clinician for an invite.</p>
+                <div className="text-center py-12 space-y-4">
+                  <p className="text-muted-foreground text-sm">We couldn't load your profile. Please try again, or message your clinician if this keeps happening.</p>
+                  <Button variant="outline" className="rounded-xl" onClick={() => window.location.reload()}>Try Again</Button>
                 </div>
               ) : scanning ? (
                 <div className="text-center py-12 space-y-4">
