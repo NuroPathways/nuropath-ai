@@ -136,73 +136,41 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
     const isGeneratedEmail = !realEmail;
 
     try {
-      let familyId;
+      const childPayload = isFamily
+        ? children.filter(c => c.child_name.trim()).map(c => ({
+            child_name: c.child_name.trim(),
+            age: c.age ? Number(c.age) : undefined,
+            diagnosis: c.diagnosis || undefined,
+            triggers: c.triggers || undefined,
+            notes: c.notes || undefined,
+            is_patient: c.is_patient || false,
+          }))
+        : [{
+            child_name: fullName,
+            age: individual.age ? Number(individual.age) : undefined,
+            diagnosis: individual.diagnosis || undefined,
+            notes: individual.goals ? `Goals: ${individual.goals}\n${individual.notes || ""}`.trim() : (individual.notes || undefined),
+            is_patient: true,
+          }];
 
-      if (isFamily) {
-        const fam = await base44.entities.Family.create({
-          family_name: clientName.trim() || `${fullName}'s Family`,
-          notes: clientNotes || undefined,
-          clinician_id: resolvedClinicianId,
-          invite_token: token,
-          invite_email: accountEmail,
-          invite_status: "pending",
-          parent_name: fullName || undefined,
-          account_type: accountType,
-        });
-        familyId = fam.id;
-
-        for (const child of children) {
-          if (!child.child_name.trim()) continue;
-          await base44.entities.Child.create({
-            child_name: child.child_name.trim(),
-            age: child.age ? Number(child.age) : undefined,
-            diagnosis: child.diagnosis || undefined,
-            triggers: child.triggers || undefined,
-            notes: child.notes || undefined,
-            is_patient: child.is_patient || false,
-            family_id: familyId,
-            clinician_id: resolvedClinicianId,
-            parent_email: accountEmail,
-          });
-        }
-      } else {
-        const fam = await base44.entities.Family.create({
-          family_name: fullName || "Individual Client",
-          notes: individual.notes || undefined,
-          clinician_id: resolvedClinicianId,
-          invite_token: token,
-          invite_email: accountEmail,
-          invite_status: "pending",
-          parent_name: fullName || undefined,
-          account_type: "individual",
-        });
-        familyId = fam.id;
-
-        await base44.entities.Child.create({
-          child_name: fullName,
-          age: individual.age ? Number(individual.age) : undefined,
-          diagnosis: individual.diagnosis || undefined,
-          notes: individual.goals ? `Goals: ${individual.goals}\n${individual.notes || ""}`.trim() : (individual.notes || undefined),
-          is_patient: true,
-          family_id: familyId,
-          clinician_id: resolvedClinicianId,
-          parent_email: accountEmail,
-        });
-      }
-
-      await base44.entities.ClientAccount.create({
-        username,
-        first_name: holder.firstName.trim(),
-        last_name: holder.lastName.trim(),
-        email: accountEmail,
-        phone: holder.phone || undefined,
-        access_code: accessCode,
-        family_id: familyId,
-        clinician_id: resolvedClinicianId,
-        account_type: accountType || "individual",
-        invite_token: token,
-        is_active: true,
+      const res = await base44.functions.invoke('createClientAccount', {
+        accountType: isFamily ? accountType : "individual",
+        familyName: isFamily ? (clientName.trim() || `${fullName}'s Family`) : (fullName || "Individual Client"),
+        notes: isFamily ? (clientNotes || undefined) : (individual.notes || undefined),
+        parentName: fullName || undefined,
+        token,
+        accountEmail,
+        children: childPayload,
+        clientAccount: {
+          username,
+          first_name: holder.firstName.trim(),
+          last_name: holder.lastName.trim(),
+          phone: holder.phone || undefined,
+          access_code: accessCode,
+          account_type: accountType || "individual",
+        },
       });
+      if (res.data?.error) throw new Error(res.data.error);
 
       setCredentials({ username, accessCode, inviteLink: link, accountEmail, isGeneratedEmail });
 
