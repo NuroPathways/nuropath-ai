@@ -106,9 +106,16 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
     setEmailError(false);
     setEmailSent(false);
 
-    const me = await base44.auth.me().catch(() => null);
-    const resolvedClinicianId = me?.id || clinicianId;
-    if (!resolvedClinicianId) { setSaveError("Session error: please refresh and try again."); setSaving(false); return; }
+    let me;
+    try {
+      me = await base44.auth.me();
+    } catch {
+      setSaveError("Session expired — please refresh the page and try again.");
+      setSaving(false);
+      return;
+    }
+    const resolvedClinicianId = me?.id;
+    if (!resolvedClinicianId) { setSaveError("Could not verify your session. Please refresh and try again."); setSaving(false); return; }
 
     const token = generateToken();
     const username = generateUsername(holder.firstName, holder.lastName);
