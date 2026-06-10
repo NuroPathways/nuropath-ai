@@ -7,11 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion } from "framer-motion";
+import { useAuth } from "@/lib/AuthContext";
+import { toast } from "sonner";
 
 const LABEL = "text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5";
 
 export default function LogBehavior() {
   const navigate = useNavigate();
+  const { user: authUser, isLoadingAuth } = useAuth();
   const [children, setChildren] = useState([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -30,37 +33,54 @@ export default function LogBehavior() {
     notes: "",
   });
 
-  const [user, setUser] = useState(null);
+  const user = authUser;
 
   useEffect(() => {
+    if (isLoadingAuth) return;
     const load = async () => {
-      const me = await base44.auth.me().catch(() => null);
+      const me = authUser;
       if (!me) return;
-      setUser(me);
-      const kids = await base44.entities.Child.filter({ parent_id: me.id }).catch(() => []);
+      let kids = [];
+      if (me.children && me.children.length > 0) {
+        kids = me.children;
+      } else {
+        const byId = await base44.entities.Child.filter({ parent_id: me.id }).catch(() => []);
+        const byEmail = me.email ? await base44.entities.Child.filter({ parent_email: me.email }).catch(() => []) : [];
+        const seen = new Set();
+        kids = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+      }
       setChildren(kids);
       if (!form.child_id && kids[0]) setForm(f => ({ ...f, child_id: kids[0].id }));
     };
     load();
-  }, []);
+  }, [isLoadingAuth, authUser?.id]);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
   const handleSave = async () => {
-    if (!form.child_id || !form.behavior_type) return;
+    if (!form.child_id || !form.behavior_type) {
+      toast.error("Please fill in the behavior type before saving.");
+      return;
+    }
     setSaving(true);
-    await base44.entities.BehaviorLog.create({
-      child_id: form.child_id,
-      parent_id: user?.id,
-      behavior_type: form.behavior_type,
-      context: form.trigger,
-      intensity: form.intensity || undefined,
-      strategy_used: form.intervention_used,
-      parent_feedback: form.outcome === "resolved" ? "yes" : form.outcome === "partially" ? "partially" : form.outcome === "escalated" ? "no" : undefined,
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => navigate(-1), 1800);
+    try {
+      await base44.entities.BehaviorLog.create({
+        child_id: form.child_id,
+        parent_id: user?.id,
+        behavior_type: form.behavior_type,
+        context: form.trigger,
+        intensity: form.intensity || undefined,
+        strategy_used: form.intervention_used,
+        parent_feedback: form.outcome === "resolved" ? "yes" : form.outcome === "partially" ? "partially" : form.outcome === "escalated" ? "no" : undefined,
+      });
+      toast.success("Behavior logged successfully!");
+      setSaved(true);
+      setTimeout(() => navigate(-1), 1800);
+    } catch (e) {
+      toast.error("Couldn't save the behavior log. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (saved) return (
