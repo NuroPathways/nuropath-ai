@@ -58,6 +58,10 @@ export default function ClinicianDashboard() {
 
   return (
     <div className="min-h-screen bg-background font-inter">
+      {/* DEBUG BANNER - remove after fix */}
+      <div className="bg-yellow-100 border-b border-yellow-300 px-4 py-2 text-xs text-yellow-900 font-mono">
+        Your user ID: <strong>{user?.id || "not set"}</strong> | Expected: <strong>6a146af7a304e363817ab966</strong> | Match: <strong>{user?.id === "6a146af7a304e363817ab966" ? "✅ YES" : "❌ NO"}</strong>
+      </div>
       {/* Hero Header */}
       <div className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, hsl(216,38%,47%) 0%, hsl(180,29%,55%) 100%)" }}>
         <div className="absolute inset-0 opacity-10">
