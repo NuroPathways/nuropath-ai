@@ -22,7 +22,8 @@ function getGreeting() {
 
 export default function ClinicianDashboard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user: authUser } = useAuth();
+  const [user, setUser] = useState(authUser);
   const [children, setChildren] = useState([]);
   const [logs, setLogs] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -31,10 +32,11 @@ export default function ClinicianDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user?.id) return;
     const load = async () => {
-      // Re-fetch me directly to ensure we have the real authenticated user ID
-      const me = await base44.auth.me().catch(() => user);
+      // Always fetch directly to get the real authenticated user
+      const me = await base44.auth.me().catch(() => null);
+      if (!me?.id) { navigate("/ClinicianLogin"); return; }
+      setUser(me);
       const [kids, allLogs, msgs] = await Promise.all([
         base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []),
         base44.entities.BehaviorLog.filter({}).catch(() => []),
@@ -47,11 +49,12 @@ export default function ClinicianDashboard() {
       setLoading(false);
     };
     load();
-  }, [user?.id]);
+  }, []);
 
   const refresh = async () => {
-    if (!user) return;
-    const kids = await base44.entities.Child.filter({ clinician_id: user.id }).catch(() => []);
+    const me = await base44.auth.me().catch(() => null);
+    if (!me?.id) return;
+    const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
     setChildren(kids);
   };
 
