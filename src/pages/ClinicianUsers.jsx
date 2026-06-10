@@ -18,12 +18,8 @@ export default function ClinicianUsers() {
       let me;
       try { me = await base44.auth.me(); } catch { return; }
       if (!me?.id) return;
-      const clinicianId = me.id;
-      const [fams, kids, accounts] = await Promise.all([
-        base44.entities.Family.filter({ clinician_id: clinicianId }).catch(() => []),
-        base44.entities.Child.filter({ clinician_id: clinicianId }).catch(() => []),
-        base44.entities.ClientAccount.filter({ clinician_id: clinicianId }).catch(() => []),
-      ]);
+      const res = await base44.functions.invoke('getClinicianData', {}).catch(() => null);
+      const { families: fams = [], children: kids = [], clientAccounts: accounts = [] } = res?.data || {};
 
       const parentEmailMap = {};
       kids.forEach((c) => {

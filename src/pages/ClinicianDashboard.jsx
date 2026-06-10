@@ -37,15 +37,10 @@ export default function ClinicianDashboard() {
     // Don't redirect away if the user is authenticated but role hasn't propagated yet
     if (user.app_role && user.app_role !== "clinician") { navigate("/ParentDashboard"); return; }
     const load = async () => {
-      const clinicianId = user.id;
-      const [kids, allLogs, msgs] = await Promise.all([
-        base44.entities.Child.filter({ clinician_id: clinicianId }).catch(() => []),
-        base44.entities.BehaviorLog.filter({}).catch(() => []),
-        base44.entities.Message.filter({ to_user_id: clinicianId }).catch(() => []),
-      ]);
+      const res = await base44.functions.invoke('getClinicianData', {}).catch(() => null);
+      const { children: kids = [], logs: clientLogs = [], messages: msgs = [] } = res?.data || {};
       setChildren(kids);
-      const kidIds = new Set(kids.map(k => k.id));
-      setLogs(allLogs.filter(l => kidIds.has(l.child_id)));
+      setLogs(clientLogs);
       setMessages(msgs.filter(m => !m.is_read));
       setLoading(false);
     };
@@ -54,8 +49,8 @@ export default function ClinicianDashboard() {
 
   const refresh = async () => {
     if (!user?.id) return;
-    const kids = await base44.entities.Child.filter({ clinician_id: user.id }).catch(() => []);
-    setChildren(kids);
+    const res = await base44.functions.invoke('getClinicianData', {}).catch(() => null);
+    setChildren(res?.data?.children || []);
   };
 
   const recentLogs = [...logs].sort((a, b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 3);
