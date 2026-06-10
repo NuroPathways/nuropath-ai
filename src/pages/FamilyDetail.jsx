@@ -38,40 +38,18 @@ export default function FamilyDetail() {
     const load = async () => {
       const me = await base44.auth.me().catch(() => null);
       if (me) setClinicianId(me.id);
-      const [familyArr, familyChildren] = await Promise.all([
-        base44.entities.Family.filter({ id: familyId }).catch(() => []),
-        base44.entities.Child.filter({ family_id: familyId }).catch(() => []),
-      ]);
-      const familyData = familyArr[0] || null;
+      const res = await base44.functions.invoke('getClientDetail', { family_id: familyId }).catch(() => null);
+      const d = res?.data || {};
+      const familyData = d.family || null;
 
       setFamily(familyData);
       setEditName(familyData?.family_name || "");
       setEditNotes(familyData?.notes || "");
-      setChildren(familyChildren);
-      if (familyChildren.length > 0) {
-        const docs = await Promise.all(familyChildren.map(c => base44.entities.Document.filter({ child_id: c.id }).catch(() => [])));
-        setDocuments(docs.flat());
-        setUploadChildId(familyChildren[0].id);
-      }
-
-      // Load client account for credentials display
-      base44.entities.ClientAccount.filter({ family_id: familyId }).then(r => setClientAccount(r[0] || null)).catch(() => {});
-
-      if (familyChildren.length > 0) {
-        const childIds = familyChildren.map(c => c.id);
-        const [logsArr, messagesArr, docsArr, plansArr] = await Promise.all([
-          Promise.all(childIds.map(id => base44.entities.BehaviorLog.filter({ child_id: id }).catch(() => []))),
-          Promise.all(childIds.map(id => base44.entities.Message.filter({ child_id: id }).catch(() => []))),
-          Promise.all(childIds.map(id => base44.entities.Document.filter({ child_id: id }).catch(() => []))),
-          Promise.all(childIds.map(id => base44.entities.InterventionPlan.filter({ child_id: id }).catch(() => []))),
-        ]);
-        setStats({
-          logs: logsArr.flat().length,
-          messages: messagesArr.flat().length,
-          documents: docsArr.flat().length,
-          plans: plansArr.flat().length,
-        });
-      }
+      setChildren(d.children || []);
+      setDocuments(d.documents || []);
+      if (d.children?.length > 0) setUploadChildId(d.children[0].id);
+      setClientAccount(d.clientAccount || null);
+      if (d.stats) setStats(d.stats);
       setLoading(false);
     };
     load();
@@ -79,7 +57,7 @@ export default function FamilyDetail() {
 
   const handleSave = async () => {
     setSaving(true);
-    await base44.entities.Family.update(familyId, { family_name: editName, notes: editNotes });
+    await base44.functions.invoke('manageClientRecord', { action: 'updateFamily', entity_id: familyId, data: { family_name: editName, notes: editNotes } });
     setFamily(prev => ({ ...prev, family_name: editName, notes: editNotes }));
     setEditing(false);
     setSaving(false);
@@ -95,7 +73,7 @@ export default function FamilyDetail() {
     try {
       // Generate a new token
       const newToken = Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
-      await base44.entities.Family.update(familyId, { invite_token: newToken, invite_status: "pending" });
+      await base44.functions.invoke('manageClientRecord', { action: 'updateFamily', entity_id: familyId, data: { invite_token: newToken, invite_status: "pending" } });
       setFamily(prev => ({ ...prev, invite_token: newToken, invite_status: "pending" }));
 
       if (family.invite_email) {
@@ -128,8 +106,11 @@ export default function FamilyDetail() {
     if (!file || !uploadTitle.trim() || !uploadChildId) return;
     setUploading(true);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    const doc = await base44.entities.Document.create({ child_id: uploadChildId, title: uploadTitle, file_url, file_name: file.name, clinician_id: clinicianId });
-    setDocuments(prev => [...prev, doc]);
+    const res = await base44.functions.invoke('manageClientRecord', {
+      action: 'createDocument',
+      data: { child_id: uploadChildId, title: uploadTitle, file_url, file_name: file.name },
+    });
+    setDocuments(prev => [...prev, res.data.record]);
     setUploadTitle("");
     setShowUpload(false);
     setUploading(false);
@@ -137,8 +118,7 @@ export default function FamilyDetail() {
 
   const handleDelete = async () => {
     if (!window.confirm("Delete this family and all associated data? This cannot be undone.")) return;
-    await Promise.all(children.map(child => base44.entities.Child.delete(child.id)));
-    await base44.entities.Family.delete(familyId);
+    await base44.functions.invoke('manageClientRecord', { action: 'deleteFamily', entity_id: familyId });
     navigate("/ClinicianDashboard");
   };
 
@@ -376,7 +356,7 @@ export default function FamilyDetail() {
         onClose={() => setShowAddChild(false)}
         onSuccess={() => {
           // Reload children
-          base44.entities.Child.filter({ family_id: familyId }).then(setChildren).catch(() => {});
+          base44.functions.invoke('getClientDetail', { family_id: familyId }).then(res => setChildren(res?.data?.children || [])).catch(() => {});
         }}
         family={family}
         clinicianId={clinicianId}

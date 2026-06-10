@@ -31,19 +31,13 @@ export default function ClientDetail() {
       const me = await base44.auth.me().catch(() => null);
       if (!me) { navigate("/"); return; }
       setClinicianId(me.id);
-      const [childData, behaviorPlans, docs] = await Promise.all([
-        base44.entities.Child.filter({ id: childId }).then(r => r[0] || null).catch(() => null),
-        base44.entities.BehaviorPlan.filter({ child_id: childId }).catch(() => []),
-        base44.entities.Document.filter({ child_id: childId }).catch(() => []),
-      ]);
-      setChild(childData);
-      setEditForm(childData || {});
-      setPlans(behaviorPlans);
-      setDocuments(docs);
-      // Load client account for credentials
-      if (childData?.family_id) {
-        base44.entities.ClientAccount.filter({ family_id: childData.family_id }).then(r => setClientAccount(r[0] || null)).catch(() => {});
-      }
+      const res = await base44.functions.invoke('getClientDetail', { child_id: childId }).catch(() => null);
+      const d = res?.data || {};
+      setChild(d.child || null);
+      setEditForm(d.child || {});
+      setPlans(d.plans || []);
+      setDocuments(d.documents || []);
+      setClientAccount(d.clientAccount || null);
       setLoading(false);
     };
     load();
@@ -51,12 +45,16 @@ export default function ClientDetail() {
 
   const handleSave = async () => {
     setSaving(true);
-    await base44.entities.Child.update(childId, {
-      child_name: editForm.child_name,
-      age: editForm.age,
-      diagnosis: editForm.diagnosis,
-      notes: editForm.notes,
-      triggers: editForm.triggers,
+    await base44.functions.invoke('manageClientRecord', {
+      action: 'updateChild',
+      entity_id: childId,
+      data: {
+        child_name: editForm.child_name,
+        age: editForm.age,
+        diagnosis: editForm.diagnosis,
+        notes: editForm.notes,
+        triggers: editForm.triggers,
+      },
     });
     setChild(prev => ({ ...prev, ...editForm }));
     setEditing(false);
@@ -68,27 +66,30 @@ export default function ClientDetail() {
     if (!file) return;
     setUploading(true);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    const doc = await base44.entities.Document.create({
-      child_id: childId,
-      title: file.name.replace(/\.[^/.]+$/, ""),
-      file_url,
-      file_name: file.name,
-      category: "other",
+    const res = await base44.functions.invoke('manageClientRecord', {
+      action: 'createDocument',
+      data: {
+        child_id: childId,
+        title: file.name.replace(/\.[^/.]+$/, ""),
+        file_url,
+        file_name: file.name,
+        category: "other",
+      },
     });
-    setDocuments(prev => [...prev, doc]);
+    setDocuments(prev => [...prev, res.data.record]);
     setUploading(false);
     e.target.value = "";
   };
 
   const handleDeleteDoc = async (docId) => {
-    await base44.entities.Document.delete(docId);
+    await base44.functions.invoke('manageClientRecord', { action: 'deleteDocument', entity_id: docId });
     setDocuments(prev => prev.filter(d => d.id !== docId));
   };
 
   const handleDelete = async () => {
     if (!window.confirm("Delete this client? This cannot be undone.")) return;
     setDeleting(true);
-    await base44.entities.Child.delete(childId);
+    await base44.functions.invoke('manageClientRecord', { action: 'deleteChild', entity_id: childId });
     navigate("/ClinicianDashboard");
   };
 
