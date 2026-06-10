@@ -326,15 +326,19 @@ export default function ClinicianDocuments() {
       try {
         const { file_url } = await base44.integrations.Core.UploadFile({ file: item.file });
         const title = item.title.trim() || cleanTitle(item.file.name);
-        const doc = await base44.entities.Document.create({
-          child_id: childId,
-          clinician_id: clinicianId,
-          title,
-          category: item.category,
-          file_url,
-          file_name: item.file.name,
-          scan_status: AUTO_SYNC.includes(item.category) ? "pending" : "done",
+        const res = await base44.functions.invoke('manageClientRecord', {
+          action: 'createDocument',
+          data: {
+            child_id: childId,
+            title,
+            category: item.category,
+            file_url,
+            file_name: item.file.name,
+            scan_status: AUTO_SYNC.includes(item.category) ? "pending" : "done",
+          },
         });
+        if (res.data?.error) throw new Error(res.data.error);
+        const doc = res.data.record;
         updateQueue(item.id, { status: "done", docId: doc.id });
         setDocuments(prev => [doc, ...prev]);
 
