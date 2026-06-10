@@ -26,7 +26,6 @@ export default function RoleSetup() {
       // Auto-assign clinician role if coming from ClinicianLogin
       if (forceRole === "clinician") {
         await base44.auth.updateMe({ app_role: "clinician", role: "admin", account_type: "clinician" });
-        await refreshUser();
         navigate("/ClinicianDashboard");
         return;
       }
@@ -71,7 +70,6 @@ export default function RoleSetup() {
   const setupClinician = async () => {
     setSaving(true);
     await base44.auth.updateMe({ app_role: "clinician", role: "admin", account_type: "clinician" });
-    await refreshUser();
     navigate("/ClinicianDashboard");
   };
 
