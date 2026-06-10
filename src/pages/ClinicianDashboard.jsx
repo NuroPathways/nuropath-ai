@@ -29,19 +29,16 @@ export default function ClinicianDashboard() {
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [showAddChild, setShowAddChild] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [debugError, setDebugError] = useState(null);
+
 
   useEffect(() => {
     if (isLoadingAuth) return;
     if (!user?.id) { navigate("/ClinicianLogin"); return; }
     const load = async () => {
       let kids = [];
-      let childFetchError = null;
       try {
         kids = await base44.entities.Child.filter({ clinician_id: user.id });
       } catch(err) {
-        childFetchError = err?.message || String(err);
-        setDebugError(childFetchError);
         kids = [];
       }
       const [allLogs, msgs] = await Promise.all([
@@ -67,12 +64,7 @@ export default function ClinicianDashboard() {
 
   return (
     <div className="min-h-screen bg-background font-inter">
-      {/* DEBUG BANNER - remove after fix */}
-      <div className="bg-yellow-100 border-b border-yellow-300 px-4 py-2 text-xs text-yellow-900 font-mono">
-        Children loaded: <strong>{children.length}</strong> | User ID: <strong>{user?.id}</strong>
-        {debugError && <span className="ml-3 text-red-700 font-bold">ERROR: {debugError}</span>}
-        {!debugError && !loading && children.length === 0 && <span className="ml-3 text-orange-700 font-bold">No error but 0 children returned</span>}
-      </div>
+
       {/* Hero Header */}
       <div className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, hsl(216,38%,47%) 0%, hsl(180,29%,55%) 100%)" }}>
         <div className="absolute inset-0 opacity-10">
