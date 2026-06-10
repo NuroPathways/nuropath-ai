@@ -117,6 +117,11 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
     const resolvedClinicianId = me?.id;
     if (!resolvedClinicianId) { setSaveError("Could not verify your session. Please refresh and try again."); setSaving(false); return; }
 
+    // Ensure clinician role is set — required for RLS to allow record creation
+    if (me.app_role !== "clinician") {
+      await base44.auth.updateMe({ app_role: "clinician" });
+    }
+
     const token = generateToken();
     const username = generateUsername(holder.firstName, holder.lastName);
     const accessCode = generateAccessCode();
