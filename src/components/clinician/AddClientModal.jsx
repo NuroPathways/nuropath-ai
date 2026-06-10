@@ -94,11 +94,14 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
   };
 
   const handleSave = async () => {
-    if (!clinicianId) { setSaveError("Session error: clinician ID missing."); return; }
     setSaving(true);
     setSaveError("");
     setEmailError(false);
     setEmailSent(false);
+
+    const me = await base44.auth.me().catch(() => null);
+    const resolvedClinicianId = me?.id || clinicianId;
+    if (!resolvedClinicianId) { setSaveError("Session error: please refresh and try again."); setSaving(false); return; }
 
     const token = generateToken();
     const username = generateUsername(holder.firstName, holder.lastName);
@@ -119,7 +122,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
         const fam = await base44.entities.Family.create({
           family_name: clientName.trim() || `${fullName}'s Family`,
           notes: clientNotes || undefined,
-          clinician_id: clinicianId,
+          clinician_id: resolvedClinicianId,
           invite_token: token,
           invite_email: accountEmail,
           invite_status: "pending",
@@ -138,7 +141,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
             notes: child.notes || undefined,
             is_patient: child.is_patient || false,
             family_id: familyId,
-            clinician_id: clinicianId,
+            clinician_id: resolvedClinicianId,
             parent_email: accountEmail,
           });
         }
@@ -146,7 +149,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
         const fam = await base44.entities.Family.create({
           family_name: fullName || "Individual Client",
           notes: individual.notes || undefined,
-          clinician_id: clinicianId,
+          clinician_id: resolvedClinicianId,
           invite_token: token,
           invite_email: accountEmail,
           invite_status: "pending",
@@ -162,7 +165,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
           notes: individual.goals ? `Goals: ${individual.goals}\n${individual.notes || ""}`.trim() : (individual.notes || undefined),
           is_patient: true,
           family_id: familyId,
-          clinician_id: clinicianId,
+          clinician_id: resolvedClinicianId,
           parent_email: accountEmail,
         });
       }
@@ -175,7 +178,7 @@ export default function AddClientModal({ open, onClose, onSuccess, clinicianId }
         phone: holder.phone || undefined,
         access_code: accessCode,
         family_id: familyId,
-        clinician_id: clinicianId,
+        clinician_id: resolvedClinicianId,
         account_type: accountType || "individual",
         invite_token: token,
         is_active: true,
