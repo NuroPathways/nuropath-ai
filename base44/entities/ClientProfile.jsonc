@@ -27,10 +27,34 @@
           },
           "description": {
             "type": "string"
+          },
+          "timeline": {
+            "type": "string"
           }
         }
       },
       "description": "Treatment goals extracted from documents"
+    },
+    "objectives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "target_behavior": {
+            "type": "string"
+          },
+          "measurable_outcome": {
+            "type": "string"
+          },
+          "completion_criteria": {
+            "type": "string"
+          },
+          "estimated_completion": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Measurable objectives extracted from documents"
     },
     "behaviors": {
       "type": "array",
@@ -46,6 +70,9 @@
           "description": {
             "type": "string"
           },
+          "what_may_be_happening": {
+            "type": "string"
+          },
           "triggers": {
             "type": "array",
             "items": {
@@ -59,6 +86,12 @@
             }
           },
           "interventions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "clinical_interventions": {
             "type": "array",
             "items": {
               "type": "string"
