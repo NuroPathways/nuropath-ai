@@ -8,12 +8,14 @@ async function buildClientProfile(doc, clinicianId) {
       diagnoses: { type: "array", items: { type: "string" } },
       goals: {
         type: "array",
+        minItems: 1,
         items: {
           type: "object",
           properties: {
             title: { type: "string" },
             description: { type: "string" }
-          }
+          },
+          required: ["title"]
         }
       },
       behaviors: {
@@ -43,13 +45,27 @@ async function buildClientProfile(doc, clinicianId) {
   const docLabel = doc.title + " (" + (doc.category || "").replace(/_/g, " ") + ")";
   const result = await base44.integrations.Core.InvokeLLM({
     model: "claude_sonnet_4_6",
-    prompt: "You are a behavioral health specialist. Read this clinical document and extract a comprehensive structured client profile. Document: " + docLabel + ". Extract ONLY what is explicitly present in the document. Do NOT invent or hallucinate anything. For each target behavior, provide: name (short plain-language like Refusal, Aggression, Anxiety Attack), description, an appropriate emoji, specific triggers, which treatment goals this behavior maps to, ONLY the clinician-approved intervention steps, things to avoid, and when to contact the clinician. For goals: extract each treatment goal title and description, AND infer reasonable additional treatment goals that the plan implies even if not explicitly stated as a goal (e.g. if the document describes reducing tantrums, infer a goal like 'Reduce tantrum frequency'). For reinforcers: list all rewards mentioned. For safety/crisis: extract safety and crisis protocol steps.",
+    prompt: "You are a behavioral health specialist. Read this clinical document and extract a comprehensive structured client profile. Document: " + docLabel + ". Extract ONLY what is explicitly present in the document. Do NOT invent or hallucinate anything. For each target behavior, provide: name (short plain-language like Refusal, Aggression, Anxiety Attack), description, an appropriate emoji, specific triggers, which treatment goals this behavior maps to, ONLY the clinician-approved intervention steps, things to avoid, and when to contact the clinician. For goals: this is MANDATORY — you must ALWAYS return at least one goal, never leave the goals array empty. Extract each treatment goal title and description, AND infer reasonable additional treatment goals that the plan implies even if not explicitly stated as a goal (e.g. if the document describes reducing tantrums, infer a goal like 'Reduce tantrum frequency'). If the document has no explicit goals at all, derive sensible treatment goals from the behaviors, diagnoses, and interventions described so the goals array is never blank. For reinforcers: list all rewards mentioned. For safety/crisis: extract safety and crisis protocol steps.",
     file_urls: [doc.file_url],
     response_json_schema: profileSchema
   });
 
   if (!result || (!result.behaviors?.length && !result.goals?.length)) return null;
-  const extractedGoals = result.goals || [];
+
+  // Force goals to never be blank: if the AI returned none, derive them from behaviors.
+  let extractedGoals = (result.goals || []).filter(g => g && g.title);
+  if (extractedGoals.length === 0) {
+    extractedGoals = (result.behaviors || [])
+      .filter(b => b.name)
+      .map(b => ({
+        title: "Reduce " + b.name.toLowerCase(),
+        description: b.description || ("Work toward reducing " + b.name.toLowerCase() + "."),
+      }));
+    if (extractedGoals.length === 0) {
+      extractedGoals = [{ title: "Establish initial treatment goals", description: "Define specific treatment goals based on this client's needs." }];
+    }
+  }
+  result.goals = extractedGoals;
 
   const mergeArr = (a, b) => [...new Set([...(a || []), ...(b || [])])];
 
