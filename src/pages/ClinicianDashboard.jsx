@@ -35,7 +35,7 @@ export default function ClinicianDashboard() {
     if (isLoadingAuth) return;
     if (!user?.id) { navigate("/ClinicianLogin"); return; }
     const load = async () => {
-      const me = await base44.auth.me();
+      const me = await base44.auth.me().catch(() => null);
       const clinicianId = me?.id || user.id;
       const [kids, allLogs, msgs] = await Promise.all([
         base44.entities.Child.filter({ clinician_id: clinicianId }).catch(() => []),
@@ -52,8 +52,10 @@ export default function ClinicianDashboard() {
   }, [user?.id, isLoadingAuth]);
 
   const refresh = async () => {
-    if (!user?.id) return;
-    const kids = await base44.entities.Child.filter({ clinician_id: user.id }).catch(() => []);
+    const me = await base44.auth.me().catch(() => null);
+    const clinicianId = me?.id || user?.id;
+    if (!clinicianId) return;
+    const kids = await base44.entities.Child.filter({ clinician_id: clinicianId }).catch(() => []);
     setChildren(kids);
   };
 

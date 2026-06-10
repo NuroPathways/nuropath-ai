@@ -8,6 +8,10 @@
     "clinician_id": {
       "type": "string"
     },
+    "parent_id": {
+      "type": "string",
+      "description": "ID of the parent/client who can access this document"
+    },
     "title": {
       "type": "string"
     },
@@ -57,6 +61,9 @@
       "$or": [
         {
           "clinician_id": "{{user.id}}"
+        },
+        {
+          "parent_id": "{{user.id}}"
         },
         {
           "user_condition": {

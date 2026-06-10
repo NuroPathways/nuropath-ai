@@ -78,27 +78,16 @@ export default function DocumentCenter() {
 
       setChildren(merged);
 
-      if (merged.length > 0) {
-        // Fetch all docs and behavior plans for each child
-        const [docResults, planResults] = await Promise.all([
-          Promise.all(merged.map(c => base44.entities.Document.filter({ child_id: c.id }).catch(() => []))),
-          Promise.all(merged.map(c => base44.entities.BehaviorPlan.filter({ child_id: c.id }).catch(() => []))),
-        ]);
-        const docs = docResults.flat();
-        // Also include behavior plans that have an uploaded file_url
-        const planDocs = planResults.flat().filter(p => p.file_url).map(p => ({
-          id: `plan_${p.id}`,
-          title: p.behavior_name,
-          category: "behavior_protocol",
-          file_url: p.file_url,
-          file_name: p.file_name || `${p.behavior_name}.pdf`,
-          child_id: p.child_id,
-        }));
-        // Deduplicate by id
-        const allDocs = [...docs, ...planDocs];
-        const seenIds = new Set();
-        setDocuments(allDocs.filter(d => { if (seenIds.has(d.id)) return false; seenIds.add(d.id); return true; }));
-      }
+      // Fetch docs by parent_id directly (RLS-friendly), plus by each child_id for completeness
+      const childIds = merged.map(c => c.id);
+      const docFetches = [
+        base44.entities.Document.filter({ parent_id: me.id }).catch(() => []),
+        ...childIds.map(cid => base44.entities.Document.filter({ child_id: cid }).catch(() => [])),
+      ];
+      const docResults = await Promise.all(docFetches);
+      const allDocsList = docResults.flat();
+      const seenIds = new Set();
+      setDocuments(allDocsList.filter(d => { if (seenIds.has(d.id)) return false; seenIds.add(d.id); return true; }));
       setLoading(false);
     };
     load();
