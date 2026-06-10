@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { ArrowLeft, AlertCircle, FileText, Target, ClipboardList, MessageCircle, AlertTriangle, Stethoscope, Calendar, ChevronRight, ShieldAlert, Brain, Download } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -19,6 +20,7 @@ const CATEGORY_EMOJIS = {
 
 export default function ChildProfile() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [child, setChild] = useState(null);
   const [plans, setPlans] = useState([]);
   const [interventionPlans, setInterventionPlans] = useState([]);
@@ -29,33 +31,23 @@ export default function ChildProfile() {
 
   useEffect(() => {
     if (!childId) { navigate("/ParentDashboard"); return; }
+    if (!user) return;
     const load = async () => {
-      const me = await base44.auth.me().catch(() => null);
-      if (!me) { base44.auth.redirectToLogin(window.location.href); return; }
-
-      const [kids, ps, ips, docs] = await Promise.all([
-        base44.entities.Child.filter({ id: childId }),
-        base44.entities.BehaviorPlan.filter({ child_id: childId }),
-        base44.entities.InterventionPlan.filter({ child_id: childId }),
-        base44.entities.Document.filter({ child_id: childId }).catch(() => []),
-      ]);
-
-      const child = kids[0] || null;
-      // Security: ensure the logged-in user is the parent or the clinician for this child
-      const isAuthorized = child && (
-        child.parent_id === me.id ||
-        child.parent_email === me.email ||
-        child.clinician_id === me.id ||
-        me.role === "admin"
-      );
-      setChild(isAuthorized ? child : null);
-      setPlans(isAuthorized ? ps : []);
-      setInterventionPlans(isAuthorized ? ips : []);
-      setDocuments(isAuthorized ? docs : []);
+      // Server verifies access for both regular logins and username+code client sessions
+      const res = await base44.functions.invoke('getClientPortalData', {
+        child_id: childId,
+        account_id: user.id,
+        invite_token: user.invite_token,
+      }).catch(() => null);
+      const d = res?.data || {};
+      setChild(d.child || null);
+      setPlans(d.plans || []);
+      setInterventionPlans(d.interventionPlans || []);
+      setDocuments(d.documents || []);
       setLoading(false);
     };
     load();
-  }, [childId, navigate]);
+  }, [childId, navigate, user]);
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
