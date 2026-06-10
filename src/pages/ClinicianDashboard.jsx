@@ -35,15 +35,12 @@ export default function ClinicianDashboard() {
     if (isLoadingAuth) return;
     if (!user?.id) { navigate("/ClinicianLogin"); return; }
     const load = async () => {
-      let kids = [];
-      try {
-        kids = await base44.entities.Child.filter({ clinician_id: user.id });
-      } catch(err) {
-        kids = [];
-      }
-      const [allLogs, msgs] = await Promise.all([
+      const me = await base44.auth.me();
+      const clinicianId = me?.id || user.id;
+      const [kids, allLogs, msgs] = await Promise.all([
+        base44.entities.Child.filter({ clinician_id: clinicianId }).catch(() => []),
         base44.entities.BehaviorLog.filter({}).catch(() => []),
-        base44.entities.Message.filter({ to_user_id: user.id }).catch(() => []),
+        base44.entities.Message.filter({ to_user_id: clinicianId }).catch(() => []),
       ]);
       setChildren(kids);
       const kidIds = new Set(kids.map(k => k.id));
