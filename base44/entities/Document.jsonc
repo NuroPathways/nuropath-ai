@@ -55,7 +55,16 @@
   ],
   "rls": {
     "create": {
-      "clinician_id": "{{user.id}}"
+      "$or": [
+        {
+          "clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "read": {
       "$or": [

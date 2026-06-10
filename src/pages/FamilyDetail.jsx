@@ -102,15 +102,19 @@ export default function FamilyDetail() {
   };
 
   const handleUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !uploadTitle.trim() || !uploadChildId) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0 || !uploadChildId) return;
     setUploading(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    const res = await base44.functions.invoke('manageClientRecord', {
-      action: 'createDocument',
-      data: { child_id: uploadChildId, title: uploadTitle, file_url, file_name: file.name },
-    });
-    setDocuments(prev => [...prev, res.data.record]);
+    const records = await Promise.all(files.map(async (file) => {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const title = (files.length === 1 && uploadTitle.trim()) ? uploadTitle.trim() : file.name.replace(/\.[^/.]+$/, "");
+      const res = await base44.functions.invoke('manageClientRecord', {
+        action: 'createDocument',
+        data: { child_id: uploadChildId, title, file_url, file_name: file.name },
+      });
+      return res.data.record;
+    }));
+    setDocuments(prev => [...prev, ...records]);
     setUploadTitle("");
     setShowUpload(false);
     setUploading(false);
@@ -310,7 +314,7 @@ export default function FamilyDetail() {
             <div className="bg-card border border-border rounded-2xl p-4 mb-3 space-y-3">
               <input
                 type="text"
-                placeholder="Document title"
+                placeholder="Document title (optional for multiple files)"
                 value={uploadTitle}
                 onChange={e => setUploadTitle(e.target.value)}
                 className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -322,8 +326,8 @@ export default function FamilyDetail() {
               )}
               <label className={`flex items-center gap-2 justify-center w-full py-2.5 rounded-xl border-2 border-dashed border-border cursor-pointer hover:border-primary/40 transition-colors ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
                 <Upload className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{uploading ? "Uploading..." : "Choose file"}</span>
-                <input type="file" className="hidden" onChange={handleUpload} disabled={uploading || !uploadTitle.trim()} />
+                <span className="text-sm text-muted-foreground">{uploading ? "Uploading..." : "Choose files"}</span>
+                <input type="file" multiple className="hidden" onChange={handleUpload} disabled={uploading} />
               </label>
             </div>
           )}

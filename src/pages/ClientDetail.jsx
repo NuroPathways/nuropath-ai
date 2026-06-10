@@ -62,21 +62,24 @@ export default function ClientDetail() {
   };
 
   const handleUploadDocument = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     setUploading(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    const res = await base44.functions.invoke('manageClientRecord', {
-      action: 'createDocument',
-      data: {
-        child_id: childId,
-        title: file.name.replace(/\.[^/.]+$/, ""),
-        file_url,
-        file_name: file.name,
-        category: "other",
-      },
-    });
-    setDocuments(prev => [...prev, res.data.record]);
+    const records = await Promise.all(files.map(async (file) => {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const res = await base44.functions.invoke('manageClientRecord', {
+        action: 'createDocument',
+        data: {
+          child_id: childId,
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          file_url,
+          file_name: file.name,
+          category: "other",
+        },
+      });
+      return res.data.record;
+    }));
+    setDocuments(prev => [...prev, ...records]);
     setUploading(false);
     e.target.value = "";
   };
@@ -152,7 +155,7 @@ export default function ClientDetail() {
           <div className="flex items-center justify-between mb-3 px-1">
             <h2 className="font-semibold text-foreground text-sm">Documents ({documents.length})</h2>
             <label className="cursor-pointer">
-              <input type="file" className="hidden" onChange={handleUploadDocument} disabled={uploading} />
+              <input type="file" multiple className="hidden" onChange={handleUploadDocument} disabled={uploading} />
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors">
                 {uploading ? <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                 {uploading ? "Uploading..." : "Upload"}
@@ -164,7 +167,7 @@ export default function ClientDetail() {
               <FileText className="w-7 h-7 text-muted-foreground mx-auto mb-2" />
               <p className="text-xs text-muted-foreground">No documents yet.</p>
               <label className="cursor-pointer mt-3 inline-block">
-                <input type="file" className="hidden" onChange={handleUploadDocument} disabled={uploading} />
+                <input type="file" multiple className="hidden" onChange={handleUploadDocument} disabled={uploading} />
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors">
                   <Upload className="w-3.5 h-3.5" /> Upload Document
                 </span>
