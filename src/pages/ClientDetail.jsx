@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { ArrowLeft, User, FileText, Trash2, Edit2, Save, X, Upload, Download, Plus, Key, Eye, EyeOff } from "lucide-react";
 import ClientGoalsSection from "@/components/clinician/ClientGoalsSection";
+import DocScanButton from "@/components/clinician/DocScanButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -182,6 +183,7 @@ export default function ClientDetail() {
                     <p className="text-sm font-medium text-foreground truncate">{doc.title}</p>
                     {doc.file_name && <p className="text-xs text-muted-foreground truncate">{doc.file_name}</p>}
                   </div>
+                  <DocScanButton doc={doc} clinicianId={clinicianId} />
                   <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors"><Download className="w-4 h-4" /></a>
                   <button onClick={() => handleDeleteDoc(doc.id)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="w-4 h-4" /></button>
                 </div>

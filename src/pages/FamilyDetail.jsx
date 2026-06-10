@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
 import AddChildToExistingFamilyModal from "@/components/clinician/AddChildToExistingFamilyModal";
+import DocScanButton from "@/components/clinician/DocScanButton";
 
 export default function FamilyDetail() {
   const navigate = useNavigate();
@@ -340,15 +341,15 @@ export default function FamilyDetail() {
           ) : (
             <div className="space-y-2">
               {documents.map((doc) => (
-                <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-3 bg-card border border-border rounded-xl p-3 hover:border-primary/40 transition-colors">
+                <div key={doc.id}
+                  className="flex items-center gap-3 bg-card border border-border rounded-xl p-3">
                   <FileText className="w-4 h-4 text-primary flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
+                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 hover:text-primary transition-colors">
                     <p className="text-sm font-medium text-foreground truncate">{doc.title}</p>
                     {doc.file_name && <p className="text-xs text-muted-foreground truncate">{doc.file_name}</p>}
-                  </div>
-                  <ArrowLeft className="w-4 h-4 text-muted-foreground rotate-180" />
-                </a>
+                  </a>
+                  <DocScanButton doc={doc} clinicianId={clinicianId} />
+                </div>
               ))}
             </div>
           )}
