@@ -18,7 +18,7 @@ export default function ClinicianLogin() {
   }, []);
 
   const handleLogin = () => {
-    base44.auth.redirectToLogin("/RoleSetup");
+    base44.auth.redirectToLogin("/RoleSetup?role=clinician");
   };
 
   return (

@@ -13,6 +13,7 @@ export default function RoleSetup() {
   const { refreshUser } = useAuth();
 
   const inviteToken = new URLSearchParams(window.location.search).get("invite");
+  const forceRole = new URLSearchParams(window.location.search).get("role");
 
   useEffect(() => {
     const init = async () => {
@@ -21,6 +22,14 @@ export default function RoleSetup() {
       setUser(me);
 
       if (me.app_role === "clinician") { navigate("/ClinicianDashboard"); return; }
+
+      // Auto-assign clinician role if coming from ClinicianLogin
+      if (forceRole === "clinician") {
+        await base44.auth.updateMe({ app_role: "clinician" });
+        await refreshUser();
+        navigate("/ClinicianDashboard");
+        return;
+      }
 
       if (inviteToken) {
         const families = await base44.entities.Family.filter({ invite_token: inviteToken }).catch(() => []);
