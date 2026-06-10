@@ -34,8 +34,14 @@ export default function ClinicianDashboard() {
     if (isLoadingAuth) return;
     if (!user?.id) { navigate("/ClinicianLogin"); return; }
     const load = async () => {
-      const [kids, allLogs, msgs] = await Promise.all([
-        base44.entities.Child.filter({ clinician_id: user.id }).catch(() => []),
+      let kids = [];
+      try {
+        kids = await base44.entities.Child.filter({ clinician_id: user.id });
+      } catch(err) {
+        console.error("CHILD FETCH ERROR:", err);
+        kids = [];
+      }
+      const [allLogs, msgs] = await Promise.all([
         base44.entities.BehaviorLog.filter({}).catch(() => []),
         base44.entities.Message.filter({ to_user_id: user.id }).catch(() => []),
       ]);
@@ -60,7 +66,7 @@ export default function ClinicianDashboard() {
     <div className="min-h-screen bg-background font-inter">
       {/* DEBUG BANNER - remove after fix */}
       <div className="bg-yellow-100 border-b border-yellow-300 px-4 py-2 text-xs text-yellow-900 font-mono">
-        App ID in use: <strong>{import.meta.env.VITE_BASE44_APP_ID || "not set"}</strong> | Children loaded: <strong>{children.length}</strong> | Loading: <strong>{loading ? "yes" : "no"}</strong>
+        Children loaded: <strong>{children.length}</strong> — check browser console (F12) for "CHILD FETCH ERROR"
       </div>
       {/* Hero Header */}
       <div className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, hsl(216,38%,47%) 0%, hsl(180,29%,55%) 100%)" }}>
