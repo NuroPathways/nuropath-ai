@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { ArrowLeft, AlertTriangle, ChevronRight, CheckCircle2, ShieldAlert, Loader2, MessageSquare, Target, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
@@ -35,6 +36,7 @@ function Section({ title, items, colorClass }) {
 
 export default function HelpNow() {
   const navigate = useNavigate();
+  const { user, isLoadingAuth } = useAuth();
   const [child, setChild] = useState(null);
   const [profile, setProfile] = useState(null);
   const [behaviorPlans, setBehaviorPlans] = useState([]);
@@ -48,9 +50,10 @@ export default function HelpNow() {
   const hasScannedRef = useRef(false);
 
   useEffect(() => {
+    if (isLoadingAuth) return;
     const load = async () => {
       setLoading(true);
-      const me = await base44.auth.me().catch(() => null);
+      const me = user;
       if (!me) { setLoading(false); return; }
 
       let allChildren = [];
@@ -107,7 +110,7 @@ export default function HelpNow() {
       }
     };
     load();
-  }, [childId]);
+  }, [childId, isLoadingAuth, user?.id]);
 
   const handleSelectBehavior = (behavior) => {
     setSelectedBehavior(behavior);
