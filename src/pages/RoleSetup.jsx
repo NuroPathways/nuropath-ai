@@ -23,7 +23,7 @@ export default function RoleSetup() {
 
       if (me.app_role === "clinician" || forceRole === "clinician") {
         if (me.app_role !== "clinician") {
-          await base44.auth.updateMe({ app_role: "clinician", role: "admin", account_type: "clinician" });
+          await base44.auth.updateMe({ app_role: "clinician", account_type: "clinician" });
         }
         navigate("/ClinicianDashboard");
         return;
@@ -68,7 +68,7 @@ export default function RoleSetup() {
 
   const setupClinician = async () => {
     setSaving(true);
-    await base44.auth.updateMe({ app_role: "clinician", role: "admin", account_type: "clinician" });
+    await base44.auth.updateMe({ app_role: "clinician", account_type: "clinician" });
     await refreshUser();
     navigate("/ClinicianDashboard");
   };
