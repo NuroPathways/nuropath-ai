@@ -118,12 +118,12 @@
   ],
   "rls": {
     "create": {
-      "data.clinician_id": "{{user.id}}"
+      "clinician_id": "{{user.id}}"
     },
     "read": {
       "$or": [
         {
-          "data.clinician_id": "{{user.id}}"
+          "clinician_id": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -135,7 +135,7 @@
     "update": {
       "$or": [
         {
-          "data.clinician_id": "{{user.id}}"
+          "clinician_id": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -147,7 +147,7 @@
     "delete": {
       "$or": [
         {
-          "data.clinician_id": "{{user.id}}"
+          "clinician_id": "{{user.id}}"
         },
         {
           "user_condition": {

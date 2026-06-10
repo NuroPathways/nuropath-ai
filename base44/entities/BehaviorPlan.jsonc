@@ -75,12 +75,12 @@
   ],
   "rls": {
     "create": {
-      "data.clinician_id": "{{user.id}}"
+      "clinician_id": "{{user.id}}"
     },
     "read": {
       "$or": [
         {
-          "data.clinician_id": "{{user.id}}"
+          "clinician_id": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -90,10 +90,28 @@
       ]
     },
     "update": {
-      "data.clinician_id": "{{user.id}}"
+      "$or": [
+        {
+          "clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "delete": {
-      "data.clinician_id": "{{user.id}}"
+      "$or": [
+        {
+          "clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     }
   }
 }

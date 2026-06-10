@@ -52,7 +52,7 @@
     "create": {
       "$or": [
         {
-          "data.clinician_id": "{{user.id}}"
+          "clinician_id": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -64,10 +64,10 @@
     "read": {
       "$or": [
         {
-          "data.clinician_id": "{{user.id}}"
+          "clinician_id": "{{user.id}}"
         },
         {
-          "data.invite_email": "{{user.email}}"
+          "invite_email": "{{user.email}}"
         },
         {
           "user_condition": {
@@ -79,10 +79,10 @@
     "update": {
       "$or": [
         {
-          "data.clinician_id": "{{user.id}}"
+          "clinician_id": "{{user.id}}"
         },
         {
-          "data.invite_email": "{{user.email}}"
+          "invite_email": "{{user.email}}"
         },
         {
           "user_condition": {
@@ -94,7 +94,7 @@
     "delete": {
       "$or": [
         {
-          "data.clinician_id": "{{user.id}}"
+          "clinician_id": "{{user.id}}"
         },
         {
           "user_condition": {

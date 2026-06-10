@@ -35,7 +35,7 @@
     "create": {
       "$or": [
         {
-          "data.from_user_id": "{{user.id}}"
+          "from_user_id": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -47,10 +47,10 @@
     "read": {
       "$or": [
         {
-          "data.from_user_id": "{{user.id}}"
+          "from_user_id": "{{user.id}}"
         },
         {
-          "data.to_user_id": "{{user.id}}"
+          "to_user_id": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -62,7 +62,7 @@
     "update": {
       "$or": [
         {
-          "data.to_user_id": "{{user.id}}"
+          "to_user_id": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -74,7 +74,7 @@
     "delete": {
       "$or": [
         {
-          "data.from_user_id": "{{user.id}}"
+          "from_user_id": "{{user.id}}"
         },
         {
           "user_condition": {

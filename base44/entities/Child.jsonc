@@ -48,18 +48,18 @@
   ],
   "rls": {
     "create": {
-      "data.clinician_id": "{{user.id}}"
+      "clinician_id": "{{user.id}}"
     },
     "read": {
       "$or": [
         {
-          "data.clinician_id": "{{user.id}}"
+          "clinician_id": "{{user.id}}"
         },
         {
-          "data.parent_id": "{{user.id}}"
+          "parent_id": "{{user.id}}"
         },
         {
-          "data.parent_email": "{{user.email}}"
+          "parent_email": "{{user.email}}"
         },
         {
           "user_condition": {
@@ -71,13 +71,13 @@
     "update": {
       "$or": [
         {
-          "data.clinician_id": "{{user.id}}"
+          "clinician_id": "{{user.id}}"
         },
         {
-          "data.parent_id": "{{user.id}}"
+          "parent_id": "{{user.id}}"
         },
         {
-          "data.parent_email": "{{user.email}}"
+          "parent_email": "{{user.email}}"
         },
         {
           "user_condition": {
@@ -89,7 +89,7 @@
     "delete": {
       "$or": [
         {
-          "data.clinician_id": "{{user.id}}"
+          "clinician_id": "{{user.id}}"
         },
         {
           "user_condition": {
