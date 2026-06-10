@@ -29,6 +29,7 @@ export default function ClinicianDashboard() {
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [showAddChild, setShowAddChild] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
 
   useEffect(() => {
@@ -37,7 +38,8 @@ export default function ClinicianDashboard() {
     // Don't redirect away if the user is authenticated but role hasn't propagated yet
     if (user.app_role && user.app_role !== "clinician") { navigate("/ParentDashboard"); return; }
     const load = async () => {
-      const res = await base44.functions.invoke('getClinicianData', {}).catch(() => null);
+      const res = await base44.functions.invoke('getClinicianData', {}).catch((e) => ({ data: { error: e?.message || "Failed to load" } }));
+      if (res?.data?.error) setLoadError(res.data.error);
       const { children: kids = [], logs: clientLogs = [], messages: msgs = [] } = res?.data || {};
       setChildren(kids);
       setLogs(clientLogs);
@@ -170,6 +172,11 @@ export default function ClinicianDashboard() {
               </div>
             </div>
 
+            {loadError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-3 text-xs text-red-700">
+                Couldn't load your clients: {loadError}
+              </div>
+            )}
             {loading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map(i => <div key={i} className="h-16 bg-muted rounded-xl animate-pulse" />)}
