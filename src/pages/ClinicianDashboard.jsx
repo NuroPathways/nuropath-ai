@@ -58,10 +58,6 @@ export default function ClinicianDashboard() {
 
   return (
     <div className="min-h-screen bg-background font-inter">
-      {/* DEBUG BANNER - remove after diagnosis */}
-      <div className="bg-yellow-100 border-b border-yellow-300 px-4 py-2 text-xs text-yellow-900 font-mono">
-        DEBUG — user.id: <strong>{user?.id || "NULL"}</strong> | app_role: <strong>{user?.app_role || "NULL"}</strong> | isLoadingAuth: <strong>{String(isLoadingAuth)}</strong> | children loaded: <strong>{children.length}</strong>
-      </div>
       {/* Hero Header */}
       <div className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, hsl(216,38%,47%) 0%, hsl(180,29%,55%) 100%)" }}>
         <div className="absolute inset-0 opacity-10">
