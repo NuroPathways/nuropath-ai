@@ -17,7 +17,7 @@ export default function ClinicianUsers() {
     const load = async () => {
       let me;
       try { me = await base44.auth.me(); } catch { return; }
-      if (!me) return;
+      if (!me?.id) return;
       const [fams, kids, accounts] = await Promise.all([
         base44.entities.Family.filter({ clinician_id: me.id }),
         base44.entities.Child.filter({ clinician_id: me.id }),

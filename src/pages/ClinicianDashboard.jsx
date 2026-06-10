@@ -31,23 +31,23 @@ export default function ClinicianDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
     const load = async () => {
-      const me = user;
+      // Re-fetch me directly to ensure we have the real authenticated user ID
+      const me = await base44.auth.me().catch(() => user);
       const [kids, allLogs, msgs] = await Promise.all([
         base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []),
         base44.entities.BehaviorLog.filter({}).catch(() => []),
         base44.entities.Message.filter({ to_user_id: me.id }).catch(() => []),
       ]);
       setChildren(kids);
-      // Filter logs to only children assigned to this clinician
       const kidIds = new Set(kids.map(k => k.id));
       setLogs(allLogs.filter(l => kidIds.has(l.child_id)));
       setMessages(msgs.filter(m => !m.is_read));
       setLoading(false);
     };
     load();
-  }, [user]);
+  }, [user?.id]);
 
   const refresh = async () => {
     if (!user) return;
