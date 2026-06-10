@@ -20,7 +20,7 @@ export default function Splash() {
       if (!user) return;
       if (user.app_role === "clinician") navigate("/ClinicianDashboard");
       else if (user.app_role === "parent") navigate("/ParentDashboard");
-      else navigate("/RoleSetup");
+      // No role yet — stay on the welcome page so they choose the right portal
     });
   }, []);
 

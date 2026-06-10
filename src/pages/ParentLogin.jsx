@@ -12,13 +12,14 @@ export default function ParentLogin() {
       if (authed) {
         const user = await base44.auth.me();
         if (user.app_role === "parent") navigate("/ParentDashboard");
-        else navigate("/RoleSetup");
+        else if (user.app_role === "clinician") navigate("/ClinicianDashboard");
+        else navigate("/RoleSetup?role=parent");
       }
     });
   }, []);
 
   const handleLogin = () => {
-    base44.auth.redirectToLogin("/RoleSetup");
+    base44.auth.redirectToLogin("/RoleSetup?role=parent");
   };
 
   return (

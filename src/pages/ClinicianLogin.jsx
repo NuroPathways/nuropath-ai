@@ -12,7 +12,8 @@ export default function ClinicianLogin() {
       if (authed) {
         const user = await base44.auth.me();
         if (user.app_role === "clinician") navigate("/ClinicianDashboard");
-        else navigate("/RoleSetup");
+        else if (user.app_role === "parent") navigate("/ParentDashboard");
+        else navigate("/RoleSetup?role=clinician");
       }
     });
   }, []);

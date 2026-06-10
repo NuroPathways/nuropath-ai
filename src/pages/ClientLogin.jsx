@@ -12,7 +12,8 @@ export default function ClientLogin() {
       if (authed) {
         const user = await base44.auth.me();
         if (user.app_role === "parent") navigate("/ParentDashboard");
-        else navigate("/RoleSetup");
+        else if (user.app_role === "clinician") navigate("/ClinicianDashboard");
+        else navigate("/RoleSetup?role=parent");
       }
     });
   }, []);
@@ -46,7 +47,7 @@ export default function ClientLogin() {
 
           {/* Email login */}
           <button
-            onClick={() => base44.auth.redirectToLogin("/RoleSetup")}
+            onClick={() => base44.auth.redirectToLogin("/RoleSetup?role=parent")}
             className="w-full bg-card border-2 border-border text-foreground rounded-2xl py-4 px-5 font-semibold text-base hover:border-primary/50 transition-all flex items-center gap-3"
           >
             <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
