@@ -237,6 +237,13 @@ export default function AIChat() {
         question: msg,
         ai_response: response
       }).catch(() => {});
+      // Engagement event for clinician analytics (topic only — full conversation is not exposed)
+      base44.entities.EngagementEvent.create({
+        child_id: selectedChildId,
+        clinician_id: child?.clinician_id,
+        event_type: "ai_question",
+        topic: msg.slice(0, 80),
+      }).catch(() => {});
     }
   };
 

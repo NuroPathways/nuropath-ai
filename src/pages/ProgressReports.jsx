@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
+import EngagementPanel from "@/components/clinician/EngagementPanel";
 
 export default function ProgressReports() {
   const navigate = useNavigate();
@@ -13,12 +14,14 @@ export default function ProgressReports() {
   const [selectedChildId, setSelectedChildId] = useState("");
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isClinician, setIsClinician] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       const me = await base44.auth.me().catch(() => null);
       if (!me) return;
       const isParent = me.app_role === "parent";
+      setIsClinician(!isParent);
       const kids = isParent
         ? await base44.entities.Child.filter({ parent_id: me.id }).catch(() => [])
         : await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
@@ -91,6 +94,13 @@ export default function ProgressReports() {
                 <p className="text-xs text-muted-foreground">Strategies Used</p>
               </motion.div>
             </div>
+
+            {isClinician && selectedChildId && (
+              <EngagementPanel
+                childId={selectedChildId}
+                behaviorLogCount={childLogs.filter(l => l.created_date && Date.now() - new Date(l.created_date).getTime() < 7 * 24 * 60 * 60 * 1000).length}
+              />
+            )}
 
             {chartData.length > 0 && (
               <div className="bg-card border border-border rounded-2xl p-5">

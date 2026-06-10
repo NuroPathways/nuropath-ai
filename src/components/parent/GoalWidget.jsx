@@ -37,6 +37,9 @@ export default function GoalWidget({ childIds = [] }) {
   const target = goal.target || goal.tokens_goal || 10;
   const pct = Math.min(Math.round((progress / Math.max(target, 1)) * 100), 100);
 
+  const FREQ_LABELS = { daily: "Daily", weekly: "Weekly", biweekly: "Bi-Weekly", monthly: "Monthly", every_3_months: "Every 3 Months", every_6_months: "Every 6 Months", yearly: "Yearly" };
+  const freqLabel = FREQ_LABELS[goal.frequency];
+
   const daysLabel = goal.next_review_days
     ? `Next review: ${goal.next_review_days} days`
     : goal.created_by_clinician
@@ -101,7 +104,10 @@ export default function GoalWidget({ childIds = [] }) {
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground">{daysLabel}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground">{daysLabel}</p>
+            {freqLabel && <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{freqLabel}</span>}
+          </div>
         </motion.div>
       </AnimatePresence>
 

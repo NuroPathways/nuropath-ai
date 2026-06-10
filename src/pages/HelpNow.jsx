@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { ArrowLeft, AlertTriangle, ChevronRight, CheckCircle2, ShieldAlert, Loader2, MessageSquare, Target, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import HelpFeedback from "@/components/help/HelpFeedback";
 
 const BEHAVIOR_COLORS = [
   "bg-red-50 border-red-200 text-red-700",
@@ -77,6 +78,13 @@ export default function HelpNow() {
       if (!foundChild) { setLoading(false); return; }
       setChild(foundChild);
 
+      // Information event — opening Help Now is NOT a behavior occurrence
+      base44.entities.EngagementEvent.create({
+        child_id: foundChild.id,
+        clinician_id: foundChild.clinician_id,
+        event_type: "help_opened",
+      }).catch(() => {});
+
       if (me.account_type === "individual") {
         setIsIndividualClient(true);
       } else if (foundChild.family_id) {
@@ -114,11 +122,14 @@ export default function HelpNow() {
 
   const handleSelectBehavior = (behavior) => {
     setSelectedBehavior(behavior);
+    // Information event only — viewing guidance does NOT log a behavior occurrence.
+    // Actual behaviors are logged via the "Log This Behavior" button.
     if (child) {
-      base44.entities.BehaviorLog.create({
+      base44.entities.EngagementEvent.create({
         child_id: child.id,
-        behavior_type: behavior.name,
-        context: "Parent requested help via Help Now"
+        clinician_id: child.clinician_id,
+        event_type: "behavior_viewed",
+        topic: behavior.name,
       }).catch(() => {});
     }
     setStep("show_guidance");
@@ -187,7 +198,7 @@ export default function HelpNow() {
       try {
         const allFileUrls = docsWithFiles.slice(0, 6).map(d => d.file_url);
         const result = await base44.integrations.Core.InvokeLLM({
-          prompt: `You are a behavioral health specialist helping a parent support their child named ${foundChild.child_name}. You are reading ALL of their clinical documents together as one complete picture.\n\nRead every document and synthesize the information across all of them. Create behavior help cards that combine strategies from all documents.\n\nFor each target behavior or challenging situation, create ONE unified card:\n- name: short 2-4 word label (e.g. "Meltdown", "Aggression", "Anxiety", "Task Refusal", "Bedtime Struggle")\n- emoji: fitting emoji\n- description: what this behavior looks like\n- triggers: common causes (list)\n- interventions: step-by-step things the parent should DO, combining all strategies from all docs (list of action steps)\n- avoid: what NOT to do (list)\n- when_to_contact_clinician: when to reach out\n- linked_goals: which treatment goals this behavior addresses (list)\n\nAlso extract across all docs: diagnoses, treatment goals, reinforcers/rewards, safety procedures, and crisis plan steps.\n\nBe thorough — cover every behavior or situation mentioned across any document.`,
+          prompt: `You are a behavioral health specialist helping a parent support their child named ${foundChild.child_name}. You are reading ALL of their clinical documents together as one complete picture.\n\nRead every document and synthesize the information across all of them. Create behavior help cards that combine strategies from all documents.\n\nFor each target behavior or challenging situation, create ONE unified card:\n- name: short 2-4 word label (e.g. "Meltdown", "Aggression", "Anxiety", "Task Refusal", "Bedtime Struggle")\n- emoji: fitting emoji\n- description: what this behavior looks like\n- triggers: common causes (list)\n- interventions: step-by-step things the parent should DO, combining all strategies from all docs (list of action steps)\n- avoid: what NOT to do (list)\n- when_to_contact_clinician: when to reach out\n- linked_goals: which treatment goals this behavior addresses (list)\n\nAlso extract across all docs: diagnoses, treatment goals, reinforcers/rewards, safety procedures, and crisis plan steps.\n\nBe thorough — cover every behavior or situation mentioned across any document.\n\nTRANSLATION RULE: Write ALL text in plain, everyday language a parent can act on instantly — translate clinical jargon while keeping the clinical meaning identical (e.g. "antecedent modification and differential reinforcement" becomes "reduce common triggers and reward calm participation immediately").\n\nNO HALLUCINATION RULE: Only include interventions that explicitly appear in the documents. If a behavior has no documented intervention, leave its interventions list empty — do NOT invent strategies.`,
           file_urls: allFileUrls,
           response_json_schema: { type: "object", properties: extractSchema.properties }
         });
@@ -482,6 +493,8 @@ export default function HelpNow() {
                   <p className="text-sm text-amber-800">{selectedBehavior.when_to_contact_clinician}</p>
                 </div>
               )}
+
+              <HelpFeedback child={child} topic={selectedBehavior.name} />
 
               <Button
                 className="w-full rounded-xl gap-2 mb-3"

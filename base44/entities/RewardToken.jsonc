@@ -16,6 +16,19 @@
       "type": "string",
       "description": "Description of the goal"
     },
+    "frequency": {
+      "type": "string",
+      "enum": [
+        "daily",
+        "weekly",
+        "biweekly",
+        "monthly",
+        "every_3_months",
+        "every_6_months",
+        "yearly"
+      ],
+      "description": "How often this goal is worked on / reviewed"
+    },
     "progress": {
       "type": "number",
       "default": 0,
