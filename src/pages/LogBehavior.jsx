@@ -119,7 +119,7 @@ export default function LogBehavior() {
       </div>
 
       <div className="p-5 max-w-xl mx-auto space-y-4 -mt-1">
-        {children.length > 1 && (
+        {children.length > 0 && (
           <div className="bg-card border border-border rounded-2xl p-4">
             <p className={LABEL}>Child *</p>
             <Select value={form.child_id} onValueChange={v => set("child_id", v)}>
