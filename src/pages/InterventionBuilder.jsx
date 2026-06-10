@@ -76,12 +76,21 @@ export default function InterventionBuilder() {
   });
 
   useEffect(() => {
+    let cancelled = false;
+
+    const loadChildren = async (me) => {
+      const kids = await base44.entities.Child.filter({ clinician_id: me.id }, "-created_date", 200).catch(() => []);
+      if (cancelled) return kids;
+      setChildren(kids);
+      return kids;
+    };
+
     const load = async () => {
       const me = await base44.auth.me().catch(() => null);
       if (!me) { setLoading(false); navigate("/"); return; }
+      if (cancelled) return;
       setUser(me);
-      const kids = await base44.entities.Child.filter({ clinician_id: me.id }).catch(() => []);
-      setChildren(kids);
+      const kids = await loadChildren(me);
 
       if (!childIdParam && !planIdParam && kids[0]) {
         setForm(f => ({ ...f, child_id: kids[0].id }));
@@ -89,12 +98,21 @@ export default function InterventionBuilder() {
 
       if (planIdParam) {
         const plans = await base44.entities.InterventionPlan.filter({ id: planIdParam }).catch(() => []);
-        if (plans[0]) setForm({ ...plans[0] });
+        if (plans[0] && !cancelled) setForm({ ...plans[0] });
       }
 
-      setLoading(false);
+      if (!cancelled) setLoading(false);
+
+      // Refresh the client list when the user returns to this tab, so a
+      // newly created client always appears in the dropdown.
+      const onFocus = () => { base44.auth.me().then(u => u && loadChildren(u)).catch(() => {}); };
+      window.addEventListener("focus", onFocus);
+      cleanup = () => window.removeEventListener("focus", onFocus);
     };
+
+    let cleanup = () => {};
     load();
+    return () => { cancelled = true; cleanup(); };
   }, [planIdParam, childIdParam]);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
