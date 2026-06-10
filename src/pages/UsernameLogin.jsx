@@ -4,8 +4,11 @@ import { Brain, ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { saveClientSession } from "@/lib/clientSession";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function UsernameLogin() {
+  const { user, isAuthenticated } = useAuth();
+  const isClinician = isAuthenticated && (user?.app_role === "clinician" || user?.role === "admin") && !user?.client_session;
   const [username, setUsername] = useState("");
   const [accessCode, setAccessCode] = useState("");
   const [showCode, setShowCode] = useState(false);
@@ -15,6 +18,10 @@ export default function UsernameLogin() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username.trim() || !accessCode.trim()) return;
+    if (isClinician) {
+      setError("You're signed in as a clinician. Sign out first to log in as a client.");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -63,6 +70,12 @@ export default function UsernameLogin() {
             Enter the username and access code provided by your clinician.
           </p>
 
+          {isClinician && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-xl px-4 py-3 mb-4">
+              You're currently signed in as a clinician. Client sign-in is disabled here so your clinician session isn't lost.
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
@@ -71,6 +84,7 @@ export default function UsernameLogin() {
               <input
                 type="text"
                 value={username}
+                disabled={isClinician}
                 onChange={e => setUsername(e.target.value)}
                 placeholder="e.g. jsmith-2048"
                 autoCapitalize="none"
@@ -88,6 +102,7 @@ export default function UsernameLogin() {
                 <input
                   type={showCode ? "text" : "password"}
                   value={accessCode}
+                  disabled={isClinician}
                   onChange={e => setAccessCode(e.target.value)}
                   placeholder="e.g. AB3X7Q"
                   autoCapitalize="characters"
@@ -114,7 +129,7 @@ export default function UsernameLogin() {
             <Button
               type="submit"
               className="w-full min-h-[44px] rounded-xl"
-              disabled={loading || !username.trim() || !accessCode.trim()}
+              disabled={isClinician || loading || !username.trim() || !accessCode.trim()}
             >
               {loading ? (
                 <span className="flex items-center gap-2">
