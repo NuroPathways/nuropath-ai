@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { ArrowLeft, Search, FileText, Download, FolderOpen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
@@ -40,6 +41,7 @@ const CATEGORY_ICON_COLORS = {
 
 export default function DocumentCenter() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -48,50 +50,54 @@ export default function DocumentCenter() {
   const [isIndividual, setIsIndividual] = useState(false);
 
   useEffect(() => {
+    if (!user) return;
     const load = async () => {
-      let me;
-      try { me = await base44.auth.me(); } catch { setLoading(false); return; }
-      if (!me) { setLoading(false); return; }
+      const me = user;
+      if (me.account_type === "individual") setIsIndividual(true);
 
-      // Detect individual client account type
-      const acctType = me.account_type || null;
-      if (acctType === "individual") setIsIndividual(true);
+      // Resolve children the same way the Layout does, so username+code client
+      // sessions (which carry their children on the session) also work.
+      let kids = [];
+      if (me.children && me.children.length > 0) {
+        kids = me.children;
+      } else {
+        const [byId, byEmail] = await Promise.all([
+          base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
+          me.email ? base44.entities.Child.filter({ parent_email: me.email }).catch(() => []) : Promise.resolve([]),
+        ]);
+        const seen = new Set();
+        kids = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+      }
 
-      // Fetch children by both parent_id and parent_email to ensure all are found
-      const [byId, byEmail] = await Promise.all([
-        base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
-        me.email ? base44.entities.Child.filter({ parent_email: me.email }).catch(() => []) : Promise.resolve([]),
-      ]);
-      const seen = new Set();
-      const merged = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
-
-      // For individual clients, detect from family if not already set
-      if (!acctType && merged.length > 0) {
-        const familyId = me.linked_family_id || merged[0]?.family_id;
+      if (!me.account_type && kids.length > 0) {
+        const familyId = me.linked_family_id || kids[0]?.family_id;
         if (familyId) {
           const fams = await base44.entities.Family.filter({ id: familyId }).catch(() => []);
           if (fams[0]?.account_type === "individual") setIsIndividual(true);
-        } else if (merged.length === 1 && merged[0]?.is_patient) {
+        } else if (kids.length === 1 && kids[0]?.is_patient) {
           setIsIndividual(true);
         }
       }
 
-      setChildren(merged);
+      setChildren(kids);
 
-      // Fetch docs by parent_id directly (RLS-friendly), plus by each child_id for completeness
-      const childIds = merged.map(c => c.id);
-      const docFetches = [
-        base44.entities.Document.filter({ parent_id: me.id }).catch(() => []),
-        ...childIds.map(cid => base44.entities.Document.filter({ child_id: cid }).catch(() => [])),
-      ];
-      const docResults = await Promise.all(docFetches);
-      const allDocsList = docResults.flat();
+      // Fetch docs through the same authorized backend ChildProfile uses, so the
+      // documents always match what's shown there (service-role, RLS-safe).
+      const docResults = await Promise.all(
+        kids.map(c =>
+          base44.functions.invoke('getClientPortalData', {
+            child_id: c.id,
+            account_id: me.id,
+            invite_token: me.invite_token,
+          }).then(r => r?.data?.documents || []).catch(() => [])
+        )
+      );
       const seenIds = new Set();
-      setDocuments(allDocsList.filter(d => { if (seenIds.has(d.id)) return false; seenIds.add(d.id); return true; }));
+      setDocuments(docResults.flat().filter(d => { if (seenIds.has(d.id)) return false; seenIds.add(d.id); return true; }));
       setLoading(false);
     };
     load();
-  }, []);
+  }, [user]);
 
   const childMap = Object.fromEntries(children.map(c => [c.id, c.child_name]));
 
