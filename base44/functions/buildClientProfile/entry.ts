@@ -263,6 +263,11 @@ Deno.serve(async (req) => {
         child.parent_id === user.id ||
         child.parent_email === user.email;
     }
+    if (!authorized && user?.email) {
+      const accounts = await svc.ClientAccount.filter({ email: user.email }).catch(() => []);
+      authorized = accounts.some(a => a.is_active !== false &&
+        ((a.family_id && a.family_id === child.family_id) || a.id === child.parent_id));
+    }
     if (!authorized && body.account_id && body.invite_token) {
       const account = (await svc.ClientAccount.filter({ id: body.account_id }))[0] || null;
       authorized = !!account &&

@@ -20,6 +20,17 @@ Deno.serve(async (req) => {
         child.parent_id === user.id ||
         child.parent_email === user.email;
     }
+    // Clients who signed in via email (Base44 login) — match through their
+    // ClientAccount or the family's invite email.
+    if (!authorized && user?.email) {
+      const accounts = await svc.ClientAccount.filter({ email: user.email }).catch(() => []);
+      authorized = accounts.some(a => a.is_active !== false &&
+        ((a.family_id && a.family_id === child.family_id) || a.id === child.parent_id));
+      if (!authorized && child.family_id) {
+        const fams = await svc.Family.filter({ id: child.family_id }).catch(() => []);
+        authorized = !!fams[0] && fams[0].invite_email === user.email;
+      }
+    }
     if (!authorized && account_id && invite_token) {
       const account = (await svc.ClientAccount.filter({ id: account_id }))[0] || null;
       authorized = !!account &&

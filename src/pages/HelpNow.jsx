@@ -46,6 +46,8 @@ export default function HelpNow() {
   const [scanning, setScanning] = useState(false);
   const [step, setStep] = useState("select_behavior");
   const [isIndividualClient, setIsIndividualClient] = useState(false);
+  const [portalFailed, setPortalFailed] = useState(false);
+  const [docsCount, setDocsCount] = useState(0);
 
   const childId = new URLSearchParams(window.location.search).get("child_id");
   const hasScannedRef = useRef(false);
@@ -94,11 +96,14 @@ export default function HelpNow() {
 
       // Load profile, behavior plans, and documents through the authorized backend
       // so username+code client sessions (blocked by RLS) still see their data.
-      const portal = await base44.functions.invoke('getClientPortalData', {
+      const portalRes = await base44.functions.invoke('getClientPortalData', {
         child_id: foundChild.id,
         account_id: me.id,
         invite_token: me.invite_token,
-      }).then(r => r?.data || {}).catch(() => ({}));
+      }).then(r => r?.data || {}).catch(() => null);
+      const portal = portalRes || {};
+      setPortalFailed(!portalRes || !!portal.error);
+      setDocsCount((portal.documents || []).filter(d => d.file_url).length);
 
       const profiles = portal.profile ? [portal.profile] : [];
       if (profiles.length > 0) setProfile(profiles[0]);
@@ -192,7 +197,7 @@ export default function HelpNow() {
   const goalsForBehavior = (selectedBehavior && selectedBehavior.linked_goals && selectedBehavior.linked_goals.length > 0)
     ? selectedBehavior.linked_goals
     : allGoalTitles;
-  const docsExist = false; // docs state removed; autoScan handles everything
+  const docsExist = docsCount > 0;
 
   // Measurable objectives related to the selected behavior (loose name match)
   const objectivesForBehavior = (selectedBehavior && profile && profile.objectives)
@@ -244,7 +249,13 @@ export default function HelpNow() {
                 </div>
               ) : !hasProfile ? (
                 <div className="text-center py-12 space-y-4">
-                  {!docsExist ? (
+                  {portalFailed ? (
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-left">
+                      <p className="text-sm font-semibold text-red-800 mb-1">We couldn't load your help cards.</p>
+                      <p className="text-sm text-red-700">Please sign out and sign back in, then try again. If this keeps happening, message your clinician.</p>
+                      <Button variant="outline" className="w-full rounded-xl mt-3" onClick={() => window.location.reload()}>Try Again</Button>
+                    </div>
+                  ) : !docsExist ? (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 text-left">
                       <p className="text-sm font-semibold text-yellow-800 mb-1">No documents uploaded yet.</p>
                       <p className="text-sm text-yellow-700">Once your clinician uploads treatment plans or behavior protocols for {child.child_name}, personalized help cards will appear here automatically.</p>
