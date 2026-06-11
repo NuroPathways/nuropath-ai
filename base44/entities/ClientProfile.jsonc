@@ -10,6 +10,10 @@
       "type": "string",
       "description": "ID of the clinician who manages this client"
     },
+    "parent_id": {
+      "type": "string",
+      "description": "ID of the parent/client who can read this profile"
+    },
     "diagnoses": {
       "type": "array",
       "items": {
@@ -151,12 +155,24 @@
   ],
   "rls": {
     "create": {
-      "clinician_id": "{{user.id}}"
+      "$or": [
+        {
+          "clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "read": {
       "$or": [
         {
           "clinician_id": "{{user.id}}"
+        },
+        {
+          "parent_id": "{{user.id}}"
         },
         {
           "user_condition": {

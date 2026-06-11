@@ -62,12 +62,9 @@ async function buildForChild(base44, child) {
   const docs = await base44.asServiceRole.entities.Document.filter({ child_id: child.id }).catch(() => []);
   const docsWithFiles = docs.filter(d => d.file_url);
 
-  let extracted = null;
-  if (docsWithFiles.length > 0) {
-    const fileUrls = docsWithFiles.slice(0, 10).map(d => d.file_url);
-    const prompt = `You are a behavioral health specialist building a structured clinical profile for ${child.child_name}. You are reading ALL of their clinical documents together (intake assessments, treatment plans, behavior intervention plans/BIP, functional behavior assessments/FBA, session notes, ABC data, crisis/safety plans, progress notes, parent training notes, school reports, quarterly reviews).
+  const prompt = `You are a behavioral health specialist building a structured clinical profile for ${child.child_name}. Read the attached clinical document(s) (intake assessments, treatment plans, behavior intervention plans/BIP, functional behavior assessments/FBA, session notes, ABC data, crisis/safety plans, progress notes, parent training notes, school reports, quarterly reviews).
 
-Read EVERY document and synthesize one complete picture. Extract:
+Extract everything present in these specific documents:
 
 1. diagnoses — every diagnosis mentioned (ADHD, ASD, Anxiety, APD, etc.)
 2. goals — every treatment goal, each with a plain-language title, short description, and a timeline (daily, weekly, biweekly, monthly, every_3_months, every_6_months, yearly) based on how often it's worked on.
@@ -82,39 +79,77 @@ Read EVERY document and synthesize one complete picture. Extract:
    - clinical_interventions: the CLINICAL VERSION — the exact clinician wording/terminology for the same strategies (list)
    - avoid: what NOT to do (list)
    - when_to_contact_clinician: when to reach out
-   - linked_goals: which of the treatment goals above this behavior supports (list of goal titles)
+   - linked_goals: which treatment goals this behavior supports (list of goal titles)
 5. triggers — all known triggers across behaviors
 6. reinforcers — rewards/reinforcers (praise, iPad, breaks, snacks, etc.)
 7. safety_procedures — crisis procedures, escalation steps, safety recommendations, emergency contacts
 8. crisis_plan — ordered crisis protocol steps
 
 CRITICAL RULES:
-- TRANSLATION: The "interventions" field must be plain everyday language (User Version). The "clinical_interventions" field keeps exact clinician wording (Clinical Version). The meaning must be identical. Example — Clinical: "Utilize antecedent modification and differential reinforcement." User: "Reduce common triggers and reward calm participation immediately."
-- NO HALLUCINATION: Only include interventions that actually appear in the documents. If a behavior has no documented strategy, leave its interventions list EMPTY. Never invent strategies.
-- Be thorough: include every behavior, goal, and trigger mentioned anywhere across the documents. Behaviors must NOT be generic — they must come from these specific documents.`;
+- TRANSLATION: "interventions" = plain everyday language (User Version). "clinical_interventions" = exact clinician wording (Clinical Version). Same meaning. Example — Clinical: "Utilize antecedent modification and differential reinforcement." User: "Reduce common triggers and reward calm participation immediately."
+- NO HALLUCINATION: Only include interventions that actually appear in these documents. If a behavior has no documented strategy, leave its interventions list EMPTY. Never invent strategies.
+- Only extract what is actually in these specific documents. Return empty arrays for anything not present.`;
 
-    try {
-      extracted = await base44.integrations.Core.InvokeLLM({
-        model: "claude_sonnet_4_6",
-        prompt,
-        file_urls: fileUrls,
-        response_json_schema: EXTRACT_SCHEMA
-      });
-    } catch (e) {
-      extracted = null;
+  const mergeArr = (a, b) => [...new Set([...(a || []), ...(b || [])].map(x => (x || "").toString().trim()).filter(Boolean))];
+  const mergeBehaviors = (existing, incoming) => {
+    const map = new Map((existing || []).map(b => [(b.name || "").toLowerCase(), b]));
+    for (const b of (incoming || [])) {
+      const key = (b.name || "").toLowerCase();
+      if (!key) continue;
+      if (map.has(key)) {
+        const prev = map.get(key);
+        map.set(key, {
+          ...prev, ...b,
+          description: b.description || prev.description,
+          what_may_be_happening: b.what_may_be_happening || prev.what_may_be_happening,
+          when_to_contact_clinician: b.when_to_contact_clinician || prev.when_to_contact_clinician,
+          triggers: mergeArr(prev.triggers, b.triggers),
+          interventions: mergeArr(prev.interventions, b.interventions),
+          clinical_interventions: mergeArr(prev.clinical_interventions, b.clinical_interventions),
+          avoid: mergeArr(prev.avoid, b.avoid),
+          linked_goals: mergeArr(prev.linked_goals, b.linked_goals),
+        });
+      } else {
+        map.set(key, b);
+      }
     }
-  }
+    return [...map.values()];
+  };
+  const mergeGoals = (existing, incoming) => {
+    const map = new Map((existing || []).map(g => [(g.title || "").toLowerCase(), g]));
+    for (const g of (incoming || [])) {
+      const key = (g.title || "").toLowerCase();
+      if (key && !map.has(key)) map.set(key, g);
+    }
+    return [...map.values()];
+  };
 
   const accumulated = {
-    diagnoses: extracted?.diagnoses || [],
-    goals: extracted?.goals || [],
-    objectives: extracted?.objectives || [],
-    behaviors: extracted?.behaviors || [],
-    triggers: extracted?.triggers || [],
-    reinforcers: extracted?.reinforcers || [],
-    safety_procedures: extracted?.safety_procedures || [],
-    crisis_plan: extracted?.crisis_plan || [],
+    diagnoses: [], goals: [], objectives: [], behaviors: [],
+    triggers: [], reinforcers: [], safety_procedures: [], crisis_plan: [],
   };
+
+  // Scan documents in small batches (2 at a time) for reliable extraction, then merge.
+  for (let i = 0; i < docsWithFiles.length; i += 2) {
+    const batch = docsWithFiles.slice(i, i + 2);
+    try {
+      const r = await base44.integrations.Core.InvokeLLM({
+        prompt,
+        file_urls: batch.map(d => d.file_url),
+        response_json_schema: EXTRACT_SCHEMA
+      });
+      if (r) {
+        accumulated.diagnoses = mergeArr(accumulated.diagnoses, r.diagnoses);
+        accumulated.goals = mergeGoals(accumulated.goals, r.goals);
+        accumulated.objectives = [...accumulated.objectives, ...(r.objectives || [])];
+        accumulated.behaviors = mergeBehaviors(accumulated.behaviors, r.behaviors);
+        accumulated.triggers = mergeArr(accumulated.triggers, r.triggers);
+        accumulated.reinforcers = mergeArr(accumulated.reinforcers, r.reinforcers);
+        accumulated.safety_procedures = mergeArr(accumulated.safety_procedures, r.safety_procedures);
+        accumulated.crisis_plan = mergeArr(accumulated.crisis_plan, r.crisis_plan);
+      }
+    } catch (e) { /* skip batch */ }
+  }
 
   if (accumulated.diagnoses.length === 0 && child.diagnosis) {
     accumulated.diagnoses = child.diagnosis.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
@@ -122,7 +157,12 @@ CRITICAL RULES:
 
   // Persist profile
   const existing = await base44.asServiceRole.entities.ClientProfile.filter({ child_id: child.id }).catch(() => []);
-  const payload = { ...accumulated, source_doc_ids: docsWithFiles.map(d => d.id) };
+  const payload = {
+    ...accumulated,
+    source_doc_ids: docsWithFiles.map(d => d.id),
+    clinician_id: child.clinician_id,
+    parent_id: child.parent_id,
+  };
   let profile;
   if (existing.length > 0) {
     profile = await base44.asServiceRole.entities.ClientProfile.update(existing[0].id, payload);
