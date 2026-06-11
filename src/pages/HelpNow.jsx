@@ -92,20 +92,18 @@ export default function HelpNow() {
         if (fams[0] && fams[0].account_type === "individual") setIsIndividualClient(true);
       }
 
-      const profiles = await base44.entities.ClientProfile.filter({ child_id: foundChild.id }).catch(() => []);
-      if (profiles.length > 0) setProfile(profiles[0]);
-
-      // Always load BehaviorPlans as fallback
-      const bps = await base44.entities.BehaviorPlan.filter({ child_id: foundChild.id }).catch(() => []);
-      setBehaviorPlans(bps);
-
-      // Load documents through the same authorized backend the profile uses, so
-      // username+code client sessions (blocked by RLS) still see their documents.
-      const docs = await base44.functions.invoke('getClientPortalData', {
+      // Load profile, behavior plans, and documents through the authorized backend
+      // so username+code client sessions (blocked by RLS) still see their data.
+      const portal = await base44.functions.invoke('getClientPortalData', {
         child_id: foundChild.id,
         account_id: me.id,
         invite_token: me.invite_token,
-      }).then(r => r?.data?.documents || []).catch(() => []);
+      }).then(r => r?.data || {}).catch(() => ({}));
+
+      const profiles = portal.profile ? [portal.profile] : [];
+      if (profiles.length > 0) setProfile(profiles[0]);
+      setBehaviorPlans(portal.plans || []);
+      const docs = portal.documents || [];
 
       setLoading(false);
 
@@ -135,8 +133,12 @@ export default function HelpNow() {
         account_id: user?.id,
         invite_token: user?.invite_token,
       });
-      const refreshed = await base44.entities.ClientProfile.filter({ child_id: foundChild.id }).catch(() => []);
-      if (refreshed.length > 0) setProfile(refreshed[0]);
+      const refreshed = await base44.functions.invoke('getClientPortalData', {
+        child_id: foundChild.id,
+        account_id: user?.id,
+        invite_token: user?.invite_token,
+      }).then(r => r?.data?.profile).catch(() => null);
+      if (refreshed) setProfile(refreshed);
     } catch (e) { /* keep whatever profile we already have */ }
     setScanning(false);
   };
