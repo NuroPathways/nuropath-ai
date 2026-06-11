@@ -104,21 +104,33 @@ export default function HelpNow() {
 
       setLoading(false);
 
-      // Always scan on load unless profile is already up-to-date
+      // Build the profile from documents using the backend (single source of truth).
+      // Only rebuild when there's no profile yet, new docs were added, or the profile is empty.
       if (!hasScannedRef.current) {
         hasScannedRef.current = true;
         const existingProfile = profiles[0];
         const docsWithFiles = docs.filter(d => d.file_url);
         const scannedIds = new Set((existingProfile?.source_doc_ids) || []);
         const hasNewDocs = docsWithFiles.some(d => !scannedIds.has(d.id));
-        // Scan if: no profile, OR new docs added, OR profile has no behaviors
-        if (!existingProfile || hasNewDocs || !(existingProfile.behaviors?.length > 0)) {
-          autoScan(foundChild, docsWithFiles);
+        const needsBuild = !existingProfile || hasNewDocs || !(existingProfile.behaviors?.length > 0);
+        if (needsBuild && docsWithFiles.length > 0) {
+          runBuild(foundChild);
         }
       }
     };
     load();
   }, [childId, isLoadingAuth, user?.id]);
+
+  // Build the profile via the backend buildClientProfile function, then reload it.
+  const runBuild = async (foundChild) => {
+    setScanning(true);
+    try {
+      await base44.functions.invoke("buildClientProfile", { child_id: foundChild.id });
+      const refreshed = await base44.entities.ClientProfile.filter({ child_id: foundChild.id }).catch(() => []);
+      if (refreshed.length > 0) setProfile(refreshed[0]);
+    } catch (e) { /* keep whatever profile we already have */ }
+    setScanning(false);
+  };
 
   const handleSelectBehavior = (behavior) => {
     setSelectedBehavior(behavior);
@@ -144,130 +156,6 @@ export default function HelpNow() {
     }
   };
 
-  // Auto scan — called on load, always produces cards
-  const autoScan = async (foundChild, docsWithFiles) => {
-    setScanning(true);
-
-    const extractSchema = {
-      type: "object",
-      properties: {
-        diagnoses: { type: "array", items: { type: "string" } },
-        goals: { type: "array", items: { type: "object", properties: { title: { type: "string" }, description: { type: "string" } } } },
-        behaviors: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              name: { type: "string" },
-              emoji: { type: "string" },
-              description: { type: "string" },
-              what_may_be_happening: { type: "string" },
-              triggers: { type: "array", items: { type: "string" } },
-              linked_goals: { type: "array", items: { type: "string" } },
-              interventions: { type: "array", items: { type: "string" } },
-              clinical_interventions: { type: "array", items: { type: "string" } },
-              avoid: { type: "array", items: { type: "string" } },
-              when_to_contact_clinician: { type: "string" }
-            }
-          }
-        },
-        triggers: { type: "array", items: { type: "string" } },
-        reinforcers: { type: "array", items: { type: "string" } },
-        safety_procedures: { type: "array", items: { type: "string" } },
-        crisis_plan: { type: "array", items: { type: "string" } }
-      }
-    };
-
-    const mergeArr = (a, b) => [...new Set([...(a || []), ...(b || [])])];
-    const mergeBehaviors = (existing, incoming) => {
-      const map = new Map((existing || []).map(b => [b.name?.toLowerCase(), b]));
-      for (const b of (incoming || [])) {
-        const key = b.name?.toLowerCase();
-        if (key && map.has(key)) {
-          const prev = map.get(key);
-          map.set(key, { ...prev, ...b, triggers: mergeArr(prev.triggers, b.triggers), interventions: mergeArr(prev.interventions, b.interventions), avoid: mergeArr(prev.avoid, b.avoid) });
-        } else if (key) {
-          map.set(key, b);
-        }
-      }
-      return [...map.values()];
-    };
-
-    let accumulated = { diagnoses: [], goals: [], behaviors: [], triggers: [], reinforcers: [], safety_procedures: [], crisis_plan: [] };
-
-    // Scan ALL docs together as one unified context so info makes sense across documents
-    if (docsWithFiles.length > 0) {
-      try {
-        const allFileUrls = docsWithFiles.slice(0, 6).map(d => d.file_url);
-        const result = await base44.integrations.Core.InvokeLLM({
-          prompt: `You are a behavioral health specialist helping a parent support their child named ${foundChild.child_name}. You are reading ALL of their clinical documents together as one complete picture.\n\nRead every document and synthesize the information across all of them. Create behavior help cards that combine strategies from all documents.\n\nFor each target behavior or challenging situation, create ONE unified card:\n- name: short 2-4 word label (e.g. "Meltdown", "Aggression", "Anxiety", "Task Refusal", "Bedtime Struggle")\n- emoji: fitting emoji\n- description: what this behavior looks like\n- what_may_be_happening: a simple, parent-friendly explanation of WHY this behavior happens, based on the documents\n- triggers: common causes (list)\n- interventions: step-by-step things the parent should DO, combining all strategies from all docs (list of action steps)\n- avoid: what NOT to do (list)\n- when_to_contact_clinician: when to reach out\n- linked_goals: which treatment goals this behavior addresses (list)\n\nAlso extract across all docs: diagnoses, treatment goals, reinforcers/rewards, safety procedures, and crisis plan steps.\n\nBe thorough — cover every behavior or situation mentioned across any document.\n\nTRANSLATION RULE: Write ALL text in plain, everyday language a parent can act on instantly — translate clinical jargon while keeping the clinical meaning identical (e.g. "antecedent modification and differential reinforcement" becomes "reduce common triggers and reward calm participation immediately").\n\nNO HALLUCINATION RULE: Only include interventions that explicitly appear in the documents. If a behavior has no documented intervention, leave its interventions list empty — do NOT invent strategies.`,
-          file_urls: allFileUrls,
-          response_json_schema: { type: "object", properties: extractSchema.properties }
-        });
-        if (result) {
-          accumulated.diagnoses = mergeArr(accumulated.diagnoses, result.diagnoses);
-          accumulated.goals = [...(result.goals || [])];
-          accumulated.behaviors = result.behaviors || [];
-          accumulated.triggers = mergeArr(accumulated.triggers, result.triggers);
-          accumulated.reinforcers = mergeArr(accumulated.reinforcers, result.reinforcers);
-          accumulated.safety_procedures = mergeArr(accumulated.safety_procedures, result.safety_procedures);
-          accumulated.crisis_plan = mergeArr(accumulated.crisis_plan, result.crisis_plan);
-        }
-      } catch (e) {
-        // fallback: try each doc individually
-        for (const doc of docsWithFiles.slice(0, 6)) {
-          try {
-            const result = await base44.integrations.Core.InvokeLLM({
-              prompt: `Extract ALL behavioral guidance from this clinical document for ${foundChild.child_name}. Create a behavior card for every behavior mentioned with triggers, step-by-step interventions, and what to avoid.`,
-              file_urls: [doc.file_url],
-              response_json_schema: { type: "object", properties: extractSchema.properties }
-            });
-            if (result) {
-              accumulated.diagnoses = mergeArr(accumulated.diagnoses, result.diagnoses);
-              accumulated.goals = [...(accumulated.goals || []), ...(result.goals || [])];
-              accumulated.behaviors = mergeBehaviors(accumulated.behaviors, result.behaviors);
-              accumulated.triggers = mergeArr(accumulated.triggers, result.triggers);
-              accumulated.reinforcers = mergeArr(accumulated.reinforcers, result.reinforcers);
-              accumulated.safety_procedures = mergeArr(accumulated.safety_procedures, result.safety_procedures);
-              accumulated.crisis_plan = mergeArr(accumulated.crisis_plan, result.crisis_plan);
-            }
-          } catch (e2) { /* skip */ }
-        }
-      }
-    }
-
-    // Always ensure we have behavior cards — fallback to generic if extraction failed
-    if (accumulated.behaviors.length === 0) {
-      const diagStr = foundChild.diagnosis || "";
-      accumulated.behaviors = [
-        { name: "Meltdown / Tantrum", emoji: "😤", description: "Intense emotional outburst", triggers: ["Transitions", "Unexpected changes", "Sensory overload"], interventions: ["Stay calm and speak slowly", "Give space if safe", "Use simple, clear language", "Offer a calming choice"], avoid: ["Yelling or arguing", "Removing preferred items"] },
-        { name: "Refusal", emoji: "🚫", description: "Refusing to comply with requests", triggers: ["Difficult tasks", "Transitions", "Fatigue"], interventions: ["Offer two choices", "Break task into smaller steps", "Use a timer or visual cue"], avoid: ["Power struggles", "Threatening consequences in the moment"] },
-        { name: "Anxiety / Worry", emoji: "😰", description: "Signs of anxiety or distress", triggers: ["New situations", "Uncertainty", "Sensory input"], interventions: ["Validate feelings first", "Use calming breathing together", "Provide reassurance and predictability"], avoid: ["Dismissing feelings", "Forcing into feared situation"] },
-        { name: "Aggression", emoji: "👊", description: "Hitting, biting, or physical outbursts", triggers: ["Frustration", "Sensory overload", "Communication barriers"], interventions: ["Ensure safety first", "Stay calm, reduce demands", "Create space between child and others", "Speak in short calm phrases"], avoid: ["Physical restraint unless safety risk", "Yelling", "Lecturing during episode"] },
-      ];
-      if (diagStr) accumulated.diagnoses = [diagStr];
-    }
-
-    // Save profile
-    const existingProfiles = await base44.entities.ClientProfile.filter({ child_id: foundChild.id }).catch(() => []);
-    let savedProfile = null;
-    if (existingProfiles.length > 0) {
-      savedProfile = await base44.entities.ClientProfile.update(existingProfiles[0].id, {
-        ...accumulated,
-        source_doc_ids: docsWithFiles.map(d => d.id),
-      }).catch(() => null);
-    } else {
-      savedProfile = await base44.entities.ClientProfile.create({
-        child_id: foundChild.id,
-        ...accumulated,
-        source_doc_ids: docsWithFiles.map(d => d.id),
-      }).catch(() => null);
-    }
-
-    setProfile(savedProfile || { ...accumulated });
-    setScanning(false);
-  };
-
   // Build behavior cards: prefer ClientProfile behaviors, fall back to BehaviorPlan records
   const profileBehaviors = (profile && profile.behaviors) || [];
   const fallbackBehaviors = behaviorPlans.map(bp => ({
@@ -287,6 +175,12 @@ export default function HelpNow() {
   }));
   const behaviors = profileBehaviors.length > 0 ? profileBehaviors : fallbackBehaviors;
   const hasProfile = behaviors.length > 0;
+
+  // All treatment goal titles on file — used as a fallback so Goal Mapping always shows.
+  const allGoalTitles = ((profile && profile.goals) || []).map(g => g && g.title).filter(Boolean);
+  const goalsForBehavior = (selectedBehavior && selectedBehavior.linked_goals && selectedBehavior.linked_goals.length > 0)
+    ? selectedBehavior.linked_goals
+    : allGoalTitles;
   const docsExist = false; // docs state removed; autoScan handles everything
 
   if (loading) return (
@@ -424,7 +318,7 @@ export default function HelpNow() {
 
               {selectedBehavior.triggers && selectedBehavior.triggers.length > 0 && (
                 <div className="mb-5">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">What May Be Happening</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Common Triggers</h3>
                   <div className="bg-card border border-border rounded-xl p-4">
                     <p className="text-sm text-muted-foreground mb-2">This behavior often occurs when:</p>
                     <div className="flex flex-wrap gap-2">
@@ -449,7 +343,7 @@ export default function HelpNow() {
                 </div>
               )}
 
-              {selectedBehavior.linked_goals && selectedBehavior.linked_goals.length > 0 && (
+              {goalsForBehavior.length > 0 && (
                 <div className="mb-5 bg-primary/5 border border-primary/20 rounded-2xl p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Target className="w-4 h-4 text-primary" />
@@ -459,7 +353,7 @@ export default function HelpNow() {
                     Working through this behavior supports {isIndividualClient ? "your" : (child && child.child_name + "'s")} treatment goals:
                   </p>
                   <div className="space-y-1.5">
-                    {selectedBehavior.linked_goals.map((goal, i) => (
+                    {goalsForBehavior.map((goal, i) => (
                       <div key={i} className="flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
                         <p className="text-sm font-medium text-foreground">{goal}</p>

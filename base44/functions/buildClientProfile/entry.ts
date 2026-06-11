@@ -59,8 +59,10 @@ const EXTRACT_SCHEMA = {
 const FREQ = ["daily", "weekly", "biweekly", "monthly", "every_3_months", "every_6_months", "yearly"];
 
 async function buildForChild(base44, child) {
-  const docs = await base44.asServiceRole.entities.Document.filter({ child_id: child.id }).catch(() => []);
-  const docsWithFiles = docs.filter(d => d.file_url);
+  const docs = await base44.asServiceRole.entities.Document.filter({ child_id: child.id }, "-created_date", 100).catch(() => []);
+  // Cap how many documents we scan so the build completes within the execution window.
+  // The most recent documents (treatment plans, reviews, session notes) carry the current picture.
+  const docsWithFiles = docs.filter(d => d.file_url).slice(0, 6);
 
   const prompt = `You are a behavioral health specialist building a structured clinical profile for ${child.child_name}. Read the attached clinical document(s) (intake assessments, treatment plans, behavior intervention plans/BIP, functional behavior assessments/FBA, session notes, ABC data, crisis/safety plans, progress notes, parent training notes, school reports, quarterly reviews).
 
@@ -129,26 +131,31 @@ CRITICAL RULES:
     triggers: [], reinforcers: [], safety_procedures: [], crisis_plan: [],
   };
 
-  // Scan documents in small batches (2 at a time) for reliable extraction, then merge.
-  for (let i = 0; i < docsWithFiles.length; i += 2) {
-    const batch = docsWithFiles.slice(i, i + 2);
-    try {
-      const r = await base44.integrations.Core.InvokeLLM({
+  // Scan documents in batches of 3, processed in PARALLEL, then merge results.
+  // Parallel calls keep total time close to a single LLM call instead of summing them.
+  const batches = [];
+  for (let i = 0; i < docsWithFiles.length; i += 3) {
+    batches.push(docsWithFiles.slice(i, i + 3));
+  }
+  const results = await Promise.all(
+    batches.map(batch =>
+      base44.integrations.Core.InvokeLLM({
         prompt,
         file_urls: batch.map(d => d.file_url),
         response_json_schema: EXTRACT_SCHEMA
-      });
-      if (r) {
-        accumulated.diagnoses = mergeArr(accumulated.diagnoses, r.diagnoses);
-        accumulated.goals = mergeGoals(accumulated.goals, r.goals);
-        accumulated.objectives = [...accumulated.objectives, ...(r.objectives || [])];
-        accumulated.behaviors = mergeBehaviors(accumulated.behaviors, r.behaviors);
-        accumulated.triggers = mergeArr(accumulated.triggers, r.triggers);
-        accumulated.reinforcers = mergeArr(accumulated.reinforcers, r.reinforcers);
-        accumulated.safety_procedures = mergeArr(accumulated.safety_procedures, r.safety_procedures);
-        accumulated.crisis_plan = mergeArr(accumulated.crisis_plan, r.crisis_plan);
-      }
-    } catch (e) { /* skip batch */ }
+      }).catch(() => null)
+    )
+  );
+  for (const r of results) {
+    if (!r) continue;
+    accumulated.diagnoses = mergeArr(accumulated.diagnoses, r.diagnoses);
+    accumulated.goals = mergeGoals(accumulated.goals, r.goals);
+    accumulated.objectives = [...accumulated.objectives, ...(r.objectives || [])];
+    accumulated.behaviors = mergeBehaviors(accumulated.behaviors, r.behaviors);
+    accumulated.triggers = mergeArr(accumulated.triggers, r.triggers);
+    accumulated.reinforcers = mergeArr(accumulated.reinforcers, r.reinforcers);
+    accumulated.safety_procedures = mergeArr(accumulated.safety_procedures, r.safety_procedures);
+    accumulated.crisis_plan = mergeArr(accumulated.crisis_plan, r.crisis_plan);
   }
 
   if (accumulated.diagnoses.length === 0 && child.diagnosis) {
