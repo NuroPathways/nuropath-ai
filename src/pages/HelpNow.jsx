@@ -99,8 +99,13 @@ export default function HelpNow() {
       const bps = await base44.entities.BehaviorPlan.filter({ child_id: foundChild.id }).catch(() => []);
       setBehaviorPlans(bps);
 
-      // Load documents for this child
-      const docs = await base44.entities.Document.filter({ child_id: foundChild.id }).catch(() => []);
+      // Load documents through the same authorized backend the profile uses, so
+      // username+code client sessions (blocked by RLS) still see their documents.
+      const docs = await base44.functions.invoke('getClientPortalData', {
+        child_id: foundChild.id,
+        account_id: me.id,
+        invite_token: me.invite_token,
+      }).then(r => r?.data?.documents || []).catch(() => []);
 
       setLoading(false);
 
