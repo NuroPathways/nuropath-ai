@@ -161,9 +161,11 @@ export default function HelpNow() {
               name: { type: "string" },
               emoji: { type: "string" },
               description: { type: "string" },
+              what_may_be_happening: { type: "string" },
               triggers: { type: "array", items: { type: "string" } },
               linked_goals: { type: "array", items: { type: "string" } },
               interventions: { type: "array", items: { type: "string" } },
+              clinical_interventions: { type: "array", items: { type: "string" } },
               avoid: { type: "array", items: { type: "string" } },
               when_to_contact_clinician: { type: "string" }
             }
@@ -198,7 +200,7 @@ export default function HelpNow() {
       try {
         const allFileUrls = docsWithFiles.slice(0, 6).map(d => d.file_url);
         const result = await base44.integrations.Core.InvokeLLM({
-          prompt: `You are a behavioral health specialist helping a parent support their child named ${foundChild.child_name}. You are reading ALL of their clinical documents together as one complete picture.\n\nRead every document and synthesize the information across all of them. Create behavior help cards that combine strategies from all documents.\n\nFor each target behavior or challenging situation, create ONE unified card:\n- name: short 2-4 word label (e.g. "Meltdown", "Aggression", "Anxiety", "Task Refusal", "Bedtime Struggle")\n- emoji: fitting emoji\n- description: what this behavior looks like\n- triggers: common causes (list)\n- interventions: step-by-step things the parent should DO, combining all strategies from all docs (list of action steps)\n- avoid: what NOT to do (list)\n- when_to_contact_clinician: when to reach out\n- linked_goals: which treatment goals this behavior addresses (list)\n\nAlso extract across all docs: diagnoses, treatment goals, reinforcers/rewards, safety procedures, and crisis plan steps.\n\nBe thorough — cover every behavior or situation mentioned across any document.\n\nTRANSLATION RULE: Write ALL text in plain, everyday language a parent can act on instantly — translate clinical jargon while keeping the clinical meaning identical (e.g. "antecedent modification and differential reinforcement" becomes "reduce common triggers and reward calm participation immediately").\n\nNO HALLUCINATION RULE: Only include interventions that explicitly appear in the documents. If a behavior has no documented intervention, leave its interventions list empty — do NOT invent strategies.`,
+          prompt: `You are a behavioral health specialist helping a parent support their child named ${foundChild.child_name}. You are reading ALL of their clinical documents together as one complete picture.\n\nRead every document and synthesize the information across all of them. Create behavior help cards that combine strategies from all documents.\n\nFor each target behavior or challenging situation, create ONE unified card:\n- name: short 2-4 word label (e.g. "Meltdown", "Aggression", "Anxiety", "Task Refusal", "Bedtime Struggle")\n- emoji: fitting emoji\n- description: what this behavior looks like\n- what_may_be_happening: a simple, parent-friendly explanation of WHY this behavior happens, based on the documents\n- triggers: common causes (list)\n- interventions: step-by-step things the parent should DO, combining all strategies from all docs (list of action steps)\n- avoid: what NOT to do (list)\n- when_to_contact_clinician: when to reach out\n- linked_goals: which treatment goals this behavior addresses (list)\n\nAlso extract across all docs: diagnoses, treatment goals, reinforcers/rewards, safety procedures, and crisis plan steps.\n\nBe thorough — cover every behavior or situation mentioned across any document.\n\nTRANSLATION RULE: Write ALL text in plain, everyday language a parent can act on instantly — translate clinical jargon while keeping the clinical meaning identical (e.g. "antecedent modification and differential reinforcement" becomes "reduce common triggers and reward calm participation immediately").\n\nNO HALLUCINATION RULE: Only include interventions that explicitly appear in the documents. If a behavior has no documented intervention, leave its interventions list empty — do NOT invent strategies.`,
           file_urls: allFileUrls,
           response_json_schema: { type: "object", properties: extractSchema.properties }
         });
@@ -408,6 +410,15 @@ export default function HelpNow() {
                     <p className="text-sm font-semibold text-yellow-800">No clinician-approved strategy was found for this behavior.</p>
                   </div>
                   <p className="text-sm text-yellow-700">Please contact your clinician for guidance.</p>
+                </div>
+              )}
+
+              {selectedBehavior.what_may_be_happening && (
+                <div className="mb-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Why This Is Happening</h3>
+                  <div className="bg-card border border-border rounded-xl p-4">
+                    <p className="text-sm text-foreground leading-relaxed">{selectedBehavior.what_may_be_happening}</p>
+                  </div>
                 </div>
               )}
 
