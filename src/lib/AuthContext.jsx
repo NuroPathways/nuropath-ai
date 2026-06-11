@@ -71,7 +71,13 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
     } catch (error) {
       // Fall back to client session (username+code login) if Base44 auth fails
-      const clientSession = getClientSession();
+      let clientSession = getClientSession();
+      // Stale sessions saved before invite_token existed can't authorize backend
+      // calls — clear them so the user signs in again and gets a complete session.
+      if (clientSession && !clientSession.invite_token) {
+        clearClientSession();
+        clientSession = null;
+      }
       if (clientSession) {
         setUser(clientSession);
         setIsAuthenticated(true);
