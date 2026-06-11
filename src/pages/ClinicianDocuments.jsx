@@ -6,7 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
-import { scanDocumentInBackground } from "@/lib/documentScan";
+
+// Rebuilds the child's full ClientProfile from their documents (the reliable, single source of truth
+// used by Help Now). Returns the backend result or throws on failure.
+async function rebuildProfile(childId) {
+  const res = await base44.functions.invoke('buildClientProfile', { child_id: childId });
+  if (res.data?.error) throw new Error(res.data.error);
+  return res.data;
+}
 
 const CATEGORIES = [
   { key: "treatment_plan", label: "Treatment Plan" },
@@ -108,11 +115,12 @@ export default function ClinicianDocuments() {
 
         if (AUTO_SYNC.includes(item.category)) {
           setScanStatus(s => ({ ...s, [doc.id]: "scanning" }));
-          scanDocumentInBackground(doc, clinicianId).then(() => {
+          rebuildProfile(childId).then(() => {
             setScanStatus(s => ({ ...s, [doc.id]: "done" }));
             setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, scan_status: "done" } : d));
+            base44.entities.Document.update(doc.id, { scan_status: "done" }).catch(() => {});
           }).catch(() => {
-            setScanStatus(s => { const n = { ...s }; delete n[doc.id]; return n; });
+            setScanStatus(s => ({ ...s, [doc.id]: "error" }));
           });
         }
       } catch {
@@ -137,11 +145,12 @@ export default function ClinicianDocuments() {
     if (!clinicianId) return;
     setScanStatus(s => ({ ...s, [doc.id]: "scanning" }));
     try {
-      await scanDocumentInBackground(doc, clinicianId);
+      await rebuildProfile(doc.child_id);
       setScanStatus(s => ({ ...s, [doc.id]: "done" }));
       setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, scan_status: "done" } : d));
+      base44.entities.Document.update(doc.id, { scan_status: "done" }).catch(() => {});
     } catch {
-      setScanStatus(s => { const n = { ...s }; delete n[doc.id]; return n; });
+      setScanStatus(s => ({ ...s, [doc.id]: "error" }));
     }
   };
 
@@ -326,6 +335,9 @@ export default function ClinicianDocuments() {
                                 <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
                                   <CheckCircle2 className="w-3.5 h-3.5" /> Synced
                                 </span>
+                              )}
+                              {docStatus === "error" && (
+                                <span className="text-xs text-destructive font-medium">Scan failed</span>
                               )}
                               {docStatus !== "scanning" && (
                                 <button

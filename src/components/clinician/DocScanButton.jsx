@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Loader2, CheckCircle2, RefreshCw, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { scanDocumentInBackground } from "@/lib/documentScan";
 
 // Reusable AI scan / re-scan control for a single document.
-// Re-applies the document to Help Now, the AI, intervention/behavior plans,
-// and auto-creates inferred goals/milestones.
+// Rebuilds the child's full ClientProfile from their documents — the same reliable
+// source of truth used by Help Now.
 export default function DocScanButton({ doc, clinicianId, onScanned }) {
   const initial = doc.scan_status === "done" ? "done" : doc.scan_status === "scanning" ? "scanning" : "pending";
   const [status, setStatus] = useState(initial);
@@ -14,7 +13,9 @@ export default function DocScanButton({ doc, clinicianId, onScanned }) {
     if (!clinicianId || status === "scanning") return;
     setStatus("scanning");
     try {
-      await scanDocumentInBackground(doc, clinicianId);
+      const res = await base44.functions.invoke('buildClientProfile', { child_id: doc.child_id });
+      if (res.data?.error) throw new Error(res.data.error);
+      await base44.entities.Document.update(doc.id, { scan_status: "done" }).catch(() => {});
       setStatus("done");
       onScanned?.(doc.id);
     } catch {
@@ -36,6 +37,9 @@ export default function DocScanButton({ doc, clinicianId, onScanned }) {
         <span className="hidden sm:flex items-center gap-1 text-xs text-green-600 font-medium">
           <CheckCircle2 className="w-3.5 h-3.5" /> Synced
         </span>
+      )}
+      {status === "error" && (
+        <span className="text-xs text-destructive font-medium">Failed</span>
       )}
       <button
         onClick={runScan}
