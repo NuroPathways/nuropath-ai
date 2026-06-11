@@ -64,15 +64,22 @@ export default function GoalsMilestones() {
   const handleAdd = async () => {
     if (!selectedChildId) return;
     setSaving(true);
-    await base44.entities.RewardToken.create({
+    const goalData = {
       ...form,
-      child_id: selectedChildId,
-      parent_id: user?.id,
       progress: Number(form.progress),
       target: Number(form.target),
       source: "manual",
-    });
-    const updated = await base44.entities.RewardToken.filter({ child_id: selectedChildId });
+    };
+    // Direct create works for logged-in users; client sessions fall back to backend.
+    await base44.entities.RewardToken.create({ ...goalData, child_id: selectedChildId, parent_id: user?.id })
+      .catch(() => base44.functions.invoke("manageClientGoal", {
+        action: "create",
+        child_id: selectedChildId,
+        data: goalData,
+        account_id: user?.id,
+        invite_token: user?.invite_token,
+      }));
+    const updated = await loadGoals(selectedChildId);
     setGoals(updated);
     setShowForm(false);
     setSaving(false);
@@ -84,8 +91,18 @@ export default function GoalsMilestones() {
     const max = goal.target ?? goal.tokens_goal ?? 10;
     if (current >= max) return;
     const newProgress = current + 1;
-    await base44.entities.RewardToken.update(goal.id, { progress: newProgress, tokens_earned: newProgress });
-    setGoals(prev => prev.map(g => g.id === goal.id ? { ...g, progress: newProgress, tokens_earned: newProgress } : g));
+    const data = { progress: newProgress, tokens_earned: newProgress };
+    // Direct update is blocked by RLS for client sessions — fall back to backend.
+    await base44.entities.RewardToken.update(goal.id, data)
+      .catch(() => base44.functions.invoke("manageClientGoal", {
+        action: "update",
+        goal_id: goal.id,
+        child_id: goal.child_id || selectedChildId,
+        data,
+        account_id: user?.id,
+        invite_token: user?.invite_token,
+      }));
+    setGoals(prev => prev.map(g => g.id === goal.id ? { ...g, ...data } : g));
   };
 
   const selectedChild = children.find(c => c.id === selectedChildId);
