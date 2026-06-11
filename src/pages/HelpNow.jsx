@@ -311,6 +311,12 @@ export default function HelpNow() {
                 )}
               </div>
 
+              <Section
+                title="Do This Right Now"
+                items={selectedBehavior.do_this_right_now}
+                colorClass="bg-orange-50 border-orange-200 text-orange-800"
+              />
+
               {selectedBehavior.interventions && selectedBehavior.interventions.length > 0 ? (
                 <Section
                   title="Clinician-Approved Strategies"
@@ -326,6 +332,12 @@ export default function HelpNow() {
                   <p className="text-sm text-yellow-700">Please contact your clinician for guidance.</p>
                 </div>
               )}
+
+              <Section
+                title="If It Escalates"
+                items={selectedBehavior.if_it_escalates}
+                colorClass="bg-red-50 border-red-200 text-red-800"
+              />
 
               {selectedBehavior.clinical_interventions && selectedBehavior.clinical_interventions.length > 0 && (
                 <div className="mb-5">
@@ -371,6 +383,32 @@ export default function HelpNow() {
                     {selectedBehavior.avoid.map((a, i) => (
                       <p key={i} className="text-sm text-red-800 flex items-start gap-2">
                         <span className="text-red-500 font-bold mt-0.5">x</span> {a}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedBehavior.prevention_tips && selectedBehavior.prevention_tips.length > 0 && (
+                <div className="mb-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Prevention Tips</h3>
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-1.5">
+                    {selectedBehavior.prevention_tips.map((p, i) => (
+                      <p key={i} className="text-sm text-blue-800 flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" /> {p}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedBehavior.reinforcement_rewards && selectedBehavior.reinforcement_rewards.length > 0 && (
+                <div className="mb-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Reinforcement &amp; Rewards</h3>
+                  <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 space-y-1.5">
+                    {selectedBehavior.reinforcement_rewards.map((r, i) => (
+                      <p key={i} className="text-sm text-teal-800 flex items-start gap-2">
+                        <span className="flex-shrink-0 mt-0.5">⭐</span> {r}
                       </p>
                     ))}
                   </div>

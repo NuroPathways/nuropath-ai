@@ -40,6 +40,10 @@ const EXTRACT_SCHEMA = {
           emoji: { type: "string" },
           description: { type: "string" },
           what_may_be_happening: { type: "string" },
+          do_this_right_now: { type: "array", items: { type: "string" } },
+          if_it_escalates: { type: "array", items: { type: "string" } },
+          reinforcement_rewards: { type: "array", items: { type: "string" } },
+          prevention_tips: { type: "array", items: { type: "string" } },
           triggers: { type: "array", items: { type: "string" } },
           linked_goals: { type: "array", items: { type: "string" } },
           interventions: { type: "array", items: { type: "string" } },
@@ -76,6 +80,10 @@ Extract everything present in these specific documents:
    - emoji: a fitting emoji
    - description: what this behavior looks like
    - what_may_be_happening: a simple, parent-friendly explanation of WHY this behavior happens, based on the documents
+   - do_this_right_now: 3-6 ordered, concrete steps to take in the moment, written in plain language (list)
+   - if_it_escalates: 3-5 ordered de-escalation steps if the behavior gets worse (list)
+   - reinforcement_rewards: how to reinforce and reward progress for this behavior (list)
+   - prevention_tips: practical tips to prevent this behavior before it starts (list)
    - triggers: known triggers (list)
    - interventions: the USER VERSION — step-by-step clinician-approved actions written in plain everyday language a parent can do right now (list, in order)
    - clinical_interventions: the CLINICAL VERSION — the exact clinician wording/terminology for the same strategies (list)
@@ -89,8 +97,10 @@ Extract everything present in these specific documents:
 
 CRITICAL RULES:
 - TRANSLATION: "interventions" = plain everyday language (User Version). "clinical_interventions" = exact clinician wording (Clinical Version). Same meaning. Example — Clinical: "Utilize antecedent modification and differential reinforcement." User: "Reduce common triggers and reward calm participation immediately."
-- NO HALLUCINATION: Only include interventions that actually appear in these documents. If a behavior has no documented strategy, leave its interventions list EMPTY. Never invent strategies.
-- Only extract what is actually in these specific documents. Return empty arrays for anything not present.`;
+- GENERALIZE ACROSS BEHAVIORS: If a strategy, reinforcement approach, or prevention tip is documented for one behavior and clinically applies to another related behavior, include it under BOTH (e.g. reinforcement strategies used for presentation avoidance also apply to social avoidance). Adapt wording so it fits each behavior.
+- GENERALIZED GUIDANCE: For do_this_right_now, if_it_escalates, reinforcement_rewards, and prevention_tips, ALWAYS fill these in for every behavior. Base them on the documented treatment approach where possible; where documents lack specifics, supplement with widely-accepted, generalized, evidence-based guidance consistent with the documented diagnoses and treatment style. Keep them practical and parent-friendly.
+- "interventions" and "clinical_interventions" must still come from the documents themselves (including those generalized from related behaviors in the documents). If truly nothing applies, leave them empty.
+- Return empty arrays only when nothing in the documents AND no reasonable generalized guidance applies.`;
 
   const mergeArr = (a, b) => [...new Set([...(a || []), ...(b || [])].map(x => (x || "").toString().trim()).filter(Boolean))];
   const mergeBehaviors = (existing, incoming) => {
@@ -106,6 +116,10 @@ CRITICAL RULES:
           what_may_be_happening: b.what_may_be_happening || prev.what_may_be_happening,
           when_to_contact_clinician: b.when_to_contact_clinician || prev.when_to_contact_clinician,
           triggers: mergeArr(prev.triggers, b.triggers),
+          do_this_right_now: mergeArr(prev.do_this_right_now, b.do_this_right_now),
+          if_it_escalates: mergeArr(prev.if_it_escalates, b.if_it_escalates),
+          reinforcement_rewards: mergeArr(prev.reinforcement_rewards, b.reinforcement_rewards),
+          prevention_tips: mergeArr(prev.prevention_tips, b.prevention_tips),
           interventions: mergeArr(prev.interventions, b.interventions),
           clinical_interventions: mergeArr(prev.clinical_interventions, b.clinical_interventions),
           avoid: mergeArr(prev.avoid, b.avoid),

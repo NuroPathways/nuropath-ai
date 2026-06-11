@@ -77,6 +77,30 @@
           "what_may_be_happening": {
             "type": "string"
           },
+          "do_this_right_now": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "if_it_escalates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reinforcement_rewards": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "prevention_tips": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "triggers": {
             "type": "array",
             "items": {
