@@ -8,6 +8,9 @@
     "parent_id": {
       "type": "string"
     },
+    "clinician_id": {
+      "type": "string"
+    },
     "goal_title": {
       "type": "string",
       "description": "Title of the goal or milestone"
@@ -85,6 +88,11 @@
         },
         {
           "clinician_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
         }
       ]
     },

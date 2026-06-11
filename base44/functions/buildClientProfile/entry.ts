@@ -183,6 +183,7 @@ CRITICAL RULES:
     base44.asServiceRole.entities.RewardToken.create({
       child_id: child.id,
       parent_id: child.parent_id,
+      clinician_id: child.clinician_id,
       goal_title: goal.title,
       goal_description: goal.description || "",
       frequency: FREQ.includes(goal.timeline) ? goal.timeline : "weekly",
