@@ -207,13 +207,13 @@ CRITICAL RULES:
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
     const body = await req.json().catch(() => ({}));
+    // May be null for username+code client sessions (no Base44 token).
+    const user = await base44.auth.me().catch(() => null);
 
     if (body.all) {
       // Rebuild for all clients assigned to this clinician (or all clients if admin)
+      if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
       const isClinician = user.app_role === "clinician" || user.role === "clinician";
       const isAdmin = user.role === "admin";
       if (!isClinician && !isAdmin) return Response.json({ error: 'Forbidden' }, { status: 403 });
@@ -234,9 +234,29 @@ Deno.serve(async (req) => {
     }
 
     if (!body.child_id) return Response.json({ error: 'child_id required' }, { status: 400 });
-    const children = await base44.asServiceRole.entities.Child.filter({ id: body.child_id }).catch(() => []);
+    const svc = base44.asServiceRole.entities;
+    const children = await svc.Child.filter({ id: body.child_id }).catch(() => []);
     const child = children[0];
     if (!child) return Response.json({ error: 'Child not found' }, { status: 404 });
+
+    // Authorize: a logged-in Base44 user (clinician/admin/parent) OR a username+code
+    // client session (account_id + invite_token), matching getClientPortalData's logic.
+    let authorized = false;
+    if (user) {
+      authorized =
+        user.role === 'admin' ||
+        child.clinician_id === user.id ||
+        child.parent_id === user.id ||
+        child.parent_email === user.email;
+    }
+    if (!authorized && body.account_id && body.invite_token) {
+      const account = (await svc.ClientAccount.filter({ id: body.account_id }))[0] || null;
+      authorized = !!account &&
+        account.invite_token === body.invite_token &&
+        account.is_active !== false &&
+        (child.family_id === account.family_id || child.parent_id === account.id);
+    }
+    if (!authorized) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const result = await buildForChild(base44, child);
     return Response.json({ success: true, ...result });

@@ -130,7 +130,11 @@ export default function HelpNow() {
   const runBuild = async (foundChild) => {
     setScanning(true);
     try {
-      await base44.functions.invoke("buildClientProfile", { child_id: foundChild.id });
+      await base44.functions.invoke("buildClientProfile", {
+        child_id: foundChild.id,
+        account_id: user?.id,
+        invite_token: user?.invite_token,
+      });
       const refreshed = await base44.entities.ClientProfile.filter({ child_id: foundChild.id }).catch(() => []);
       if (refreshed.length > 0) setProfile(refreshed[0]);
     } catch (e) { /* keep whatever profile we already have */ }
