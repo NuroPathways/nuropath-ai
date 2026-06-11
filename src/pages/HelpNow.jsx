@@ -194,6 +194,15 @@ export default function HelpNow() {
     : allGoalTitles;
   const docsExist = false; // docs state removed; autoScan handles everything
 
+  // Measurable objectives related to the selected behavior (loose name match)
+  const objectivesForBehavior = (selectedBehavior && profile && profile.objectives)
+    ? profile.objectives.filter(o => {
+        const t = (o.target_behavior || "").toLowerCase();
+        const n = (selectedBehavior.name || "").toLowerCase();
+        return t && (n.includes(t) || t.includes(n) || n.split(" ").some(w => w.length > 4 && t.includes(w)));
+      })
+    : [];
+
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -318,6 +327,20 @@ export default function HelpNow() {
                 </div>
               )}
 
+              {selectedBehavior.clinical_interventions && selectedBehavior.clinical_interventions.length > 0 && (
+                <div className="mb-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Clinical Techniques In Use</h3>
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                    <p className="text-sm text-purple-800 mb-2">Your clinician is using these therapeutic approaches:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedBehavior.clinical_interventions.map((ci, i) => (
+                        <span key={i} className="text-xs bg-white border border-purple-200 text-purple-700 font-medium px-2.5 py-1 rounded-full">{ci}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {selectedBehavior.what_may_be_happening && (
                 <div className="mb-5">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Why This Is Happening</h3>
@@ -369,6 +392,36 @@ export default function HelpNow() {
                         <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
                         <p className="text-sm font-medium text-foreground">{goal}</p>
                       </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {objectivesForBehavior.length > 0 && (
+                <div className="mb-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Progress Being Tracked</h3>
+                  <div className="space-y-2">
+                    {objectivesForBehavior.map((obj, i) => (
+                      <div key={i} className="bg-card border border-border rounded-xl p-4">
+                        <p className="text-sm font-semibold text-foreground mb-1">{obj.target_behavior}</p>
+                        <p className="text-sm text-muted-foreground">{obj.measurable_outcome}</p>
+                        {obj.completion_criteria && obj.completion_criteria !== "Not specified in documentation" && (
+                          <p className="text-xs text-muted-foreground mt-1.5"><span className="font-semibold">Success looks like:</span> {obj.completion_criteria}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {profile && profile.safety_procedures && profile.safety_procedures.length > 0 && (
+                <div className="mb-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Safety Notes</h3>
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-1.5">
+                    {profile.safety_procedures.map((s, i) => (
+                      <p key={i} className="text-sm text-emerald-800 flex items-start gap-2">
+                        <ShieldAlert className="w-4 h-4 flex-shrink-0 mt-0.5" /> {s}
+                      </p>
                     ))}
                   </div>
                 </div>
