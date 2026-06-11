@@ -41,12 +41,24 @@ export default function GoalsMilestones() {
     load();
   }, [user, childIdParam]);
 
+  const loadGoals = async (cid) => {
+    // Direct read works for logged-in users; client sessions (username+code) are
+    // blocked by RLS, so fall back to the authorized backend.
+    let r = await base44.entities.RewardToken.filter({ child_id: cid }).catch(() => null);
+    if (!r || r.length === 0) {
+      r = await base44.functions.invoke("getClientPortalData", {
+        child_id: cid,
+        account_id: user?.id,
+        invite_token: user?.invite_token,
+      }).then(res => res?.data?.goals || []).catch(() => []);
+    }
+    return r;
+  };
+
   useEffect(() => {
     if (!selectedChildId) { setLoading(false); return; }
     setLoading(true);
-    base44.entities.RewardToken.filter({ child_id: selectedChildId })
-      .then(r => { setGoals(r); setLoading(false); })
-      .catch(() => setLoading(false));
+    loadGoals(selectedChildId).then(r => { setGoals(r); setLoading(false); });
   }, [selectedChildId]);
 
   const handleAdd = async () => {

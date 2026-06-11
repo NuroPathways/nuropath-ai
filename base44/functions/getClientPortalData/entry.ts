@@ -29,14 +29,15 @@ Deno.serve(async (req) => {
     }
     if (!authorized) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const [plans, interventionPlans, documents, profiles] = await Promise.all([
+    const [plans, interventionPlans, documents, profiles, goals] = await Promise.all([
       svc.BehaviorPlan.filter({ child_id }),
       svc.InterventionPlan.filter({ child_id }),
       svc.Document.filter({ child_id }),
       svc.ClientProfile.filter({ child_id }),
+      svc.RewardToken.filter({ child_id }),
     ]);
 
-    return Response.json({ child, plans, interventionPlans, documents, profile: profiles[0] || null });
+    return Response.json({ child, plans, interventionPlans, documents, profile: profiles[0] || null, goals });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
