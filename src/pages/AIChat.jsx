@@ -40,11 +40,27 @@ async function detectIndividualClient(childId, user) {
   } catch { return false; }
 }
 
-async function buildContext(childId, childName) {
+async function buildContext(childId, childName, user) {
+  // Use portal data function for client sessions (username+code) to bypass RLS
+  const isClientSession = user && !user.role;
+  let portalPlans = [], portalDocs = [], portalInterventions = [];
+  if (isClientSession) {
+    const portalRes = await base44.functions.invoke("getClientPortalData", {
+      child_id: childId,
+      account_id: user.id,
+      invite_token: user.invite_token,
+    }).catch(() => null);
+    if (portalRes?.data) {
+      portalPlans = portalRes.data.plans || [];
+      portalDocs = portalRes.data.documents || [];
+      portalInterventions = portalRes.data.interventionPlans || [];
+    }
+  }
+
   const [plans, documents, interventions, sessions, logs] = await Promise.all([
-    base44.entities.BehaviorPlan.filter({ child_id: childId }).catch(() => []),
-    base44.entities.Document.filter({ child_id: childId }).catch(() => []),
-    base44.entities.InterventionPlan.filter({ child_id: childId }).catch(() => []),
+    isClientSession ? Promise.resolve(portalPlans) : base44.entities.BehaviorPlan.filter({ child_id: childId }).catch(() => []),
+    isClientSession ? Promise.resolve(portalDocs) : base44.entities.Document.filter({ child_id: childId }).catch(() => []),
+    isClientSession ? Promise.resolve(portalInterventions) : base44.entities.InterventionPlan.filter({ child_id: childId }).catch(() => []),
     base44.entities.AIConversation.filter({ child_id: childId }).catch(() => []),
     base44.entities.BehaviorLog.filter({ child_id: childId }).catch(() => []),
   ]);
@@ -202,7 +218,7 @@ export default function AIChat() {
     const child = children.find(c => c.id === selectedChildId);
     setLoadingContext(true);
     Promise.all([
-      buildContext(selectedChildId, child?.child_name || ""),
+      buildContext(selectedChildId, child?.child_name || "", user),
       detectIndividualClient(selectedChildId, user),
     ]).then(([ctx, isInd]) => {
       setClinicianContext(ctx);

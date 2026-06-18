@@ -24,6 +24,22 @@ export const AuthProvider = ({ children }) => {
       setIsLoadingPublicSettings(true);
       setAuthError(null);
 
+      // Check for a valid client session FIRST — before any Base44 auth calls.
+      // This prevents client sessions from being wiped by a 401 from base44.auth.me().
+      let clientSession = getClientSession();
+      if (clientSession && !clientSession.invite_token) {
+        clearClientSession();
+        clientSession = null;
+      }
+      if (clientSession) {
+        setUser(clientSession);
+        setIsAuthenticated(true);
+        setIsLoadingPublicSettings(false);
+        setIsLoadingAuth(false);
+        setAuthChecked(true);
+        return;
+      }
+
       const appClient = createAxiosClient({
         baseURL: `/api/apps/public`,
         headers: { 'X-App-Id': appParams.appId },
@@ -39,25 +55,23 @@ export const AuthProvider = ({ children }) => {
       } catch (appError) {
         console.error('App state check failed:', appError);
         if (appError.status === 403 && appError.data?.extra_data?.reason) {
-            const reason = appError.data.extra_data.reason;
-            if (reason === 'auth_required') {
-              // Don't give up — try client session fallback first
-              setIsLoadingPublicSettings(false);
-              await checkUserAuth();
-              // Only set auth_required error if client session also failed
-              // (checkUserAuth sets isLoadingAuth/authChecked/authError itself)
-              return;
-            } else if (reason === 'user_not_registered') {
-              setAuthError({ type: 'user_not_registered', message: 'User not registered for this app' });
-            } else {
-              setAuthError({ type: reason, message: appError.message });
-            }
+          const reason = appError.data.extra_data.reason;
+          if (reason === 'user_not_registered') {
+            setAuthError({ type: 'user_not_registered', message: 'User not registered for this app' });
+          } else if (reason === 'auth_required') {
+            // Try Base44 auth — if user is logged in via email this will work
+            setIsLoadingPublicSettings(false);
+            await checkUserAuth();
+            return;
           } else {
-            setAuthError({ type: 'unknown', message: appError.message || 'Failed to load app' });
+            setAuthError({ type: reason, message: appError.message });
           }
-          setIsLoadingPublicSettings(false);
-          setIsLoadingAuth(false);
-          setAuthChecked(true);
+        } else {
+          setAuthError({ type: 'unknown', message: appError.message || 'Failed to load app' });
+        }
+        setIsLoadingPublicSettings(false);
+        setIsLoadingAuth(false);
+        setAuthChecked(true);
       }
     } catch (error) {
       console.error('Unexpected error:', error);
@@ -75,25 +89,8 @@ export const AuthProvider = ({ children }) => {
       setUser(currentUser);
       setIsAuthenticated(true);
     } catch (error) {
-      // Fall back to client session (username+code login) if Base44 auth fails
-      let clientSession = getClientSession();
-      // Stale sessions saved before invite_token existed can't authorize backend
-      // calls — clear them so the user signs in again and gets a complete session.
-      if (clientSession && !clientSession.invite_token) {
-        clearClientSession();
-        clientSession = null;
-      }
-      if (clientSession) {
-        setUser(clientSession);
-        setIsAuthenticated(true);
-      } else {
-        console.error('User auth check failed:', error);
-        setIsAuthenticated(false);
-        // Only set auth_required if not already set from a previous check
-        if ((error.status === 401 || error.status === 403) && !authError) {
-          setAuthError({ type: 'auth_required', message: 'Authentication required' });
-        }
-      }
+      console.error('User auth check failed:', error);
+      setIsAuthenticated(false);
     } finally {
       setIsLoadingAuth(false);
       setAuthChecked(true);
