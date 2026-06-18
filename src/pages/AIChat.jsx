@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Send, Brain, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -165,7 +166,7 @@ IMPORTANT RESPONSE RULES:
 }
 
 export default function AIChat() {
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState("");
   const [isIndividualClient, setIsIndividualClient] = useState(false);
@@ -177,23 +178,24 @@ export default function AIChat() {
   const bottomRef = useRef(null);
 
   useEffect(() => {
+    if (!user) return;
     const load = async () => {
-      const me = await base44.auth.me().catch(() => null);
-      if (!me) { base44.auth.redirectToLogin(window.location.href); return; }
-      setUser(me);
-      // Set account type immediately from user record — no async needed
-      if (me.account_type === "individual") setIsIndividualClient(true);
-      const [byId, byEmail] = await Promise.all([
-        base44.entities.Child.filter({ parent_id: me.id }).catch(() => []),
-        base44.entities.Child.filter({ parent_email: me.email }).catch(() => []),
-      ]);
-      const seen = new Set();
-      const merged = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+      if (user.account_type === "individual") setIsIndividualClient(true);
+      // Support client sessions (username+code) which carry children directly
+      let merged = user.children || [];
+      if (merged.length === 0) {
+        const [byId, byEmail] = await Promise.all([
+          base44.entities.Child.filter({ parent_id: user.id }).catch(() => []),
+          user.email ? base44.entities.Child.filter({ parent_email: user.email }).catch(() => []) : Promise.resolve([]),
+        ]);
+        const seen = new Set();
+        merged = [...byId, ...byEmail].filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+      }
       setChildren(merged);
       if (merged.length > 0) setSelectedChildId(merged[0].id);
     };
     load();
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!selectedChildId) return;
