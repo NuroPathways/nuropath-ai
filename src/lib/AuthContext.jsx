@@ -39,20 +39,25 @@ export const AuthProvider = ({ children }) => {
       } catch (appError) {
         console.error('App state check failed:', appError);
         if (appError.status === 403 && appError.data?.extra_data?.reason) {
-          const reason = appError.data.extra_data.reason;
-          if (reason === 'auth_required') {
-            setAuthError({ type: 'auth_required', message: 'Authentication required' });
-          } else if (reason === 'user_not_registered') {
-            setAuthError({ type: 'user_not_registered', message: 'User not registered for this app' });
+            const reason = appError.data.extra_data.reason;
+            if (reason === 'auth_required') {
+              // Don't give up — try client session fallback first
+              setIsLoadingPublicSettings(false);
+              await checkUserAuth();
+              // Only set auth_required error if client session also failed
+              // (checkUserAuth sets isLoadingAuth/authChecked/authError itself)
+              return;
+            } else if (reason === 'user_not_registered') {
+              setAuthError({ type: 'user_not_registered', message: 'User not registered for this app' });
+            } else {
+              setAuthError({ type: reason, message: appError.message });
+            }
           } else {
-            setAuthError({ type: reason, message: appError.message });
+            setAuthError({ type: 'unknown', message: appError.message || 'Failed to load app' });
           }
-        } else {
-          setAuthError({ type: 'unknown', message: appError.message || 'Failed to load app' });
-        }
-        setIsLoadingPublicSettings(false);
-        setIsLoadingAuth(false);
-        setAuthChecked(true);
+          setIsLoadingPublicSettings(false);
+          setIsLoadingAuth(false);
+          setAuthChecked(true);
       }
     } catch (error) {
       console.error('Unexpected error:', error);
@@ -84,7 +89,8 @@ export const AuthProvider = ({ children }) => {
       } else {
         console.error('User auth check failed:', error);
         setIsAuthenticated(false);
-        if (error.status === 401 || error.status === 403) {
+        // Only set auth_required if not already set from a previous check
+        if ((error.status === 401 || error.status === 403) && !authError) {
           setAuthError({ type: 'auth_required', message: 'Authentication required' });
         }
       }
