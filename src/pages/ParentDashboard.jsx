@@ -8,7 +8,6 @@ import {
   Shield, BookOpen, Zap, ArrowUpRight, Heart, User, Target
 } from "lucide-react";
 import { motion } from "framer-motion";
-import DailyCheckInModal from "@/components/parent/DailyCheckInModal";
 import WinTodayButton from "@/components/parent/WinTodayButton";
 import GoalWidget from "@/components/parent/GoalWidget";
 import StreakBadge from "@/components/parent/StreakBadge";
@@ -38,7 +37,6 @@ function SelfClientDashboard({ user, profile, unreadMessages, documents, loading
 
   return (
     <div className="min-h-screen bg-background font-inter">
-      <DailyCheckInModal userId={user?.id} childId={profile?.id} />
       <WinTodayButton userId={user?.id} children={profile ? [profile] : []} />
 
       {/* Hero */}
@@ -236,7 +234,6 @@ function FamilyDashboard({ user, children, recentLogs, unreadMessages, loading }
 
   return (
     <div className="min-h-screen bg-background font-inter">
-      <DailyCheckInModal userId={user?.id} childId={children[0]?.id} />
       <WinTodayButton userId={user?.id} children={children} />
 
       <div className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, hsl(216,38%,42%) 0%, hsl(180,29%,50%) 100%)" }}>
