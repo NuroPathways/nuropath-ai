@@ -12,6 +12,7 @@ import DailyCheckInModal from "@/components/parent/DailyCheckInModal";
 import WinTodayButton from "@/components/parent/WinTodayButton";
 import GoalWidget from "@/components/parent/GoalWidget";
 import StreakBadge from "@/components/parent/StreakBadge";
+import SupportNowOverlay from "@/components/support/SupportNowOverlay";
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -545,8 +546,18 @@ export default function ParentDashboard() {
 
   if (isIndividual) {
     const profile = children[0] || null;
-    return <SelfClientDashboard user={user} profile={profile} unreadMessages={unreadMessages} documents={documents} loading={false} />;
+    return (
+      <>
+        <SupportNowOverlay user={user} children={children} isIndividual={true} />
+        <SelfClientDashboard user={user} profile={profile} unreadMessages={unreadMessages} documents={documents} loading={false} />
+      </>
+    );
   }
 
-  return <FamilyDashboard user={user} children={children} recentLogs={recentLogs} unreadMessages={unreadMessages} loading={false} />;
+  return (
+    <>
+      <SupportNowOverlay user={user} children={children} isIndividual={false} />
+      <FamilyDashboard user={user} children={children} recentLogs={recentLogs} unreadMessages={unreadMessages} loading={false} />
+    </>
+  );
 }
