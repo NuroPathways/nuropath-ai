@@ -4,16 +4,13 @@ import { base44 } from "@/api/base44Client";
 import { Brain } from "lucide-react";
 import { motion } from "framer-motion";
 import { clearClientSession } from "@/lib/clientSession";
-import { useAuth } from "@/lib/AuthContext";
 
 export default function ClinicianLogin() {
   const navigate = useNavigate();
-  const { checkAppState } = useAuth();
 
   useEffect(() => {
     // Clear any stale client session so it doesn't shadow clinician auth
     clearClientSession();
-    checkAppState();
     base44.auth.isAuthenticated().then(async (authed) => {
       if (authed) {
         const user = await base44.auth.me();
